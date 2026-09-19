@@ -1,4 +1,4 @@
-# Is one Strix Halo enough for one developer? TL;DR Yes.
+# Is one Strix Halo enough for a dev? TL;DR Yes.
 
 ## Policy
 
