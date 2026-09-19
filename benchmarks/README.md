@@ -11,6 +11,7 @@ the batteries, the runner, and our measured results.
 | `batteries/aime60_items.py` | AIME-60: 60 competition-math items, each grading an exact integer answer |
 | `run.py` | The runner — sends items to your endpoint, grades deterministically |
 | `test_run.py` | Self-check for the runner's resume/protocol stamping (no network) |
+| `../gbench/` | the GBench probe behind the README's coding (fcb15) and zebra tables — vendored minimal runner, upstream: [PieBru/Qwen38_Strix](https://github.com/PieBru/Qwen38_Strix/tree/main/gbench) |
 | `results.json` | Our measured scores (the numbers in the README tables) |
 | `iten12-qwen38-flash-q5-v3.jsonl` / `aime-qwen38-flash-q5-v2g.jsonl` | raw per-item evidence behind the champion's published cells — the other models' cells are results.json summaries; their raw runs are not yet curated in |
 

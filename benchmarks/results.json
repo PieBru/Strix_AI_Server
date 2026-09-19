@@ -1,5 +1,5 @@
 {
-  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO.",
+  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO. GBench cells (fcb15 coding, zebra CSP) added 2026-09-19; runner vendored in gbench/.",
   "iten12": [
     {
       "model": "Qwen3.8 Flash-Next Q5_K_XL",
@@ -148,5 +148,99 @@
     "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
     "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) \u2014 keyword salad no longer passes.",
     "v3.1 iten12": "item 3 accepts 5:45 PM == 17:45 (natural clock, matching the v2 items-7/9 precedent)"
-  }
+  },
+  "fcb15": [
+    {
+      "model": "Qwen3.8 Flash-Next Q5_K_XL",
+      "ok": 10,
+      "n": 15,
+      "score": 0.667,
+      "ci95": [
+        0.417,
+        0.848
+      ],
+      "mode": "census",
+      "date": "2026-09-19",
+      "battery": "fcb15 v3",
+      "runner": "GBench probe (Wilson CI, vendored in gbench/)",
+      "note": "upstream: PieBru/Qwen38_Strix gbench; other table models' cells owed"
+    }
+  ],
+  "zebra": [
+    {
+      "model": "Qwen3.8 27B Q8_K_XL + DFlash",
+      "score": 0.55,
+      "ci95": [
+        0.342,
+        0.742
+      ],
+      "n": 20,
+      "date": "2026-09-16",
+      "battery": "zebra v1"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q5_K_XL",
+      "score": 0.5,
+      "ci95": [
+        0.254,
+        0.746
+      ],
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "zebra v1"
+    },
+    {
+      "model": "Muse-Glimmer-30B Q8",
+      "score": 0.45,
+      "ci95": [
+        0.258,
+        0.658
+      ],
+      "n": 20,
+      "date": "2026-09-16",
+      "battery": "zebra v1"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next IQ4_NL",
+      "score": 0.4167,
+      "ci95": [
+        0.193,
+        0.681
+      ],
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "zebra v1"
+    },
+    {
+      "model": "DeepSeek V4.1 Flash (cloud)",
+      "score": 0.4167,
+      "ci95": [
+        0.193,
+        0.681
+      ],
+      "n": 12,
+      "date": "2026-09-16",
+      "battery": "zebra v1",
+      "note": "cloud cell ran the same probe contract as locals"
+    },
+    {
+      "model": "GLM-5.3 (cloud)",
+      "score": 0.25,
+      "ci95": [
+        0.089,
+        0.532
+      ],
+      "n": 12,
+      "date": "2026-09-16",
+      "battery": "zebra v1",
+      "note": "cloud cell \u2014 format-artifact caveat as ever"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q6_K_XL",
+      "score": null,
+      "n": null,
+      "date": null,
+      "note": "probe incomplete upstream \u2014 owed"
+    }
+  ]
 }

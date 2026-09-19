@@ -183,8 +183,10 @@ speed, RAM, and context headroom.
 
 **Honest caveat:** at n=12, a one-item difference is within sampling noise
 (Fisher's exact p ≈ 0.49 for 12/12 vs 10/12). The battery is a floor
-check, not a top-tier discriminator. We plan to add coding and
-long-context retrieval items.
+check, not a top-tier discriminator. Coding is now covered separately
+([GBench fcb15](#coding--gbench-fcb15-deterministic-unit-tested) and
+[zebra](#zebra--csp-logic-ladder-gbench)); long-context retrieval is
+still planned.
 
 ⁷ Cloud and streamed-local models must follow the same strict format
 contract (ONE python code block printing the answer). A frontier cloud
@@ -223,6 +225,45 @@ is owed (see `aime_selection_split` in
 29/60 = 0.483. The 12-item seed-1300 subset scored 8/12 = 0.667 — the
 subset ran easy for it. The census is the more reliable cloud number;
 both are reported, none hidden.
+
+## Coding — GBench fcb15 (deterministic, unit-tested)
+
+The iten12/AIME pair can't see coding ability. **fcb15** can: 15 short,
+deterministic, unit-tested coding tasks from our GBench framework —
+minimal runner vendored in [gbench/](gbench/), full project upstream at
+[PieBru/Qwen38_Strix](https://github.com/PieBru/Qwen38_Strix/tree/main/gbench).
+Grading is outcome-based — behavioral unit tests written at grade time,
+no LLM judge, no gold-diff — and the probe reports a **Wilson 95% CI**
+with every query accounted (failed queries spend budget; a full run is
+labeled census).
+
+| model | fcb15 | CI95 |
+|---|---:|---|
+| **Flash-Next Q5_K_XL** | **0.667** (10/15, census) | 0.42–0.85 |
+
+Census wall-time on the champion: **~15 minutes** (thinking included).
+The other table models' coding cells are owed. At n=12–15 these are
+floor checks with wide CIs, not rankings — the same honesty rule as the
+rest of our tables.
+
+## Zebra — CSP logic ladder (GBench)
+
+30-item constraint-satisfaction ladder, grid-graded, same probe
+methodology (subset cells at n=12 or n=20 as labeled; seed-1300
+stratified):
+
+| model | zebra | CI95 | n |
+|---|---:|---|---:|
+| Qwen3.8 27B Q8 + DFlash | 0.55 | 0.34–0.74 | 20 |
+| **Flash-Next Q5_K_XL** | **0.50** | 0.25–0.75 | 12 |
+| Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
+| Flash-Next IQ4_NL | 0.42 | 0.19–0.68 | 12 |
+| DeepSeek V4.1 Flash (cloud) ⁷ | 0.42 | 0.19–0.68 | 12 |
+| GLM-5.3 (cloud) ⁷ | 0.25 | 0.09–0.53 | 12 |
+
+Q6's zebra cell is owed (upstream probe incomplete). Zebra is the one
+axis where the 27B pair component currently edges the champion —
+inside overlapping CIs.
 
 ## Speed at depth — how much wall-time you actually wait
 
@@ -283,6 +324,10 @@ Everything is in the repo:
   tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
   results (`results.json`). Three commands reproduce a score — see
   [benchmarks/README.md](benchmarks/README.md)
+- [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
+  batteries, Wilson-CI runner) behind the
+  [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
+  [zebra](#zebra--csp-logic-ladder-gbench) tables
 - [configs/](configs/) — exact serve commands, binary provenance (commits,
   digests, build recipes), full sha256 checksums, flag-by-flag explanations
 - [models.ini](models.ini) — the single source of truth for all serving
@@ -406,7 +451,9 @@ For those who want to check our work:
   quality parity, but a fair speed comparison is owed (the vanilla config
   may need `-ngl 999` — testing pending)
 - **Known limitation:** the iten12 battery measures translation quality,
-  not coding ability. Coding and long-context retrieval items are planned.
+  not coding ability — that is measured by the [GBench fcb15 and zebra
+  cells](#coding--gbench-fcb15-deterministic-unit-tested); long-context
+  retrieval items are planned.
 
 ## Acknowledgements
 

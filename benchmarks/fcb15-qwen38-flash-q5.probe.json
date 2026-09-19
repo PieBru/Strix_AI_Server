@@ -1,0 +1,43 @@
+{
+ "answered": 15,
+ "artifact": "results/fcb15-probe-flashq5-fcb15.jsonl",
+ "budget": 15,
+ "candidate": {
+  "battery": "fcb15",
+  "hardware": "Strix Halo gfx1151 (pwilkin HIP, Q5 arm)",
+  "model": "qwen38-flash-q5",
+  "ts": "2026-09-19"
+ },
+ "ci95": [
+  0.4171,
+  0.8482
+ ],
+ "estimate": 0.6667,
+ "k": 10,
+ "method": "Wilson score interval (implemented; not the FAQ factor model)",
+ "mode": "census",
+ "n": 15,
+ "selection": {
+  "items": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14
+  ],
+  "mode": "census (budget >= battery size)",
+  "rationale": "full battery",
+  "seed": 1300
+ },
+ "spent": 15
+}
