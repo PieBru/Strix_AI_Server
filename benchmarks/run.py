@@ -83,6 +83,23 @@ def select_items(n_items, budget, seed=1300):
     return sorted(sel)[:budget], f"stratified-random (seed {seed})"
 
 
+def select_yearsplit(n_items, budget=12, split_at=30, seed=1300):
+    """Year-stratified: half the budget from each side of split_at (AIME 2025 | 2026),
+    stratified-random within each half. Same seed discipline as select_items."""
+    import random
+    rng = random.Random(seed)
+    older = list(range(0, min(split_at, n_items)))
+    newer = list(range(min(split_at, n_items), n_items))
+    half = budget // 2
+    sel = (rng.sample(older, min(half, len(older)))
+           + rng.sample(newer, min(budget - half, len(newer))))
+    rest = [i for i in range(n_items) if i not in sel]
+    rng.shuffle(rest)
+    while len(sel) < budget and rest:
+        sel.append(rest.pop())
+    return sorted(sel)[:budget], f"year-stratified (split@{split_at}, seed {seed})"
+
+
 def extract_code(text):
     m = re.findall(r"```(?:python)?\s*(.*?)```", text or "", re.S)
     return m[-1] if m else (text or "")  # LAST block = committed answer
@@ -149,6 +166,8 @@ def main():
     ap.add_argument("--max-tokens", type=int, default=6000)
     ap.add_argument("--budget", type=int, default=None,
                     help="items to run (iten12: all; aime: 12)")
+    ap.add_argument("--selection", choices=["stratified", "yearsplit"], default="stratified",
+                    help="aime subset rule: even/odd strata (published cells) or year-stratified 2025|2026")
     ap.add_argument("--seed", type=int, default=1300)
     ap.add_argument("--out", default=None, help="JSONL output path (resume-safe)")
     args = ap.parse_args()
@@ -158,7 +177,9 @@ def main():
     bver = f"{args.battery}/{getattr(bat, 'BATTERY_VERSION', '?')}"
     items = bat.ITEMS
     budget = args.budget if args.budget is not None else default_budget
-    order, mode = select_items(len(items), budget, args.seed)
+    order, mode = (select_yearsplit(len(items), budget, seed=args.seed)
+                   if args.battery == "aime" and args.selection == "yearsplit"
+                   else select_items(len(items), budget, args.seed))
     print(f"battery={args.battery} ({getattr(bat, 'BATTERY_VERSION', '?')}) "
           f"items={len(order)} selection={mode} temp={args.temp} model={args.model}")
 

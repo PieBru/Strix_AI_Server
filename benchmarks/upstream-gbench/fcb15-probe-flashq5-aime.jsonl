@@ -1,0 +1,12 @@
+{"model": "flashq5", "item": 0, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 1, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 7, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 18, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 22, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 23, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 24, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 25, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 35, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 36, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 42, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "flashq5", "item": 49, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}

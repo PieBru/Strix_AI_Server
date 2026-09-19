@@ -1,0 +1,12 @@
+{"model": "q8df2-hip", "item": 0, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 1, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 7, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 18, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 22, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 23, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 24, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 25, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 35, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 36, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 42, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "q8df2-hip", "item": 49, "phase": "probe", "hardware": null, "ts": "2026-09-17", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}

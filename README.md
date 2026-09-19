@@ -125,9 +125,13 @@ variance at temperature 1.0. Both models are in the same quality tier.
 ⁵ Speed-at-depth probe not yet run for Q6 — the automated bench chain was
 OOM-killed before reaching it. Owed; not a zero.
 
-⁶ Server-reported decode from the scored iten12 items (n=1 each; 245-tok
-and 9.3k-tok generations), not the wall-clock probe used for Q5's cells.
-Treat as indicative: same decode tier as Q5, ±10%.
+⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
+and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
+Honesty note: that 9.3k generation exceeds the documented 6000-token cap —
+the Sep 18 journal shows generations up to ~11.9k that day, so the cell ran
+with a looser cap than the protocol states. Treat as indicative: same decode
+tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
+these cells.
 
 ## RAM accounting
 
