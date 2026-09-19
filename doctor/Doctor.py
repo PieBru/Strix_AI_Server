@@ -234,7 +234,7 @@ def stats():
     log = (f'<div class="card log"><b>ACTIVITY — model-router (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
     return (banner + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
-            f'<h2>activity</h2>{log}')
+            f'{log}')
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="https://unpkg.com/htmx.org@2"></script>
@@ -269,6 +269,8 @@ navigator.clipboard.writeText(ls).then(()=>{btn.textContent='\u2713';setTimeout(
 else fallback()}</script><style>
 body{font-family:system-ui;margin:40px auto;max-width:80%;color:#ddd;background:#111}
 h1{font-size:1.2em;color:#fff}h2{font-size:.95em;color:#888;margin:20px 0 8px}
+summary{font-size:.95em;color:#888;margin:20px 0 8px;cursor:pointer;list-style:none}
+summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 h1 .up{float:right;font-size:.55em;color:#888;font-weight:normal}
 .card{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:12px}
@@ -301,7 +303,9 @@ h1 .up{float:right;font-size:.55em;color:#888;font-weight:normal}
 </style></head><body>
 <h1>Doctor · __HOST__ · system + inference<span class="up">__UPTIME__</span></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
+<details class="actbox"><summary>activity</summary>
 <div id="stats2" hx-get="/stats2" hx-trigger="every 2s" hx-swap="innerHTML"></div>
+</details>
 </body></html>"""
 
 def res(name):
