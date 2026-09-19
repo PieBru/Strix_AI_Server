@@ -6,7 +6,7 @@ Panels: system cards (GPU/RAM/disk/CPU), inference cards (arm, service, health,
 live tg + draft acceptance from the model-router journal), error banner
 (health/service/journal/dmesg), tail-f activity log, operator links (+ /res/*
 read-only excerpts: ini header, latest morning report, live sweep results).
-Design: operator-approved."""
+Design: session 260913, operator-approved."""
 import json, shutil, subprocess, socket, glob, re, html, time, threading, os
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,7 +30,7 @@ JN = lambda n=300: subprocess.run(["journalctl","--user"]+_JU+["-n",str(n),"--no
                                   capture_output=True, text=True, timeout=8).stdout.splitlines()
 
 def gpu():
-    # pure sysfs (UMA truth): rocm-smi's VRAM% is the 1GiB carve-out (always ~90%),
+    # pure sysfs (UMA truth 260914): rocm-smi's VRAM% is the 1GiB carve-out (always ~90%),
     # not real use; GTT counters are the actual GPU-addressable memory (matches nvtop).
     try:
         d = "/sys/class/drm/card0/device/"
@@ -233,15 +233,8 @@ def stats():
         act.append(f'<div class="l {cls}">{html.escape(t[-150:])}</div>')
     log = (f'<div class="card log"><b>ACTIVITY — model-router (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
-    links = ('<div class="card links"><b>OPERATOR</b>'
-             '<a href="/res/ini">router ini (header)</a>'
-             '<a href="/res/report">latest morning report</a>'
-             '<a href="/res/sweep">spec-sweep live results</a>'
-             '<a href="/res/stats">harvest stats summary</a>'
-             '<a href="/log" target="_blank">activity log (text, Ctrl+A/C)</a>'
-             '<a href="http://127.0.0.1:8080/v1/models" target="_blank">router /v1/models</a></div>')
     return (banner + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
-            f'<h2>activity</h2>{log}{links}')
+            f'<h2>activity</h2>{log}')
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="https://unpkg.com/htmx.org@2"></script>
