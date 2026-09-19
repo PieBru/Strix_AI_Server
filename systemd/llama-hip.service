@@ -1,0 +1,25 @@
+# llama-server — Qwen3.8 Flash-Next Q5_K_XL via HIP/ROCm (fast deep-prefill)
+# All model/common config lives in models.ini — the CLI carries only
+# binary-specific flags (device + this fork's lazy-load spellings).
+# Switch to Vulkan: systemctl --user start llama-vulkan (Conflicts= handles it)
+
+[Unit]
+Description=llama-server Q5 (HIP, fast prefill)
+Conflicts=llama-vulkan.service
+
+[Service]
+Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
+Environment=GGML_HIP_ENABLE_UNIFIED_MEMORY=1
+# Update to your binary path (see configs/q5-flash-next-winner.md for build)
+# These builds ship their shared libs alongside the binary in bin/ —
+# adjust if your build installs them to lib/ instead.
+Environment=LD_LIBRARY_PATH=/opt/llama-hip/bin
+ExecStart=/opt/llama-hip/bin/llama-server \
+  --models-preset /etc/llama/models.ini \
+  -dev ROCm0 --load-mode none --lazy-mode on-direct
+MemoryMax=118G
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=default.target

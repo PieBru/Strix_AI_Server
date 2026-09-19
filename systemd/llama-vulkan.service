@@ -1,0 +1,23 @@
+# llama-server — Qwen3.8 Flash-Next Q5_K_XL via Vulkan (vanilla, upstream master)
+# All model/common config lives in models.ini — the CLI carries only
+# binary-specific flags (vanilla's spellings for lazy direct-IO).
+# Switch to HIP: systemctl --user start llama-hip (Conflicts= handles it)
+
+[Unit]
+Description=llama-server Q5 (Vulkan, vanilla upstream)
+Conflicts=llama-hip.service
+
+[Service]
+# Update to your vanilla build path (see configs/q5-flash-next-winner.md)
+# These builds ship their shared libs alongside the binary in bin/ —
+# adjust if your build installs them to lib/ instead.
+Environment=LD_LIBRARY_PATH=/opt/llama-vk/bin
+ExecStart=/opt/llama-vk/bin/llama-server \
+  --models-preset /etc/llama/models.ini \
+  -lm dio -lzm on
+MemoryMax=118G
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=default.target

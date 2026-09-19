@@ -1,0 +1,152 @@
+{
+  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO.",
+  "iten12": [
+    {
+      "model": "Qwen3.8 Flash-Next Q5_K_XL",
+      "ok": 12,
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "v3.1 (exec fix + notkw + shape + clock)",
+      "note": "re-run 2026-09-19 under hardened grader: still 12/12; the one v3 failure was a grader bug (item 3 clock), fixed in v3.1"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next IQ4_NL",
+      "ok": 12,
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "v2"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q6_K_XL",
+      "ok": 12,
+      "n": 12,
+      "date": "2026-09-18",
+      "battery": "v2"
+    },
+    {
+      "model": "Muse-Glimmer-30B Q8",
+      "ok": 11,
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "v2"
+    },
+    {
+      "model": "Qwen3.8 27B Q8_K_XL",
+      "ok": 10,
+      "n": 12,
+      "date": "2026-09-17",
+      "battery": "v2"
+    },
+    {
+      "model": "DeepSeek V4.1 Flash Q2 (local, SSD-streamed)",
+      "ok": 10,
+      "n": 12,
+      "date": "2026-09-19",
+      "note": "cloud-format caveat n/a: same contract as locals",
+      "battery": "v2"
+    },
+    {
+      "model": "GLM-5.3 (cloud)",
+      "ok": 7,
+      "n": 12,
+      "date": "2026-09-16",
+      "note": "format-compliance artifact suspected \u2014 see README footnote 7",
+      "battery": "v1-unverified"
+    }
+  ],
+  "aime": [
+    {
+      "model": "Qwen3.8 Flash-Next Q5_K_XL",
+      "ok": 10,
+      "n": 12,
+      "score": 0.833,
+      "date": "2026-09-17",
+      "battery": "v2 grader (exec fix) \u2014 re-run 2026-09-19: 10/12, identical to v1-grader cell"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q6_K_XL",
+      "ok": 8,
+      "n": 11,
+      "score": 0.727,
+      "note": "1 item INFRA (server died mid-battery). Graded-only: 8/11=0.727; counting the crash as a failure: 8/12=0.667 (ties IQ4_NL/27B). Both denominators reported.",
+      "date": "2026-09-17",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next IQ4_NL",
+      "ok": 8,
+      "n": 12,
+      "score": 0.667,
+      "date": "2026-09-17",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    },
+    {
+      "model": "Qwen3.8 27B Q8_K_XL",
+      "ok": 8,
+      "n": 12,
+      "score": 0.667,
+      "date": "2026-09-17",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    },
+    {
+      "model": "Muse-Glimmer-30B Q8",
+      "ok": 7,
+      "n": 12,
+      "score": 0.583,
+      "date": "2026-09-17",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    },
+    {
+      "model": "DeepSeek V4.1 Flash (cloud)",
+      "ok": 8,
+      "n": 12,
+      "score": 0.667,
+      "date": "2026-09-16",
+      "note": "60-item census: 29/60 = 0.483 (subset ran easy)",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    },
+    {
+      "model": "GLM-5.3 (cloud)",
+      "ok": 6,
+      "n": 12,
+      "score": 0.5,
+      "date": "2026-09-16",
+      "battery": "v1-grader (pre exec-namespace fix)"
+    }
+  ],
+  "selection": {
+    "aime_items": [
+      0,
+      1,
+      7,
+      18,
+      22,
+      23,
+      24,
+      25,
+      35,
+      36,
+      42,
+      49
+    ],
+    "method": "stratified-random seed 1300 (see run.py select_items)"
+  },
+  "protocol": {
+    "temperature": 0.0,
+    "max_tokens": 6000,
+    "tries_per_item": 2,
+    "http_timeout_s": 900,
+    "grade": "deterministic exec of the model's last python block; assertions on stdout (no LLM judge)",
+    "errored_items": "spent, not answered \u2014 excluded from denominator, counted separately"
+  },
+  "aime_selection_split": {
+    "aime25_items": 8,
+    "aime26_items": 4,
+    "note": "seed-1300 subset is 8 of 12 from AIME 2025 (solutions ~18 months public \u2014 contamination-likely); 4 from AIME 2026. Year-stratified re-cut owed."
+  },
+  "grading_changelog": {
+    "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
+    "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) \u2014 keyword salad no longer passes.",
+    "v3.1 iten12": "item 3 accepts 5:45 PM == 17:45 (natural clock, matching the v2 items-7/9 precedent)"
+  }
+}

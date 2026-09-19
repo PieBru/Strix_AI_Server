@@ -1,0 +1,29 @@
+# Doctor — 24/7 system + inference doctor (:8667), independent of llama-server;
+# auto-improving per repo Principles #3
+# Sibling of ~/sysmon.py (which it will eventually retire). Single-file
+# stdlib server + htmx: system cards (GPU/RAM/disk), inference cards
+# (resident arm, live tg + draft acc charts), error banner (health/service/
+# journal/dmesg minus known-benign patterns), tail-f activity log with copy,
+# operator links (/res/ini, morning report, sweep results, harvest stats).
+# Read-only: no ini writes, no arm swaps, no privileged calls.
+# LAN-exposed, no auth (operator decision, same trust boundary as :8080).
+# ~25 MB RSS flat, sub-1% one core (2s poll).
+#
+# Install (reference box runs the app from /home/piero/Doctor.py):
+#   cp doctor/Doctor.py ~/Doctor.py   # edit ROUTER_UNITS at the top if your
+#                                     # units differ (repo units: llama-hip,
+#                                     # llama-vulkan)
+#   install -Dm644 doctor/Doctor.service ~/.config/systemd/user/Doctor.service
+#   systemctl --user daemon-reload && systemctl --user enable --now Doctor
+
+[Unit]
+Description=Doctor — 24/7 system + inference doctor (:8667), independent of llama-server; auto-improving per repo Principles #3
+
+[Service]
+Type=simple
+ExecStart=%h/Doctor.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

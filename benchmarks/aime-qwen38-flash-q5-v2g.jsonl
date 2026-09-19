@@ -1,0 +1,12 @@
+{"model": "qwen38-flash-q5", "item": 0, "ok": true, "wall": 10.5, "tail": "```python\nprint(70)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 1, "ok": true, "wall": 81.2, "tail": "```python\nprint(588)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 7, "ok": true, "wall": 22.0, "tail": "```python\nprint(77)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 18, "ok": false, "wall": 31.5, "tail": "```python\nprint(199)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 22, "ok": true, "wall": 168.0, "tail": "f total < optimal:\n                optimal = total\n\n    if greedy_coins == optimal:\n        count += 1\n\nprint(count)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 23, "ok": true, "wall": 90.3, "tail": "```python\nprint(149)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 24, "ok": true, "wall": 42.7, "tail": "if j >= 1:\n            dp[i][j][2] = dp[i-1][j-1][1]\n\nN = dp[16][8][0] + dp[16][8][1] + dp[16][8][2]\nprint(N % 1000)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 25, "ok": true, "wall": 78.0, "tail": "```python\nprint(113)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 35, "ok": true, "wall": 24.6, "tail": "```python\nprint(441)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 36, "ok": false, "wall": 27.9, "tail": "\nfor p in permutations(range(6)):\n    if perm_order(p) | 6 == 6:  # order divides 6\n        count += 1\n\nprint(count)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 42, "ok": true, "wall": 97.1, "tail": "```python\nprint(39)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q5", "item": 49, "ok": true, "wall": 24.3, "tail": "```python\nprint(190)\n```", "ts": "2026-09-19"}
