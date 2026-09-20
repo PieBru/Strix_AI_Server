@@ -499,5 +499,20 @@
       "evidence_base": "bb3f748 \u2014 podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
       "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
     }
-  ]
+  ],
+  "sli_battery": {
+    "note": "first measurements 260920 night (strixy, paired same-box): sli saturates at both effort tiers",
+    "cells": [
+      {
+        "effort": "low",
+        "score": 1.0,
+        "n": 10
+      },
+      {
+        "effort": "medium",
+        "score": 1.0,
+        "n": 10
+      }
+    ]
+  }
 }
