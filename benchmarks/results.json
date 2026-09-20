@@ -365,6 +365,18 @@
       "date": "2026-09-20",
       "battery": "zebra v1",
       "note": "promotion gate: +0.15 over Q5-medium's 0.50, overlapping CIs; third battery confirming low-effort superiority (fcb15 +0.20, zebra +0.15, AIME flat)"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-MEDIUM, full 30)",
+      "score": 0.5333,
+      "ci95": [
+        0.3614,
+        0.6977
+      ],
+      "n": 30,
+      "date": "2026-09-20",
+      "battery": "zebra v1 full-30",
+      "note": "paired overnight run vs sharp-low; tightens the medium CI; low 0.65@n20 still leads (direction consistent at n=30)"
     }
   ],
   "aime_yearsplit": {
