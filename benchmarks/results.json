@@ -446,10 +446,10 @@
           0.5586
         ],
         "iten12": "\u2014",
-        "aime_yearsplit": "in flight"
+        "aime_yearsplit": "8/12 (0.667)"
       }
     ],
-    "note": "measured 260920 (cross-box): fcb15 effort curve = INVERTED-U: xhigh 0.267 < medium/none 0.667 < low 0.867 \u2014 more thinking tokens actively harm agentic coding (overthinking); AIME effort-FLAT (0.833/0.833/0.917); low = unambiguous winner: best coding, tied reasoning, fastest wall-clock"
+    "note": "COMPLETE 260920 (cross-box): fcb15 inverted-U (xhigh 0.267 < medium/none 0.667 < low 0.867); AIME: xhigh 0.667 < medium/low 0.833 < none 0.917 (single-item spreads). LOW = unambiguous winner (best coding, tied-best reasoning, fastest). xhigh harms BOTH axes (overthinking). Promotion of low-to-default = operator seal pending"
   },
   "template_axis_q5": {
     "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",

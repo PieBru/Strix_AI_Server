@@ -1,0 +1,12 @@
+{"model": "qwen38-flash-q5", "item": 0, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 11.2, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 9, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 120.6, "tail": "```python\nprint(81)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 11, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 187.1, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 236.4, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 17.2, "tail": "```python\nprint(106)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 22.2, "tail": "```python\nprint(237)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 30, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 19.6, "tail": "```python\nprint(277)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 33, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 45.6, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 41, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 181.7, "tail": "```python\nprint(161)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 181.2, "tail": "```python\nprint(39)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 212.1, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 54, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 212.3, "tail": "", "ts": "2026-09-20"}
