@@ -342,6 +342,17 @@
       "n": null,
       "date": null,
       "note": "probe incomplete upstream \u2014 owed"
+    },
+    {
+      "model": "Qwen3.8 27B BF16 (anchor)",
+      "score": 0.65,
+      "ci95": [
+        0.4329,
+        0.8188
+      ],
+      "n": 20,
+      "date": "2026-09-20",
+      "battery": "zebra v2 re-run (morning cell died connection-refused)"
     }
   ],
   "aime_yearsplit": {
