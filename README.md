@@ -3,8 +3,8 @@
 ## Policy
 
 1. **Quality first** — within acceptable speed
-2. **Speed floor** — at least ~200 t/s prefill and ~20 t/s generation
-   (wall-clock, not server-reported)
+2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
+   generation, then we measure wall-clock, not server-reported
 3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
    comes from enterprise-level experience and community expert consensus
    on MoE quantization robustness, not from a 12-item battery alone.
@@ -117,14 +117,17 @@ decode *degrades* even at 131k. With ngram speculation off (MTP-only,
 to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
 headroom (on strixy: after ~20–25k tokens of diverse generation; the
 overnight "items run long" and the never-completing fcb15 census were
-this same disease, unmeasured). ngram ON made onset earlier (its 51B
-table's row traffic); ngram OFF delays it, cures nothing. GPU sits at
+this same disease, unmeasured). ngram OFF delays it, cures nothing. GPU sits at
 ~13% while it crawls — disk-bound row eviction, not compute. **Q6 quality
 cells collected so far** (MTP-only): iten12 12/12, fcb15 0.50 [0.19–0.81]
-at n=6, AIME partial (paused by operator at ~2 t/s). **Speed fix owed:**
-shrink the resident footprint (c=32k + KV q8_0 buys ~10–15 GiB back);
-acceptance ≥ 20 t/s sustained over a 10-min burst. Until then Q6 is a
-fresh-load tier, not a sustained-serving tier.
+at n=6, AIME partial (paused by operator at ~2 t/s). **Both speed-cure
+arms ran and failed (260920 evening):** `--load-mode mmap --lazy-mode on`
+= kernel reclaim war (tg flat 2.59 from token one — file-backed weights
+and HIP unified memory fight over the same physical pages); `c=32768 +
+KV q8_0` = loads but wedges on first real generation (GPU 0%, zero
+timing prints, requests hang — a fork lazy-path bug). The cure is
+fork-level (or a re-quant); until then Q6 is a fresh-load tier, not a
+sustained-serving tier.
 
 ### Why not the 27B + Muse pair?
 
@@ -363,15 +366,20 @@ template default changed:
 |---|---:|---|---|---|
 | medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | 0.833 |
 | **low** | **0.867** | 0.62–0.96 | 12/12 | **0.833** |
-| none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | — |
+| none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | **0.917** |
+| xhigh | 0.267 | 0.07–0.56 | — | 0.667 |
 | *(stock template, medium)* | *0.267* | *0.11–0.52* | — | *0.583* |
 
-**Low effort is a free win — no trade.** The true sharp-low AIME cell
-(10/12, cross-box on strixy2, stamped evidence) is *identical* to
-medium's 0.833, while fcb15 gains 3 items (0.667 → 0.867) and
-wall-clock drops (fewer thinking tokens). iten12 holds 12/12 at every
-level. An earlier version of this table recorded the stock-template
-cell (0.583) as "low" — a config slip, corrected 260920.
+**The matrix is closed, and low is the unambiguous sweet spot.** On
+fcb15 the effort curve is an inverted-U — xhigh 0.267 < medium/none
+0.667 < low 0.867: *overthinking actively damages agentic coding*.
+On AIME the family is flat (0.667–0.917, single-item spreads), with
+nothink's 11/12 the best point estimate and xhigh the worst. Low
+wins coding outright, ties reasoning, and is strictly fastest in
+wall-clock — three batteries, cross-box, stamped evidence. An earlier
+version of this table recorded the stock-template cell (0.583) as
+"low" — a config slip, corrected 260920; the promotion of low to
+default awaits the operator seal.
 
 **The template is the champion's biggest single lever — measured on
 Q5 itself** (same accidental controlled run): fcb15 **0.267 → 0.667**,
@@ -424,6 +432,8 @@ stratified):
 
 | model | zebra | CI95 | n |
 |---|---:|---|---:|
+| 27B BF16 (anchor, sharp) | 0.65 | 0.43–0.82 | 20 |
+| **Flash-Next Q5 (sharp-low)** | **0.65** | 0.43–0.82 | 20 |
 | Qwen3.8 27B Q8 + DFlash | 0.55 | 0.34–0.74 | 20 |
 | **Flash-Next Q5_K_XL** | **0.50** | 0.25–0.75 | 12 |
 | Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
@@ -431,9 +441,13 @@ stratified):
 | DeepSeek V4.1 Flash (cloud) ⁷ | 0.42 | 0.19–0.68 | 12 |
 | GLM-5.3 (cloud) ⁷ | 0.25 | 0.09–0.53 | 12 |
 
-Q6's zebra cell is owed (upstream probe incomplete). Zebra is the one
-axis where the 27B pair component currently edges the champion —
-inside overlapping CIs.
+260920: the BF16 anchor row landed (0.65 — the morning cell had died
+silently on a port transition, re-run clean), and the Q5 row at
+sharp-low matches it exactly — the champion at low effort closes the
+one battery where the 27B pair edged it (overlapping CIs throughout).
+The low-effort promotion gate passed here too: +0.15 over Q5-medium's
+0.50. Zebra remains everyone's weakest battery — the CSP ladder is
+where headroom lives.
 
 ## Speed at depth — how much wall-time you actually wait
 
