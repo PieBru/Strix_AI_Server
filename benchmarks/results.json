@@ -437,9 +437,19 @@
         ],
         "iten12": "12/12",
         "aime_yearsplit": "11/12 (0.917)"
+      },
+      {
+        "effort": "xhigh",
+        "fcb15": 0.2667,
+        "ci95": [
+          0.0708,
+          0.5586
+        ],
+        "iten12": "\u2014",
+        "aime_yearsplit": "in flight"
       }
     ],
-    "note": "measured 260920 (cross-box): AIME is effort-FLAT (medium 0.833 / low 0.833 / none 0.917 \u2014 single-item differences); fcb15 is the effort-sensitive axis (low 0.867 > medium/none 0.667). Low = free win confirmed; nothink's 11/12 is the day's best point estimate but within noise of the others. xhigh cells in flight"
+    "note": "measured 260920 (cross-box): fcb15 effort curve = INVERTED-U: xhigh 0.267 < medium/none 0.667 < low 0.867 \u2014 more thinking tokens actively harm agentic coding (overthinking); AIME effort-FLAT (0.833/0.833/0.917); low = unambiguous winner: best coding, tied reasoning, fastest wall-clock"
   },
   "template_axis_q5": {
     "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",
