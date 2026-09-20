@@ -40,7 +40,8 @@ is counted in the [RAM accounting](#ram-accounting) table.
 | **pp @Nk** | prefill throughput: tokens/second while *reading* a prompt of N thousand tokens | the "how long until it starts thinking" number — dominates coding/agentic use |
 | **tg128 / tg2048** | generation speed for a 128-token / 2048-token reply | the "how fast does it type" number |
 | **wall-clock** | measured from request sent to response complete | includes all overhead; the only honest metric |
-| **12/12** | our quality gate (see below) — a pass/fail floor, not a ranking | a model at 12/12 meets our quality bar; ranking within the passing tier is by speed and RAM |
+| **12/12** | our quality gate (see below) — a pass/fail floor, not a ranking | a model at 12/12 meets our quality bar; ranking within the passing tier is by fcb15 score, speed, and RAM |
+| **fcb15** | GBench coding score (0–1), 15-item census with a Wilson 95% CI | the one *scoring* quality axis: the battery is unsaturable by design (pre-registered item swaps whenever ceilings are hit), so it discriminates inside the passing tier where 12/12 cannot — read it with the confounds note |
 
 All speed numbers are **wall-clock on real text** — prompts actually filled
 with real content, never synthetic filler (except where explicitly marked).
@@ -49,12 +50,12 @@ with real content, never synthetic filler (except where explicitly marked).
 
 All wall-clock. Higher pp/tg is better; quality is pass/fail at 12.
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | quality (iten12)¹ | RAM (weights) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | 11/12 | 32 GiB |
+| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | quality (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 0.267 | 30 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
 
@@ -137,6 +138,15 @@ the Sep 18 journal shows generations up to ~11.9k that day, so the cell ran
 with a looser cap than the protocol states. Treat as indicative: same decode
 tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
 these cells.
+
+¹⁰ fcb15 cells are census scores under battery v3 — CIs and the confounds
+note (template regime, quant tiers, short-task regime) live in
+[the coding section](#coding--gbench-fcb15-deterministic-unit-tested);
+Muse's edge over the champion is one item inside overlapping CIs.
+
+¹¹ Q6's fcb15 census is owed — items exceeded the 900 s HTTP budget at
+medium effort (the footnote-⁶ profile); a 1800 s retry is in flight, and
+the reasoning-effort sweep may replace the medium-effort cell outright.
 
 ## RAM accounting
 
@@ -257,14 +267,18 @@ both are reported, none hidden.
 
 ## Coding — GBench fcb15 (deterministic, unit-tested)
 
-The iten12/AIME pair can't see coding ability. **fcb15** can: 15 short,
-deterministic, unit-tested coding tasks from our GBench framework —
-minimal runner vendored in [gbench/](gbench/), full project upstream at
-[PieBru/Qwen38_Strix](https://github.com/PieBru/Qwen38_Strix/tree/main/gbench).
-Grading is outcome-based — behavioral unit tests written at grade time,
-no LLM judge, no gold-diff — and the probe reports a **Wilson 95% CI**
-with every query accounted (failed queries spend budget; a full run is
-labeled census).
+The iten12/AIME pair can't see coding ability, and both saturate by
+design — they are pass/fail gates. **fcb15** is different on both counts:
+15 short, deterministic, unit-tested coding tasks from our GBench
+framework — minimal runner vendored in [gbench/](gbench/), full project
+upstream at
+[PieBru/Qwen38_Strix](https://github.com/PieBru/Qwen38_Strix/tree/main/gbench)
+— and **unsaturable by design**: pre-registered item swaps fire whenever
+a model family hits the ceiling, so the score keeps discriminating. That
+is why it earns a column in the podium. Grading is outcome-based —
+behavioral unit tests written at grade time, no LLM judge, no gold-diff
+— and the probe reports a **Wilson 95% CI** with every query accounted
+(failed queries spend budget; a full run is labeled census).
 
 | model | fcb15 | CI95 |
 |---|---:|---|
