@@ -2,6 +2,14 @@
 
 ## Policy
 
+0. **SEALED 260920 (operator)** — the champion is **Qwen3.8 Flash-Next
+   UD-Q5_K_XL + the sharp template** (sharp-medium effort): the declared
+   daily driver on both boxes. Evidence base: the podium below, the
+   template axis measured on Q5 itself (+0.40 coding / +0.25 reasoning
+   vs stock), BF16-anchor parity across three batteries, and the engine
+   axis proving the tuned fork is load-bearing. Config rollout (mirror
+   template, router defaults, old-gen purge) awaits separate approval.
+
 1. **Quality first** — within acceptable speed
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
    generation, then we measure wall-clock, not server-reported

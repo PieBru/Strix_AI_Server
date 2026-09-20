@@ -478,5 +478,14 @@
       }
     ],
     "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself \u2014 the template disentangler result generalizes from IQ4/27B to Q5"
-  }
+  },
+  "seals": [
+    {
+      "date": "2026-09-20",
+      "sealed_by": "operator",
+      "decision": "CHAMPION PROMOTION: Qwen3.8 Flash-Next UD-Q5_K_XL + sharp template (sharp-medium effort) is the declared daily driver on both boxes",
+      "evidence_base": "bb3f748 \u2014 podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
+      "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
+    }
+  ]
 }
