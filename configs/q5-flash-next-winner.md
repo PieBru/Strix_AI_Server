@@ -10,7 +10,7 @@ Serves the full 262k context with room to spare.
 | model | UD-Q5_K_XL (6 shards, 147.4 GiB) | [unsloth/Qwen3.8-Flash-Next-GGUF](https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF) |
 | MTP draft | shared-Q8 (2.8 GiB) | [same repo, MTP/ dir](https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF/tree/main/MTP) |
 | chat template | sharp v22.5.0 (`qwen3.8-froggeric-v22.5.0`) — the thinking control surface; [vendored here](templates/) | [froggeric/Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates) |
-| binary | pwilkin strix-halo, commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe` | [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) |
+| binary | strix-halo build, upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe` (build 10977) — the fork's main is packaging; the commit itself resolves in upstream | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) · [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) |
 | ROCm | 10.2 nightly, gfx1151-only | AUR: `rocm-nightly-gfx1151-bin` |
 
 **Verify your download before serving** — 6 shards, 147.4 GiB total;
@@ -32,9 +32,9 @@ cdff39fb26b60dc90faa292e726655c6b21f62db497846e02e4c4bbab942a84a  sharp-v22.5.0.
 Remove old split packages first (`pacman -Rdd` the rocm/hip/hsa set) or
 pacman will refuse to install.
 
-**Note on the commit:** upstream has force-pushed since our build; the
-commit above may not resolve via the GitHub web UI, but it is the exact
-tree we built and serve from.
+**Note on the commit:** the pin is an upstream `ggml-org/llama.cpp`
+commit (verified resolving; ~131 commits behind current head at time
+of checking) — the pwilkin fork's `main` is the packaging around it.
 
 **[models.ini](../models.ini) is the canonical serve config** — the
 commands below mirror it; when they disagree, the ini wins. The systemd
