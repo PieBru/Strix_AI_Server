@@ -342,17 +342,16 @@ template default changed:
 | effort | fcb15 | CI95 | iten12 | AIME yearsplit |
 |---|---:|---|---|---|
 | medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | **0.833** |
-| **low** | **0.867** | 0.62–0.96 | 12/12 | queued |
+| **low** | **0.867** | 0.62–0.96 | 12/12 | **0.583** |
 | none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | — |
 
-**Low beats medium by 3 items on coding** — matching the community
-claim that lower reasoning effort can *improve* agentic/coding results
-on some quants (and it is strictly faster in wall-clock: fewer thinking
-tokens). CIs overlap (Fisher p ≈ 0.12) — suggestive, not yet sealed.
-The interesting shape: none ≈ medium on fcb15; brief focused reasoning
-wins over both. The AIME column decides whether low trades away
-reasoning for the coding gain — cells land tonight. If AIME holds,
-the default recipe's effort level is a live question (see Policy).
+**The trade is real, and it mirrors quantization**: low effort
+wins coding (+3 fcb15 items) and *loses reasoning* (−3 AIME items,
+7/12 vs 10/12). Low is a coding-specialist setting — faster and
+sharper on agentic/coding sessions, measurably weaker on math.
+Medium stays the general-purpose default. CIs overlap at n=12
+(Fisher p ≈ 0.2) — suggestive, consistent in direction with the
+quant note's battery-dependence finding.
 
 ### Quantization and coding/agentic quality — the honest note
 

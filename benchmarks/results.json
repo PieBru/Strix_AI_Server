@@ -404,7 +404,8 @@
           0.4171,
           0.8482
         ],
-        "iten12": "12/12"
+        "iten12": "12/12",
+        "aime_yearsplit": "0.833"
       },
       {
         "effort": "low",
@@ -413,7 +414,8 @@
           0.6212,
           0.9626
         ],
-        "iten12": "12/12"
+        "iten12": "12/12",
+        "aime_yearsplit": "7/12 (0.583)"
       },
       {
         "effort": "none(nothink)",
@@ -425,6 +427,6 @@
         "iten12": "12/12"
       }
     ],
-    "note": "measured 260920; low = +3 items over medium on fcb15 (13/15); CIs overlap (Fisher p~0.12) \u2014 suggestive, consistent with community claims; AIME effort cells owed (q5-low queued tonight)"
+    "note": "measured 260920; fcb15: low beats medium +3 items (13/15); AIME: low LOSES 3 items (7/12 vs 10/12) \u2014 effort is battery-dependent like quant: low = coding-specialist (and faster), medium stays the general-purpose default; CIs overlap at n=12 (Fisher p~0.2, suggestive); nothink fcb15 = medium"
   }
 }
