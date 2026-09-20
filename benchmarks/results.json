@@ -212,6 +212,21 @@
     {
       "model": "Qwen3.8 Flash-Next Q6_K_XL",
       "note": "owed \u2014 items exceeded the 900s HTTP budget overnight; retry with 1800s in flight"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next IQ4_NL + sharp(medium)",
+      "ok": 10,
+      "n": 15,
+      "score": 0.667,
+      "ci95": [
+        0.4171,
+        0.8482
+      ],
+      "mode": "census",
+      "date": "2026-09-20",
+      "battery": "fcb15 v3",
+      "runner": "GBench probe",
+      "note": "TEMPLATE DISENTANGLER: same quant/protocol as the overnight stock-template cell (0.333) \u2014 the sharp template DOUBLED the score. Overnight Qwen cells were template-inconsistent; uniform-template re-cut owed for 27B"
     }
   ],
   "zebra": [
@@ -314,15 +329,23 @@
       },
       {
         "model": "Qwen3.8 Flash-Next Q6_K_XL",
-        "ok": 4,
-        "n": 4,
+        "ok": 9,
+        "n": 12,
         "date": "2026-09-20",
-        "note": "partial: runner 90-min timeout at 6 rows (4 ok, 2 err); resume in flight 08:30 \u2014 final cell to follow"
+        "note": "completed via resume; one wedged-slot incident mid-run (items errored then resolved)"
       },
       {
         "model": "Qwen3.8 Flash-Next Q5_K_XL",
-        "note": "owed (smoke only touched 2 items; published cell remains the seed-1300 stratified 0.833)"
+        "note": "measured on strixy2 (lab box) \u2014 box-controls exact vs strixy",
+        "ok": 10,
+        "n": 12,
+        "date": "2026-09-20"
       }
     ]
+  },
+  "cross_box_control": {
+    "finding": "strixy and strixy2 are measured-identical: iten12 12/12 = 12/12; fcb15 0.6667 [0.4171,0.8482] = 0.667 [0.417,0.848] to the digit; AIME yearsplit 0.833 matches published stratified",
+    "date": "2026-09-20",
+    "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)"
   }
 }

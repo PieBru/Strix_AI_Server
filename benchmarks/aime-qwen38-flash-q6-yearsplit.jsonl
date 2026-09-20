@@ -4,3 +4,13 @@
 {"model": "qwen38-flash-q6", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-19"}
 {"model": "qwen38-flash-q6", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 864.4, "tail": "```python\nprint(106)\n```", "ts": "2026-09-19"}
 {"model": "qwen38-flash-q6", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 264.4, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 47.4, "tail": "# includes empty set\ncount -= 1  # remove empty set\n\nm, n = count, total\ng = gcd(m, n)\nm //= g\nn //= g\n\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 30, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 36.4, "tail": " Fraction(18, 5)\nd = p * (p + 2) / 2  # 252/25\n\nm, n = d.numerator, d.denominator\nassert gcd(m, n) == 1\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 33, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 91.9, "tail": "      if a != b:\n            v = a + b + a * b\n            if v <= 100:\n                vals.add(v)\nprint(len(vals))\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 41, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 113.4, "tail": "```python\nprint(161)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 194.2, "tail": "```python\nprint(39)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 173.4, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q6", "item": 54, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 64.6, "tail": "```python\nprint(850)\n```", "ts": "2026-09-20"}

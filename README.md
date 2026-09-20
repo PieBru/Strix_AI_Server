@@ -77,6 +77,13 @@ MTP draft, on a single 128 GB Strix Halo.
   (see the evidence note in
   [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
 
+**The template confound is measured, not hypothetical** (260920 lab
+run): IQ4_NL scored **0.333 on its stock template** overnight and
+**0.667 with the sharp template** — same quant, battery, protocol,
+hardware class; the template alone doubled the score. The
+uniform-template re-cut of the Qwen-family cells is underway (IQ4
+done, 27B in flight); Muse runs its stock template by family design.
+
 ### Why not IQ4_NL? (also 12/12, faster decode, less RAM)
 
 Our Q5+ policy (principle 3). A 12-item battery can't discriminate within

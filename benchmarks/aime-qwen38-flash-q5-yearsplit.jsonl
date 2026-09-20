@@ -1,0 +1,12 @@
+{"model": "qwen38-flash-q5", "item": 0, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 11.3, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 9, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 88.6, "tail": "```python\nprint(81)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 11, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 134.7, "tail": "```python\nprint(510)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 181.3, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 33.0, "tail": "```python\nprint(199)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 36.1, "tail": "_both = 2**8\ngood = total - bad_a - bad_b + bad_both\n\ng = gcd(good, total)\nm = good // g\nn = total // g\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 30, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 23.0, "tail": "raction(18, 5)\nd = p * (p + 2) / 2  # = 252/25\n\nm, n = d.numerator, d.denominator\nassert gcd(m, n) == 1\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 33, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 64.1, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 41, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 85.9, "tail": "x + b*Dy + 1 - c) / (1 - c)\n\nr = (a * Dx + b * Dy + 1 - c) / (1 - c)\n\nm, n = r.numerator, r.denominator\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 119.0, "tail": "```python\nprint(39)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 119.1, "tail": "\ncount = 0\nfor b in range(15, 2026):\n    area = 20 * b - 164\n    if area % 16 == 0:\n        count += 1\n\nprint(count)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 54, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 233.4, "tail": "```python\nprint(850)\n```", "ts": "2026-09-20"}
