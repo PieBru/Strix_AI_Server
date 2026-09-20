@@ -415,7 +415,7 @@
           0.9626
         ],
         "iten12": "12/12",
-        "aime_yearsplit": "OWED (true sharp-low cell not yet run; 260920 strixy2 'low' was stock-template by sed no-op)"
+        "aime_yearsplit": "10/12 (0.833)"
       },
       {
         "effort": "none(nothink)",
@@ -427,7 +427,7 @@
         "iten12": "12/12"
       }
     ],
-    "note": "measured 260920; fcb15: low beats medium +3 items (13/15); AIME: low LOSES 3 items (7/12 vs 10/12) \u2014 effort is battery-dependent like quant: low = coding-specialist (and faster), medium stays the general-purpose default; CIs overlap at n=12 (Fisher p~0.2, suggestive); nothink fcb15 = medium"
+    "note": "measured 260920 (true sharp-low template, strixy2, cross-checked): fcb15 low 0.867 vs medium 0.667 (+3 items); AIME low 0.833 = medium 0.833 (NO trade); iten12 12/12 at all levels \u2014 LOW EFFORT IS A FREE WIN: +coding, =reasoning, strictly faster. Promotion of low to default = live question for operator"
   },
   "template_axis_q5": {
     "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",

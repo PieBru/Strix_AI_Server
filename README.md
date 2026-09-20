@@ -361,22 +361,28 @@ template default changed:
 
 | effort | fcb15 | CI95 | iten12 | AIME yearsplit |
 |---|---:|---|---|---|
-| medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | **0.833** |
-| **low** | **0.867** | 0.62–0.96 | 12/12 | **owed** ¹ |
+| medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | 0.833 |
+| **low** | **0.867** | 0.62–0.96 | 12/12 | **0.833** |
 | none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | — |
 | *(stock template, medium)* | *0.267* | *0.11–0.52* | — | *0.583* |
 
-¹ *Correction (260920):* the strixy2 cell first recorded here as "low
-0.583" was actually the **stock embedded template** (a sed no-op left the
-unit without our template file) — reclassified as the template-axis row
-below. The true sharp-low AIME cell is owed.
+**Low effort is a free win — no trade.** The true sharp-low AIME cell
+(10/12, cross-box on strixy2, stamped evidence) is *identical* to
+medium's 0.833, while fcb15 gains 3 items (0.667 → 0.867) and
+wall-clock drops (fewer thinking tokens). iten12 holds 12/12 at every
+level. An earlier version of this table recorded the stock-template
+cell (0.583) as "low" — a config slip, corrected 260920.
 
-**The template is the champion's biggest single lever — now measured on
-Q5 itself** (accidental controlled run, strixy2, embedded-vs-sharp):
-fcb15 **0.267 → 0.667**, AIME **0.583 → 0.833**. The disentangler
-result first seen on IQ4 and 27B generalizes to the champion: the sharp
-template is worth +0.40 coding / +0.25 reasoning — larger than any quant
-tier step we measured.
+**The template is the champion's biggest single lever — measured on
+Q5 itself** (same accidental controlled run): fcb15 **0.267 → 0.667**,
+AIME **0.583 → 0.833**. The disentangler result first seen on IQ4 and
+27B generalizes: the sharp template is worth +0.40 coding / +0.25
+reasoning — larger than any quant-tier step we measured.
+
+**Promotion question for the operator:** with no measured downside,
+making `low` the default effort level is a live decision — the
+remaining caution is generalization (n = 12–15 per battery, CIs wide;
+fcb15 replication cross-box in flight).
 
 ### Quantization and coding/agentic quality — the honest note
 
