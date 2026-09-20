@@ -356,15 +356,15 @@
     },
     {
       "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-LOW)",
-      "score": 0.65,
+      "score": 0.5667,
       "ci95": [
-        0.4329,
-        0.8188
+        0.392,
+        0.7262
       ],
-      "n": 20,
+      "n": 30,
       "date": "2026-09-20",
-      "battery": "zebra v1",
-      "note": "promotion gate: +0.15 over Q5-medium's 0.50, overlapping CIs; third battery confirming low-effort superiority (fcb15 +0.20, zebra +0.15, AIME flat)"
+      "battery": "zebra v1 full-30",
+      "note": "full-30 re-score: low 0.567 vs medium 0.533 at n=30 both \u2014 the earlier n=20 low point (0.65) regressed to mean; low>=medium holds but the gap narrows to +0.03 at full n"
     },
     {
       "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-MEDIUM, full 30)",
