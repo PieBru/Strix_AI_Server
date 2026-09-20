@@ -121,3 +121,25 @@ Quality is identical. The tradeoff is deep-prefill speed (currently ~3.5×
 slower at 128k on Vulkan vs HIP — we're verifying whether some of this
 gap is a missing flag or a real backend difference). Use vanilla for
 upstream tracking; use HIP when prefill speed matters.
+
+### Engine axis — vanilla vs fork (260920, closed)
+
+Question: does the champion recipe depend on the pwilkin fork, or would
+upstream `llama.cpp` serve it identically?
+
+- **Model loads: YES** — UD-Q5_K_XL loads on vanilla master (3cf03257f,
+  HIP build on strixy2) and serves.
+- **MTP draft: NO** — the shared-MTP draft GGUF fails on vanilla
+  (`check_tensor_dims: tensor 'token_embd.weight' not found`); the draft
+  format needs the fork's qwen4exp/MTP support. Draft-less vanilla =
+  no speculative decode.
+- **Census load: HARD CRASH** — ~60 s into the iten12 census (first real
+  inference, experts activating) the box reset itself with no kernel
+  trace. Vanilla loads eagerly (~96 GB GTT); the fork's
+  `--load-mode none --lazy-mode on-direct` PLE path (its core feature)
+  is exactly the memory profile this model needs on 128 GB hardware.
+
+Verdict: the fork is load-bearing, not packaging convenience. Engine
+axis closed as unsafe-on-vanilla for this model/hardware class; any
+future vanilla comparison must come from upstream merging the lazy-PLE
+path (or a much smaller model).
