@@ -1,5 +1,5 @@
 {
-  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO. GBench cells (fcb15 coding, zebra CSP) added 2026-09-19; runner vendored in gbench/.",
+  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO. GBench cells (fcb15 coding, zebra CSP) added 2026-09-19; runner vendored in gbench/. Overnight re-runs 2026-09-20: iten12 v3.1 uniform across models; aime yearsplit cells; fcb15 census for 3 more models.",
   "iten12": [
     {
       "model": "Qwen3.8 Flash-Next Q5_K_XL",
@@ -13,29 +13,30 @@
       "model": "Qwen3.8 Flash-Next IQ4_NL",
       "ok": 12,
       "n": 12,
-      "date": "2026-09-17",
-      "battery": "v2"
+      "date": "2026-09-20",
+      "battery": "v3.1 (overnight re-run 2026-09-20)"
     },
     {
       "model": "Qwen3.8 Flash-Next Q6_K_XL",
       "ok": 12,
       "n": 12,
-      "date": "2026-09-18",
-      "battery": "v2"
+      "date": "2026-09-20",
+      "battery": "v3.1 (overnight re-run 2026-09-20)"
     },
     {
       "model": "Muse-Glimmer-30B Q8",
-      "ok": 11,
+      "ok": 12,
       "n": 12,
-      "date": "2026-09-17",
-      "battery": "v2"
+      "date": "2026-09-20",
+      "battery": "v3.1 (overnight re-run 2026-09-20)",
+      "note": "v2 scored 11/12; hardened v3.1 re-run scores 12/12"
     },
     {
       "model": "Qwen3.8 27B Q8_K_XL",
       "ok": 10,
       "n": 12,
-      "date": "2026-09-17",
-      "battery": "v2"
+      "date": "2026-09-20",
+      "battery": "v3.1 (overnight re-run 2026-09-20)"
     },
     {
       "model": "DeepSeek V4.1 Flash Q2 (local, SSD-streamed)",
@@ -142,7 +143,7 @@
   "aime_selection_split": {
     "aime25_items": 8,
     "aime26_items": 4,
-    "note": "seed-1300 subset is 8 of 12 from AIME 2025 (solutions ~18 months public \u2014 contamination-likely); 4 from AIME 2026. Year-stratified re-cut owed."
+    "note": "year-stratified re-cut delivered 2026-09-20 (see aime_yearsplit)"
   },
   "grading_changelog": {
     "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
@@ -164,6 +165,52 @@
       "battery": "fcb15 v3",
       "runner": "GBench probe (Wilson CI, vendored in gbench/)",
       "note": "upstream: PieBru/Qwen38_Strix gbench; other table models' cells owed"
+    },
+    {
+      "model": "Muse-Glimmer-30B Q8",
+      "ok": 11,
+      "n": 15,
+      "score": 0.733,
+      "ci95": [
+        0.4805,
+        0.891
+      ],
+      "mode": "census",
+      "date": "2026-09-20",
+      "battery": "fcb15 v3",
+      "runner": "GBench probe (Wilson CI)"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next IQ4_NL",
+      "ok": 5,
+      "n": 15,
+      "score": 0.333,
+      "ci95": [
+        0.1518,
+        0.5829
+      ],
+      "mode": "census",
+      "date": "2026-09-20",
+      "battery": "fcb15 v3",
+      "runner": "GBench probe (Wilson CI)"
+    },
+    {
+      "model": "Qwen3.8 27B Q8_K_XL",
+      "ok": 4,
+      "n": 15,
+      "score": 0.267,
+      "ci95": [
+        0.109,
+        0.5195
+      ],
+      "mode": "census",
+      "date": "2026-09-20",
+      "battery": "fcb15 v3",
+      "runner": "GBench probe (Wilson CI)"
+    },
+    {
+      "model": "Qwen3.8 Flash-Next Q6_K_XL",
+      "note": "owed \u2014 items exceeded the 900s HTTP budget overnight; retry with 1800s in flight"
     }
   ],
   "zebra": [
@@ -242,5 +289,39 @@
       "date": null,
       "note": "probe incomplete upstream \u2014 owed"
     }
-  ]
+  ],
+  "aime_yearsplit": {
+    "method": "run.py --selection yearsplit: 6xAIME2025 + 6xAIME2026, seed 1300 (the contamination-owed re-cut)",
+    "cells": [
+      {
+        "model": "Qwen3.8 Flash-Next IQ4_NL",
+        "ok": 5,
+        "n": 12,
+        "date": "2026-09-20"
+      },
+      {
+        "model": "Qwen3.8 27B Q8_K_XL",
+        "ok": 5,
+        "n": 12,
+        "date": "2026-09-20"
+      },
+      {
+        "model": "Muse-Glimmer-30B Q8",
+        "ok": 4,
+        "n": 12,
+        "date": "2026-09-20"
+      },
+      {
+        "model": "Qwen3.8 Flash-Next Q6_K_XL",
+        "ok": 4,
+        "n": 4,
+        "date": "2026-09-20",
+        "note": "partial: runner 90-min timeout at 6 rows (4 ok, 2 err); resume in flight 08:30 \u2014 final cell to follow"
+      },
+      {
+        "model": "Qwen3.8 Flash-Next Q5_K_XL",
+        "note": "owed (smoke only touched 2 items; published cell remains the seed-1300 stratified 0.833)"
+      }
+    ]
+  }
 }

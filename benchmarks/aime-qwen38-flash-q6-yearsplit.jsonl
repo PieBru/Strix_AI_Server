@@ -1,0 +1,6 @@
+{"model": "qwen38-flash-q6", "item": 0, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 10.1, "tail": "```python\nprint(70)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 9, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 119.2, "tail": "```python\nprint(81)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 11, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 230.6, "tail": "```python\nprint(510)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 864.4, "tail": "```python\nprint(106)\n```", "ts": "2026-09-19"}
+{"model": "qwen38-flash-q6", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": null, "error": "timed out", "ts": "2026-09-19"}

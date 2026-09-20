@@ -1,0 +1,15 @@
+{"model": "muse-glimmer-q8", "item": 0, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 1, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 2, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 3, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 4, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 5, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 6, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 7, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 8, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 9, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 10, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 11, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 12, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 13, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "muse-glimmer-q8", "item": 14, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}

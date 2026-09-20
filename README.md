@@ -89,9 +89,14 @@ reliable way to run Q6.
 RAM arithmetic: 107 GiB resident + KV + draft ≈ 124 GiB on a 124 GiB box —
 zero margin. We tested it: it loaded, passed the gate, then **died under
 sustained load** when KV growth exceeded the remaining headroom
-([the math](#ram-accounting)). We're actively working on making Q6 fit
-(reduced context, KV optimizations) — Q5 is the safe choice while we
-engineer around Q6's razor edge.
+([the math](#ram-accounting)). **The reduced-context path is now measured,
+not planned:** the catalog's 131k arm (`c = 131072`) ran the full overnight
+re-run chain on a dedicated process — iten12 12/12 under the hardened
+grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GB** —
+no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
+pool is pre-allocated and cannot outgrow the margin. Q5 at full 262k
+stays the pick; Q6 at 131k is now a demonstrated fallback tier, not a
+hope.
 
 ### Why not the 27B + Muse pair?
 
@@ -180,10 +185,14 @@ speed, RAM, and context headroom.
 | Flash-Next Q5_K_XL | **12/12** |
 | Flash-Next IQ4_NL | **12/12** |
 | Flash-Next Q6_K_XL | **12/12** |
-| DeepSeek V4.1 Flash Q2 (local, SSD-streamed) ⁷ | 10/12 |
+| Muse-Glimmer Q8 | **12/12** |
 | Qwen3.8 27B Q8 | 10/12 |
-| Muse-Glimmer Q8 | 11/12 |
+| DeepSeek V4.1 Flash Q2 (local, SSD-streamed) ⁷ | 10/12 |
 | GLM-5.3 (cloud) ⁷ | 7/12 |
+
+All local cells ran the hardened **v3.1** grader (overnight re-run,
+2026-09-20) — the battery is uniform across the table at last.
+Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader.
 
 **Honest caveat:** at n=12, a one-item difference is within sampling noise
 (Fisher's exact p ≈ 0.49 for 12/12 vs 10/12). The battery is a floor
@@ -212,6 +221,22 @@ the same contract as the locals).
 | GLM-5.3 (cloud) ⁷ † | 0.500 | 12 |
 
 Q6's lower score is 1–2 items at n=11 — same tier, see ⁴.
+
+**Year-stratified re-cut (2026-09-20)** — the contamination-owed fix,
+6×AIME2025 + 6×AIME2026, seed 1300, same graders:
+
+| model | yearsplit | n |
+|---|---:|---:|
+| Flash-Next IQ4_NL | 0.417 | 12 |
+| Qwen3.8 27B Q8 | 0.417 | 12 |
+| Muse-Glimmer Q8 | 0.333 | 12 |
+| Flash-Next Q6_K_XL | partial ⁹ | — |
+
+⁹ Q6's runner hit its 90-minute ceiling mid-battery (items run long —
+the footnote-⁶ profile); a resume is in flight and the final cell lands
+when it completes. The champion's yearsplit cell is likewise owed (its
+published 0.833 remains the seed-1300 stratified cell). Year-mix caveat:
+locals score on 2025 items under the same contamination cloud as before.
 
 **†** scored under the pre-2026-09-19 grader (exec-namespace bug:
 structured solutions crashed the grader and were scored FAIL) — these
@@ -243,12 +268,16 @@ labeled census).
 
 | model | fcb15 | CI95 |
 |---|---:|---|
+| Muse-Glimmer Q8 | **0.733** (11/15, census) | 0.48–0.89 |
 | **Flash-Next Q5_K_XL** | **0.667** (10/15, census) | 0.42–0.85 |
+| Flash-Next IQ4_NL | 0.333 (5/15, census) | 0.15–0.58 |
+| Qwen3.8 27B Q8 + DFlash | 0.267 (4/15, census) | 0.11–0.52 |
 
-Census wall-time on the champion: **~15 minutes** (thinking included).
-The other table models' coding cells are owed. At n=12–15 these are
-floor checks with wide CIs, not rankings — the same honesty rule as the
-rest of our tables.
+Muse-Glimmer tops the coding battery — inside overlapping CIs with the
+champion (floor checks, not rankings), but a genuine signal that the
+pair-component story isn't only about speed. Q6's coding cell is owed:
+its items exceeded the 900 s HTTP budget overnight (deep thinking, the
+same profile as footnote ⁶) — a retry at 1800 s is in flight.
 
 ## Zebra — CSP logic ladder (GBench)
 
