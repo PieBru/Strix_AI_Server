@@ -312,6 +312,38 @@ untested here. Disentangling runs owed: IQ4-with-sharp (isolates
 template), Q5-no-think (isolates thinking cost). Q6's cell is owed
 (items exceeded the 900 s HTTP budget — retry in flight).
 
+### Quantization and coding/agentic quality — the honest note
+
+The producer's benchmarks (reliable, but BF16-vs-BF16) show Flash-Next
+beating the 27B on every benchmark, with the widest gap exactly on
+agentic coding (DeepSWE 58.7 vs 42.2). Our table measures a different,
+asymmetric matchup: the 27B at Q8 (≈ BF16-parity) against Flash-Next
+at Q5/Q6 — a heavily quantized MoE. Two things we can say, one we owe:
+
+- **Measured here: the quantized flash arms do not fall below 27B-Q8.**
+  Across the cells measured to date (27B at its stock template until
+  the sharp re-cut lands), Q5 — and even the below-policy IQ4 on
+  coding — stays at or above the 27B-Q8 cells; the lone 27B edge is
+  zebra, inside overlapping CIs. No external per-quant benchmark for
+  the Flash-Next Q5/Q6 GGUFs exists to check against; community wisdom
+  is qualitative (Q5 ≈ Q6 ≈ Q8 perceptually; "flash even in Q4/Q5 over
+  the 27B" on this RAM class).
+- **Degradation-vs-self is battery-dependent.** fcb15 is quant-flat
+  (IQ4 = Q5 = 0.667 under the sharp template) while AIME shows IQ4
+  bleeding to 0.417 — reasoning depth degrades before short-task
+  codegen does. Saturated batteries cannot see this at all (iten12:
+  everyone 12/12 — the floor gate is ceiling-blind to quant loss). The
+  reasoning-effort dial interacts too (Q5's fcb15 rose 0.667 → 0.867 at
+  low effort), so quant conclusions hold only at a stated effort
+  level.
+- **Owed: the unquantized anchor.** What we cannot yet say is how far
+  Q5/Q6 sit from their BF16 selves in absolute terms — Flash-Next BF16
+  (300+ GB) can never run on this box. The 27B's BF16 (~55 GB) can: a
+  BF16-27B cell on our batteries anchors the ladder, and GEFC's
+  [non-saturating threshold layer](https://github.com/PieBru/Good-Enough-For-Coding)
+  is the definitive instrument (θ across the quant ladder — its design
+  case).
+
 ## Zebra — CSP logic ladder (GBench)
 
 30-item constraint-satisfaction ladder, grid-graded, same probe
