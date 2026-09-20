@@ -11,7 +11,12 @@
    Our battery *confirms* Q5 meets the quality gate; the floor itself is
    practitioner judgment.
 4. **llama.cpp first** — preferably the vanilla build (upstream master,
-   easy updates); the tuned HIP fork is used where prefill speed demands
+   easy updates); the tuned HIP fork is used where prefill speed demands.
+   *Measured exception (260920):* for this model family the fork is
+   load-bearing — the MTP draft GGUF is fork-format (upstream rejects
+   it), and an eager-load vanilla census hard-crashed the lab box
+   (no lazy-PLE path). Vanilla stays preferred for models it can host;
+   see the engine-axis note in `configs/q5-flash-next-winner.md`.
 5. **Open source only** — closed engines are evaluated for reference,
    never adopted
 6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
@@ -105,6 +110,21 @@ no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
 pool is pre-allocated and cannot outgrow the margin. Q5 at full 262k
 stays the pick; Q6 at 131k is now a demonstrated fallback tier, not a
 hope.
+
+**But there is a second, slower disease (260920, measured):** sustained
+decode *degrades* even at 131k. With ngram speculation off (MTP-only,
+`spec-type = draft-mtp`), fresh-load Q6 bursts at **35 t/s** — then decays
+to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
+headroom (on strixy: after ~20–25k tokens of diverse generation; the
+overnight "items run long" and the never-completing fcb15 census were
+this same disease, unmeasured). ngram ON made onset earlier (its 51B
+table's row traffic); ngram OFF delays it, cures nothing. GPU sits at
+~13% while it crawls — disk-bound row eviction, not compute. **Q6 quality
+cells collected so far** (MTP-only): iten12 12/12, fcb15 0.50 [0.19–0.81]
+at n=6, AIME partial (paused by operator at ~2 t/s). **Speed fix owed:**
+shrink the resident footprint (c=32k + KV q8_0 buys ~10–15 GiB back);
+acceptance ≥ 20 t/s sustained over a 10-min burst. Until then Q6 is a
+fresh-load tier, not a sustained-serving tier.
 
 ### Why not the 27B + Muse pair?
 
