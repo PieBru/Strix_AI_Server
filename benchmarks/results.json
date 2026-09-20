@@ -424,10 +424,11 @@
           0.4171,
           0.8482
         ],
-        "iten12": "12/12"
+        "iten12": "12/12",
+        "aime_yearsplit": "11/12 (0.917)"
       }
     ],
-    "note": "measured 260920 (true sharp-low template, strixy2, cross-checked): fcb15 low 0.867 vs medium 0.667 (+3 items); AIME low 0.833 = medium 0.833 (NO trade); iten12 12/12 at all levels \u2014 LOW EFFORT IS A FREE WIN: +coding, =reasoning, strictly faster. Promotion of low to default = live question for operator"
+    "note": "measured 260920 (cross-box): AIME is effort-FLAT (medium 0.833 / low 0.833 / none 0.917 \u2014 single-item differences); fcb15 is the effort-sensitive axis (low 0.867 > medium/none 0.667). Low = free win confirmed; nothink's 11/12 is the day's best point estimate but within noise of the others. xhigh cells in flight"
   },
   "template_axis_q5": {
     "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",

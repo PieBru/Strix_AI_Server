@@ -1,0 +1,12 @@
+{"model": "qwen38-flash-q5", "item": 0, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 79.9, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 9, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 76.8, "tail": "```python\nprint(81)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 11, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 107.9, "tail": "```python\nprint(510)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 163.8, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 39.0, "tail": "4) = 6ln2/(2ln2) = 3\n\ntotal = Fraction(31, 13) * 3  # = 93/13\nm, n = total.numerator, total.denominator\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 43.7, "tail": "ad5 + bad_both  # empty set cancels out (1-1-1+1=0)\n\ng = gcd(good, total)\nm = good // g\nn = total // g\n\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 30, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 27.9, "tail": "raction(18, 5)\nd = p * (p + 2) / 2  # = 252/25\n\nm, n = d.numerator, d.denominator\nassert gcd(m, n) == 1\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 33, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 46.9, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 41, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 74.8, "tail": "```python\nprint(161)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 98.9, "tail": "```python\nprint(39)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 116.5, "tail": ") => b \u2261 1 (mod 4)\n# b in [15, 2025], b \u2261 1 (mod 4): 17, 21, 25, ..., 2025\ncount = (2025 - 17) // 4 + 1\nprint(count)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-flash-q5", "item": 54, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 182.4, "tail": "```python\nprint(850)\n```", "ts": "2026-09-20"}
