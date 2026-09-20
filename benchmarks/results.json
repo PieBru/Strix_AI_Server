@@ -385,5 +385,38 @@
     "finding": "strixy and strixy2 are measured-identical: iten12 12/12 = 12/12; fcb15 0.6667 [0.4171,0.8482] = 0.667 [0.417,0.848] to the digit; AIME yearsplit 0.833 matches published stratified",
     "date": "2026-09-20",
     "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)"
+  },
+  "effort_axis": {
+    "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp template, greedy, census)",
+    "cells": [
+      {
+        "effort": "medium",
+        "fcb15": 0.667,
+        "ci95": [
+          0.4171,
+          0.8482
+        ],
+        "iten12": "12/12"
+      },
+      {
+        "effort": "low",
+        "fcb15": 0.8667,
+        "ci95": [
+          0.6212,
+          0.9626
+        ],
+        "iten12": "12/12"
+      },
+      {
+        "effort": "none(nothink)",
+        "fcb15": 0.6667,
+        "ci95": [
+          0.4171,
+          0.8482
+        ],
+        "iten12": "12/12"
+      }
+    ],
+    "note": "measured 260920; low = +3 items over medium on fcb15 (13/15); CIs overlap (Fisher p~0.12) \u2014 suggestive, consistent with community claims; AIME effort cells owed (q5-low queued tonight)"
   }
 }

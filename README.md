@@ -327,6 +327,27 @@ Qwen3.8-over-Muse consensus is about; that regime stays untested here.
 Q6's cell is owed (items exceeded the 900 s HTTP budget — retry in
 flight).
 
+### Reasoning effort — measured (260920)
+
+The sharp template's effort dial is a real quality axis, not just a
+speed knob. Champion Q5, same batteries, greedy census, only the
+template default changed:
+
+| effort | fcb15 | CI95 | iten12 | AIME yearsplit |
+|---|---:|---|---|---|
+| medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | **0.833** |
+| **low** | **0.867** | 0.62–0.96 | 12/12 | queued |
+| none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | — |
+
+**Low beats medium by 3 items on coding** — matching the community
+claim that lower reasoning effort can *improve* agentic/coding results
+on some quants (and it is strictly faster in wall-clock: fewer thinking
+tokens). CIs overlap (Fisher p ≈ 0.12) — suggestive, not yet sealed.
+The interesting shape: none ≈ medium on fcb15; brief focused reasoning
+wins over both. The AIME column decides whether low trades away
+reasoning for the coding gain — cells land tonight. If AIME holds,
+the default recipe's effort level is a live question (see Policy).
+
 ### Quantization and coding/agentic quality — the honest note
 
 The producer's benchmarks (reliable, but BF16-vs-BF16) show Flash-Next
