@@ -362,16 +362,21 @@ template default changed:
 | effort | fcb15 | CI95 | iten12 | AIME yearsplit |
 |---|---:|---|---|---|
 | medium (all published cells) | 0.667 | 0.42–0.85 | 12/12 | **0.833** |
-| **low** | **0.867** | 0.62–0.96 | 12/12 | **0.583** |
+| **low** | **0.867** | 0.62–0.96 | 12/12 | **owed** ¹ |
 | none (thinking off) | 0.667 | 0.42–0.85 | 12/12 | — |
+| *(stock template, medium)* | *0.267* | *0.11–0.52* | — | *0.583* |
 
-**The trade is real, and it mirrors quantization**: low effort
-wins coding (+3 fcb15 items) and *loses reasoning* (−3 AIME items,
-7/12 vs 10/12). Low is a coding-specialist setting — faster and
-sharper on agentic/coding sessions, measurably weaker on math.
-Medium stays the general-purpose default. CIs overlap at n=12
-(Fisher p ≈ 0.2) — suggestive, consistent in direction with the
-quant note's battery-dependence finding.
+¹ *Correction (260920):* the strixy2 cell first recorded here as "low
+0.583" was actually the **stock embedded template** (a sed no-op left the
+unit without our template file) — reclassified as the template-axis row
+below. The true sharp-low AIME cell is owed.
+
+**The template is the champion's biggest single lever — now measured on
+Q5 itself** (accidental controlled run, strixy2, embedded-vs-sharp):
+fcb15 **0.267 → 0.667**, AIME **0.583 → 0.833**. The disentangler
+result first seen on IQ4 and 27B generalizes to the champion: the sharp
+template is worth +0.40 coding / +0.25 reasoning — larger than any quant
+tier step we measured.
 
 ### Quantization and coding/agentic quality — the honest note
 

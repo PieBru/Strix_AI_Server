@@ -415,7 +415,7 @@
           0.9626
         ],
         "iten12": "12/12",
-        "aime_yearsplit": "7/12 (0.583)"
+        "aime_yearsplit": "OWED (true sharp-low cell not yet run; 260920 strixy2 'low' was stock-template by sed no-op)"
       },
       {
         "effort": "none(nothink)",
@@ -428,5 +428,21 @@
       }
     ],
     "note": "measured 260920; fcb15: low beats medium +3 items (13/15); AIME: low LOSES 3 items (7/12 vs 10/12) \u2014 effort is battery-dependent like quant: low = coding-specialist (and faster), medium stays the general-purpose default; CIs overlap at n=12 (Fisher p~0.2, suggestive); nothink fcb15 = medium"
+  },
+  "template_axis_q5": {
+    "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",
+    "cells": [
+      {
+        "battery": "fcb15",
+        "stock": 0.2667,
+        "sharp": 0.667
+      },
+      {
+        "battery": "AIME yearsplit",
+        "stock": "7/12 (0.583)",
+        "sharp": "10/12 (0.833)"
+      }
+    ],
+    "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself \u2014 the template disentangler result generalizes from IQ4/27B to Q5"
   }
 }

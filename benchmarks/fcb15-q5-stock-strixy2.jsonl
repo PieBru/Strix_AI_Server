@@ -1,0 +1,15 @@
+{"model": "default", "item": 0, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 1, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 2, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 3, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 4, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 5, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 6, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 7, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": true, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 8, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 9, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 10, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 11, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 12, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 13, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
+{"model": "default", "item": 14, "phase": "probe", "hardware": null, "ts": "2026-09-20", "ok": false, "budget": 15, "selection": "census (budget >= battery size)"}
