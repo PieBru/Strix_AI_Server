@@ -54,7 +54,7 @@ All wall-clock. Higher pp/tg is better; quality is pass/fail at 12.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 0.267 | 30 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
@@ -146,10 +146,12 @@ with a looser cap than the protocol states. Treat as indicative: same decode
 tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
 these cells.
 
-¹⁰ fcb15 cells are census scores under battery v3 — CIs and the confounds
-note (template regime, quant tiers, short-task regime) live in
-[the coding section](#coding--gbench-fcb15-deterministic-unit-tested);
-Muse's edge over the champion is one item inside overlapping CIs.
+¹⁰ fcb15 cells are census scores under battery v3, uniform-template
+(sharp) for the Qwen family, stock for Muse by family design — the
+measured template effect is 2–3×, so template-uniform columns are the
+only comparable ones. CIs and caveats live in
+[the coding section](#coding--gbench-fcb15-deterministic-unit-tested).
+Overlapping CIs throughout: no ranking claims.
 
 ¹¹ Q6's fcb15 census is owed — items exceeded the 900 s HTTP budget at
 medium effort (the footnote-⁶ profile); a 1800 s retry is in flight, and
@@ -294,23 +296,36 @@ Wilson ceiling in mind: two models at 15/15 are rank-indistinguishable.
 Even so, a scoring cell discriminates wherever the gate saturates — which
 is why fcb15 earns a podium column.
 
-| model | fcb15 | CI95 |
-|---|---:|---|
-| Muse-Glimmer Q8 | 0.733 (11/15, census) | 0.48–0.89 |
-| **Flash-Next Q5_K_XL** | **0.667** (10/15, census) | 0.42–0.85 |
-| Flash-Next IQ4_NL | 0.333 (5/15, census) | 0.15–0.58 |
-| Qwen3.8 27B Q8 + DFlash | 0.267 (4/15, census) | 0.11–0.52 |
+Uniform-template (sharp, medium effort) fcb15 column — Qwen arms on
+sharp, Muse on its stock template by family design:
 
-**Read this table with three confounds in mind** (260920 audit, operator
-prompted): the Muse–Q5 gap is **one item** inside overlapping CIs — no
-ranking claim. The cells mix template regimes (Qwen sharp-template arms
-vs stock-template Muse/27B — and the IQ4 arm ran stock by omission) and
-quant tiers (Muse Q8 dense vs Qwen Q5/IQ4 MoE). And fcb15 measures short,
-deterministic, unit-tested tasks — not the agentic/real-world coding the
-community's Qwen3.8-over-Muse consensus is about; that regime stays
-untested here. Disentangling runs owed: IQ4-with-sharp (isolates
-template), Q5-no-think (isolates thinking cost). Q6's cell is owed
-(items exceeded the 900 s HTTP budget — retry in flight).
+| model | template | fcb15 | CI95 |
+|---|---|---:|---|
+| Qwen3.8 27B Q8 + DFlash | sharp | **0.800** (12/15, census) | 0.55–0.93 |
+| Muse-Glimmer Q8 | stock | 0.733 (11/15, census) | 0.48–0.89 |
+| **Flash-Next Q5_K_XL** | sharp | **0.667** (10/15, census) | 0.42–0.85 |
+| Flash-Next IQ4_NL | sharp | 0.667 (10/15, census) | 0.42–0.85 |
+| Flash-Next Q6_K_XL | sharp | owed ¹¹ | — |
+
+The template is not cosmetics: measured on two arms it **doubled**
+(IQ4 0.333 → 0.667) and **tripled** (27B 0.267 → 0.800) the coding
+score. Read the ranking with the usual discipline — overlapping CIs,
+2–3-item gaps at n=15, and Muse runs a different family's template.
+Under uniform templates the BF16-parity 27B-Q8 leads coding while the
+quantized flash arms lead reasoning (AIME yearsplit 0.833/0.750/0.417
+vs 0.417) — the quantization cost is battery-dependent (see the note
+below).
+
+**How to read it** (260920 re-cut): the disentangling runs are done —
+IQ4-with-sharp doubled (0.333 → 0.667) and 27B-with-sharp tripled
+(0.267 → 0.800), so the table above is uniform-template for the Qwen
+family, and what remains is the honest residue: overlapping CIs and
+2–3-item gaps at n=15 (no crowning), Muse runs its own family's
+template by design, and fcb15 measures short, deterministic,
+unit-tested tasks — not the agentic/real-world coding the community's
+Qwen3.8-over-Muse consensus is about; that regime stays untested here.
+Q6's cell is owed (items exceeded the 900 s HTTP budget — retry in
+flight).
 
 ### Quantization and coding/agentic quality — the honest note
 
@@ -320,13 +335,13 @@ agentic coding (DeepSWE 58.7 vs 42.2). Our table measures a different,
 asymmetric matchup: the 27B at Q8 (≈ BF16-parity) against Flash-Next
 at Q5/Q6 — a heavily quantized MoE. Two things we can say, one we owe:
 
-- **Measured here: the quantized flash arms do not fall below 27B-Q8.**
-  Across the cells measured to date (27B at its stock template until
-  the sharp re-cut lands), Q5 — and even the below-policy IQ4 on
-  coding — stays at or above the 27B-Q8 cells; the lone 27B edge is
-  zebra, inside overlapping CIs. No external per-quant benchmark for
-  the Flash-Next Q5/Q6 GGUFs exists to check against; community wisdom
-  is qualitative (Q5 ≈ Q6 ≈ Q8 perceptually; "flash even in Q4/Q5 over
+- **Measured here, under uniform templates: battery-dependent.** The
+  BF16-parity 27B-Q8 leads the coding battery (fcb15 0.800 vs the
+  flash arms' 0.667 — overlapping CIs, 2 items), while the quantized
+  flash arms lead reasoning decisively (AIME yearsplit 0.833/0.750
+  vs 0.417). No external per-quant benchmark for the Flash-Next
+  Q5/Q6 GGUFs exists to check against; community wisdom is
+  qualitative (Q5 ≈ Q6 ≈ Q8 perceptually; "flash even in Q4/Q5 over
   the 27B" on this RAM class).
 - **Degradation-vs-self is battery-dependent.** fcb15 is quant-flat
   (IQ4 = Q5 = 0.667 under the sharp template) while AIME shows IQ4
