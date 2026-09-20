@@ -355,9 +355,10 @@
       },
       {
         "model": "Qwen3.8 27B Q8_K_XL",
-        "ok": 5,
+        "ok": 6,
         "n": 12,
-        "date": "2026-09-20"
+        "date": "2026-09-20",
+        "note": "sharp-medium re-cut: 6/12 (was 0.417 stock) \u2014 template matters on reasoning too, less than on coding"
       },
       {
         "model": "Muse-Glimmer-30B Q8",
@@ -378,6 +379,13 @@
         "ok": 10,
         "n": 12,
         "date": "2026-09-20"
+      },
+      {
+        "model": "Qwen3.8 27B BF16 (anchor)",
+        "ok": 9,
+        "n": 12,
+        "date": "2026-09-20",
+        "note": "UNQUANTIZED anchor at sharp-medium: 9/12 = 0.750 \u2014 vs Q8+sharp 6/12 (overlapping CIs at n=12, 3-item gap). The BF16 anchor scores BELOW Q5-quantized (10/12): flash MoE architecture dominates, not quant"
       }
     ]
   },

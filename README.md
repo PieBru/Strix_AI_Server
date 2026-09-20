@@ -246,16 +246,22 @@ Q6's lower score is 1–2 items at n=11 — same tier, see ⁴.
 
 | model | yearsplit | n |
 |---|---:|---:|
-| Flash-Next IQ4_NL | 0.417 | 12 |
-| Qwen3.8 27B Q8 | 0.417 | 12 |
-| Muse-Glimmer Q8 | 0.333 | 12 |
-| Flash-Next Q6_K_XL | partial ⁹ | — |
+| **Flash-Next Q5_K_XL** (sharp) | **0.833** | 12 |
+| Flash-Next Q6_K_XL (sharp) | 0.750 | 12 |
+| 27B BF16 anchor (sharp) | 0.750 | 12 |
+| Flash-Next IQ4_NL (stock) | 0.417 | 12 |
+| Qwen3.8 27B Q8 (stock) | 0.417 | 12 |
+| Qwen3.8 27B Q8 (sharp) | 0.500 | 12 |
+| Muse-Glimmer Q8 (stock) | 0.333 | 12 |
 
-⁹ Q6's runner hit its 90-minute ceiling mid-battery (items run long —
-the footnote-⁶ profile); a resume is in flight and the final cell lands
-when it completes. The champion's yearsplit cell is likewise owed (its
-published 0.833 remains the seed-1300 stratified cell). Year-mix caveat:
-locals score on 2025 items under the same contamination cloud as before.
+Cells run sharp-medium (template noted per cell); the stock cells are
+pre-re-cut. Two structural findings: the **27B BF16 anchor (0.750)
+lands BELOW the Q5-quantized champion (0.833)** and ties the Q6
+quant — the flash MoE architecture dominates reasoning regardless of
+quant tier; and the sharp template lifts the 27B's reasoning too
+(0.417→0.500) but far less than it lifted its coding score
+(0.267→0.800). Year-mix caveat: 2025 items remain contamination-suspect
+for locals.
 
 **†** scored under the pre-2026-09-19 grader (exec-namespace bug:
 structured solutions crashed the grader and were scored FAIL) — these

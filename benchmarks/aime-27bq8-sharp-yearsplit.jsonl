@@ -1,0 +1,12 @@
+{"model": "qwen38-27b-q8df", "item": 0, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 18.4, "tail": "```python\nprint(70)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 9, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 196.6, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 11, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 202.6, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 12, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 245.5, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 18, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 31.1, "tail": "```python\nprint(106)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 21, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 48.8, "tail": " + p2 - p1p2)\n# = 2^15 - 2^12 - 2^10 + 2^8\n\ng = gcd(favorable, total)\nm = favorable // g\nn = total // g\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 30, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 18.5, "tail": "```python\nprint(277)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 33, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 25.3, "tail": "found = True\n                break\n        if found:\n            break\n    if found:\n        count += 1\nprint(count)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 41, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 123.5, "tail": " + 18*Dy + 36 = 36*r\nr = Fraction(6*Dx + 18*Dy + 36, 36)\n# r = 122/39\nm, n = r.numerator, r.denominator\nprint(m + n)\n```", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 42, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 186.7, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 47, "bat": "aime/v2 260919", "temp": 0.0, "ok": false, "wall": 209.2, "tail": "", "ts": "2026-09-20"}
+{"model": "qwen38-27b-q8df", "item": 54, "bat": "aime/v2 260919", "temp": 0.0, "ok": true, "wall": 92.6, "tail": "0 and BD > 0 and CD > 0\n    assert 200 + 225 > BC and 200 + BC > 225 and 225 + BC > 200\n    total += BC\nprint(total)\n```", "ts": "2026-09-20"}
