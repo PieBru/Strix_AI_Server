@@ -268,16 +268,21 @@ labeled census).
 
 | model | fcb15 | CI95 |
 |---|---:|---|
-| Muse-Glimmer Q8 | **0.733** (11/15, census) | 0.48–0.89 |
+| Muse-Glimmer Q8 | 0.733 (11/15, census) | 0.48–0.89 |
 | **Flash-Next Q5_K_XL** | **0.667** (10/15, census) | 0.42–0.85 |
 | Flash-Next IQ4_NL | 0.333 (5/15, census) | 0.15–0.58 |
 | Qwen3.8 27B Q8 + DFlash | 0.267 (4/15, census) | 0.11–0.52 |
 
-Muse-Glimmer tops the coding battery — inside overlapping CIs with the
-champion (floor checks, not rankings), but a genuine signal that the
-pair-component story isn't only about speed. Q6's coding cell is owed:
-its items exceeded the 900 s HTTP budget overnight (deep thinking, the
-same profile as footnote ⁶) — a retry at 1800 s is in flight.
+**Read this table with three confounds in mind** (260920 audit, operator
+prompted): the Muse–Q5 gap is **one item** inside overlapping CIs — no
+ranking claim. The cells mix template regimes (Qwen sharp-template arms
+vs stock-template Muse/27B — and the IQ4 arm ran stock by omission) and
+quant tiers (Muse Q8 dense vs Qwen Q5/IQ4 MoE). And fcb15 measures short,
+deterministic, unit-tested tasks — not the agentic/real-world coding the
+community's Qwen3.8-over-Muse consensus is about; that regime stays
+untested here. Disentangling runs owed: IQ4-with-sharp (isolates
+template), Q5-no-think (isolates thinking cost). Q6's cell is owed
+(items exceeded the 900 s HTTP budget — retry in flight).
 
 ## Zebra — CSP logic ladder (GBench)
 
