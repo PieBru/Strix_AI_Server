@@ -82,6 +82,14 @@ where you routinely send 30k+ token prompts. The 128k cell completed at
 We keep the assets staged in case the engine opens or the prefill path
 improves. But for now: open stack, decisively.
 
+**0.12.0 (260920, vendor post):** claims a context-depth fix plus 1M-token
+context via 4× YaRN — 38 t/s decode at 1M, ~18 min cold prefill, 0.55 s
+cached follow-up. All figures **vendor-reported server timings** (64-token
+greedy windows), no quality eval at 4× extension, still closed source.
+Retired by policy stands; the 1M capability is noted as a possible
+reference cell *if* we ever build our own long-context configuration
+(Q5 + KV-q8 + YaRN).
+
 ### Independent run reports higher decode — basis unresolved, verdict unchanged
 
 [tomasreminek/strix-halo](https://github.com/tomasreminek/strix-halo)
