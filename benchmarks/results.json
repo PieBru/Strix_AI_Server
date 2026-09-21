@@ -514,5 +514,24 @@
         "n": 10
       }
     ]
+  },
+  "aime60_full": {
+    "note": "full AIME-60 battery (probe harness, distinct from yearsplit-12 run.py selection), 260921 night, paired low(strixy)/medium(strixy2)",
+    "cells": [
+      {
+        "model": "Q5+sharp-LOW",
+        "score": 0.5333,
+        "ci95": [
+          0.4089,
+          0.6537
+        ],
+        "n": 60,
+        "date": "2026-09-21"
+      },
+      {
+        "model": "Q5+sharp-MEDIUM",
+        "status": "in flight (strixy2)"
+      }
+    ]
   }
 }
