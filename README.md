@@ -2,24 +2,23 @@
 
 ## Policy
 
-
 1. **Quality first** — within acceptable speed
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
-   generation, then we measure wall-clock, not server-reported
+ generation, then we measure wall-clock, not server-reported
 3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
-   comes from enterprise-level experience and community expert consensus
-   on MoE quantization robustness, not from a 12-item battery alone.
-   Our battery *confirms* Q5 meets the quality gate; the floor itself is
-   practitioner judgment.
+ comes from enterprise-level experience and community expert consensus
+ on MoE quantization robustness, not from a 12-item battery alone.
+ Our battery *confirms* Q5 meets the quality gate; the floor itself is
+ practitioner judgment.
 4. **llama.cpp first** — preferably the vanilla build (upstream master,
-   easy updates); the tuned HIP fork is used where prefill speed demands.
-   *Measured exception (260920):* for this model family the fork is
-   load-bearing — the MTP draft GGUF is fork-format (upstream rejects
-   it), and an eager-load vanilla census hard-crashed the lab box
-   (no lazy-PLE path). Vanilla stays preferred for models it can host;
-   see the engine-axis note in `configs/q5-flash-next-winner.md`.
+ easy updates); the tuned HIP fork is used where prefill speed demands.
+ *Measured exception:* for this model family the fork is
+ load-bearing — the MTP draft GGUF is fork-format (upstream rejects
+ it), and an eager-load vanilla census hard-crashed the lab box
+ (no lazy-PLE path). Vanilla stays preferred for models it can host;
+ see the engine-axis note in `configs/q5-flash-next-winner.md`.
 5. **Open source only** — closed engines are evaluated for reference,
-   never adopted
+ never adopted
 6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
 
 ## Hardware
@@ -53,10 +52,10 @@ pass/fail at 12 — not an overall quality verdict.
 
 ### Why Q5 wins
 
-**Sealed and executed (operator, 260920/21):** the champion is
+**The standing decision:** the champion is
 **Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, with the
 promoted default effort tier **low** (sharp-low) — both boxes' serving
-configs updated and verified 260921. The evidence base: the podium
+configs updated and verified. The evidence base: the podium
 above, the template axis measured on Q5 itself (+0.40 coding / +0.25
 reasoning vs stock), BF16-anchor parity across three batteries, the
 effort matrix (low = better coding, flat elsewhere, strictly faster),
@@ -66,21 +65,21 @@ and the engine axis proving the tuned fork is load-bearing.
 MTP draft, on a single 128 GB Strix Halo.
 
 - Passes the quality gate (12/12, tied with Q6 and IQ4_NL) **and** the
-  speed floor
+ speed floor
 - Serves the full 262k-token context — whole codebases, no chunking —
-  with ~6 GiB RAM headroom ([the math](#ram-accounting))
+ with ~6 GiB RAM headroom ([the math](#ram-accounting))
 - A 32k-token prompt (a big file plus instructions) prefills in ~48
-  seconds (**672 t/s**, 260921 probe) — the axis that matters for
-  coding, and the co-resident pair can't touch this
+ seconds (**672 t/s** probe) — the axis that matters for
+ coding, and the co-resident pair can't touch this
 - One main model + draft = zero swap overhead, simplest operations
 - All **quality** scores are reproducible from this repo — serve
-  commands, checksums, unit files, the batteries, and the champion's raw
-  JSONL runs in [benchmarks/](benchmarks/), [configs/](configs/), and
-  [systemd/](systemd/). The wall-clock speed probe is not yet committed
-  (see the evidence note in
-  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
+ commands, checksums, unit files, the batteries, and the champion's raw
+ JSONL runs in [benchmarks/](benchmarks/), [configs/](configs/), and
+ [systemd/](systemd/). The wall-clock speed probe is not yet committed
+ (see the evidence note in
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
 
-**The template confound is measured, not hypothetical** (260920 lab
+**The template confound is measured, not hypothetical** lab
 run): IQ4_NL scored **0.333 on its stock template** overnight and
 **0.667 with the sharp template** — same quant, battery, protocol,
 hardware class; the template alone doubled the score. The
@@ -109,7 +108,7 @@ pool is pre-allocated and cannot outgrow the margin. Q5 at full 262k
 stays the pick; Q6 at 131k is now a demonstrated fallback tier, not a
 hope.
 
-**But there is a second, slower disease (260920, measured):** sustained
+**But there is a second, slower disease, measured):** sustained
 decode *degrades* even at 131k. With ngram speculation off (MTP-only,
 `spec-type = draft-mtp`), fresh-load Q6 bursts at **35 t/s** — then decays
 to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
@@ -118,8 +117,8 @@ overnight "items run long" and the never-completing fcb15 census were
 this same disease, unmeasured). ngram OFF delays it, cures nothing. GPU sits at
 ~13% while it crawls — disk-bound row eviction, not compute. **Q6 quality
 cells collected so far** (MTP-only): iten12 12/12, fcb15 0.50 [0.19–0.81]
-at n=6, AIME partial (paused by operator at ~2 t/s). **Both speed-cure
-arms ran and failed (260920 evening):** `--load-mode mmap --lazy-mode on`
+at n=6, AIME partial (paused by at ~2 t/s). **Both speed-cure
+arms ran and failed evening):** `--load-mode mmap --lazy-mode on`
 = kernel reclaim war (tg flat 2.59 from token one — file-backed weights
 and HIP unified memory fight over the same physical pages); `c=32768 +
 KV q8_0` = loads but wedges on first real generation (GPU 0%, zero
@@ -141,7 +140,7 @@ untested as a serving configuration.
 bidirectional translation items, graded deterministically by a Python
 harness that asserts on content keywords AND false-friend discriminators
 (*attendere* for *attend* = fail). Both natural rendering conventions are
-accepted. Battery v3.1 (2026-09-19): exec-namespace fix, false-friend
+accepted. Battery v3.1: exec-namespace fix, false-friend
 rejections on four more items, sentence-shape rule (keyword salad no
 longer passes). The Q5 cell is re-scored under v3.1 — still 12/12;
 other models' re-runs are owed. A 12/12 is a **pass/fail gate** —
@@ -164,7 +163,7 @@ OOM-killed before reaching it. Owed; not a zero.
 ⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
 and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
 Honesty note: that 9.3k generation exceeds the documented 6000-token cap —
-the Sep 18 journal shows generations up to ~11.9k that day, so the cell ran
+the journal of that window shows generations up to ~11.9k, so the cell ran
 with a looser cap than the protocol states. Treat as indicative: same decode
 tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
 these cells.
@@ -175,9 +174,9 @@ measured template effect is 2–3×, so template-uniform columns are the
 only comparable ones. CIs and caveats live in
 [the coding section](#coding--gbench-fcb15-deterministic-unit-tested).
 Overlapping CIs throughout: no ranking claims.
-   The champion's podium cell is its **promoted default tier (low,
-   0.867)**; the medium-basis cell (0.667) for uniform-template ranking
-   lives in the fcb15 chapter.
+ The champion's podium cell is its **promoted default tier (low,
+ 0.867)**; the medium-basis cell (0.667) for uniform-template ranking
+ lives in the fcb15 chapter.
 
 ¹¹ Q6's fcb15: the medium-effort census never completed (the
 footnote-⁶ long-item profile at sustained-thrash speeds). The
@@ -185,12 +184,12 @@ MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
 cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
 makes a full census uneconomic until the fork fix lands.
 
-¹⁴ Speed cells re-measured 260921 with one identical wall-clock
+¹⁴ Speed cells re-measured with one identical wall-clock
 probe (real-text corpus, request-sent→complete; tg streamed
 first→last incl. reasoning deltas; pp@128k cells ran at 159.9k real
 tokens — code-dense corpus — and are mutually comparable at equal n).
 n-max A/B for the 27B's DFlash2 draft at sustained decode: nm6 28.0 >
-nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the 260915 grid's nm7 pick doesn't
+nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the grid's nm7 pick doesn't
 generalize past short benches; nm6 stands.
 
 ¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
@@ -228,16 +227,16 @@ killed the Q6 bench chain) is the failure mode, not silent swap.
 
 Where the numbers come from:
 - **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
-  (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
-  The model is **hybrid-attention** (GGUF metadata: 48 layers,
-  `full_attention_interval = 4` — only every 4th layer retains full KV;
-  the rest are sparse/indexed with a bounded window), which is why the
-  KV is so light for a 262k context.
+ (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
+ The model is **hybrid-attention** (GGUF metadata: 48 layers,
+ `full_attention_interval = 4` — only every 4th layer retains full KV;
+ the rest are sparse/indexed with a bounded window), which is why the
+ KV is so light for a 262k context.
 - **PLE row-reader** is bounded by `-ub 4096`; larger micro-batches scale
-  it linearly, and without the bound, 32k+ prefills amplify row reads past
-  the RAM ceiling.
+ it linearly, and without the bound, 32k+ prefills amplify row reads past
+ the RAM ceiling.
 - **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
-  versions used a looser estimate — this table is the corrected one).
+ versions used a looser estimate — this table is the corrected one).
 
 ## Quality battery (iten12)
 
@@ -256,7 +255,7 @@ speed, RAM, and context headroom.
 | GLM-5.3 (cloud) ⁷ | 7/12 |
 
 All local cells ran the hardened **v3.1** grader (overnight re-run,
-2026-09-20) — the battery is uniform across the table at last.
+ — the battery is uniform across the table at last.
 Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader.
 
 **Honest caveat:** at n=12, a one-item difference is within sampling noise
@@ -287,7 +286,7 @@ the same contract as the locals).
 
 Q6's lower score is 1–2 items at n=11 — same tier, see ⁴.
 
-**Full AIME-60 battery (260921 night, probe harness — distinct from
+**Full AIME-60 battery night, probe harness — distinct from
 the yearsplit-12 selection above):** LOW **0.533** [0.41–0.65] vs
 MEDIUM **0.517** [0.39–0.64], n=60 both, paired cross-box — a dead
 tie (one-item spread). AIME is effort-flat at the largest n measured;
@@ -298,11 +297,11 @@ unsolved-era items both tiers miss).
 
 ## sli — structured-list integrity (GBench)
 
-First measurements 260921 (paired same-box): **10/10 at low = 10/10 at
+First measurements (paired same-box): **10/10 at low = 10/10 at
 medium** — the battery saturates at both tiers; no effort sensitivity.
 Useful as a regression canary, not as a discriminator.
 
-**Year-stratified re-cut (2026-09-20)** — the contamination-owed fix,
+**Year-stratified re-cut** — the contamination-owed fix,
 6×AIME2025 + 6×AIME2026, seed 1300, same graders:
 
 | model | yearsplit | n |
@@ -324,7 +323,7 @@ quant tier; and the sharp template lifts the 27B's reasoning too
 (0.267→0.800). Year-mix caveat: 2025 items remain contamination-suspect
 for locals.
 
-**†** scored under the pre-2026-09-19 grader (exec-namespace bug:
+**†** scored under the pre- grader (exec-namespace bug:
 structured solutions crashed the grader and were scored FAIL) — these
 cells skew low. Only Q5's AIME cell has been re-run under the fixed
 grader; the remaining re-runs are owed (see `grading_changelog` in
@@ -364,7 +363,7 @@ Even so, a scoring cell discriminates wherever the gate saturates — which
 is why fcb15 earns a podium column.
 
 Uniform-template fcb15 column — sharp family, effort noted per cell
-(**low is the promoted default**, 260921):
+(**low is the promoted default**:
 
 | model | template / effort | fcb15 | CI95 |
 |---|---|---:|---|
@@ -388,12 +387,12 @@ flash arms lead reasoning — the quantization cost is battery-dependent
 
 **Reproducing a cell (for agents).** Pin *both* the template file and
 the effort tier or the number is garbage — a stock-template run reads
-as a different model (that exact mislabel happened here, 260920):
+as a different model (that exact mislabel happened here:
 
 ```bash
 cd gbench && uv run python3 scripts/probe.py --battery fcb15 \
-  --budget 15 --tag <model>-<template>-<effort> --model <arm> \
-  --http-timeout 2700 --rdir <evidence-dir>
+ --budget 15 --tag <model>-<template>-<effort> --model <arm> \
+ --http-timeout 2700 --rdir <evidence-dir>
 ```
 
 The arm's `chat-template-file` (now `sharp-v22.5.0-low.jinja` by
@@ -403,7 +402,7 @@ cell with `answered < budget` is an incident, not a score. Evidence
 is the stamped `.jsonl` + Wilson `.json` pair in `--rdir`; the repo
 copies live in `benchmarks/`.
 
-**How to read it** (260920 re-cut): the disentangling runs are done —
+**How to read it** re-cut): the disentangling runs are done —
 IQ4-with-sharp doubled (0.333 → 0.667) and 27B-with-sharp tripled
 (0.267 → 0.800), so the table above is uniform-template for the Qwen
 family, and what remains is the honest residue: overlapping CIs and
@@ -414,7 +413,7 @@ Qwen3.8-over-Muse consensus is about; that regime stays untested here.
 Q6's cell is owed (items exceeded the 900 s HTTP budget — retry in
 flight).
 
-### Reasoning effort — measured (260920)
+### Reasoning effort — measured
 
 The sharp template's effort dial is a real quality axis, not just a
 speed knob. Champion Q5, same batteries, greedy census, only the
@@ -435,10 +434,10 @@ On AIME the family is flat (0.667–0.917, single-item spreads), with
 nothink's 11/12 the best point estimate and xhigh the worst. Low
 wins coding outright, ties reasoning, and is strictly fastest in
 wall-clock — three batteries, cross-box, stamped evidence. **Promoted
-to the serving default 260921 (operator directive; both boxes
+to the serving default ( directive; both boxes
 verified by live generation).** An earlier version of this table
 recorded the stock-template cell (0.583) as "low" — a config slip,
-corrected 260920.
+corrected.
 
 **The template is the champion's biggest single lever — measured on
 Q5 itself** (same accidental controlled run): fcb15 **0.267 → 0.667**,
@@ -446,7 +445,7 @@ AIME **0.583 → 0.833**. The disentangler result first seen on IQ4 and
 27B generalizes: the sharp template is worth +0.40 coding / +0.25
 reasoning — larger than any quant-tier step we measured.
 
-**Promotion question for the operator:** with no measured downside,
+**Promotion question for the :** with no measured downside,
 making `low` the default effort level is a live decision — the
 remaining caution is generalization (n = 12–15 per battery, CIs wide;
 fcb15 replication cross-box in flight).
@@ -460,28 +459,28 @@ asymmetric matchup: the 27B at Q8 (≈ BF16-parity) against Flash-Next
 at Q5/Q6 — a heavily quantized MoE. Two things we can say, one we owe:
 
 - **Measured here, under uniform templates: battery-dependent.** The
-  BF16-parity 27B-Q8 leads the coding battery (fcb15 0.800 vs the
-  flash arms' 0.667 — overlapping CIs, 2 items), while the quantized
-  flash arms lead reasoning decisively (AIME yearsplit 0.833/0.750
-  vs 0.417). No external per-quant benchmark for the Flash-Next
-  Q5/Q6 GGUFs exists to check against; community wisdom is
-  qualitative (Q5 ≈ Q6 ≈ Q8 perceptually; "flash even in Q4/Q5 over
-  the 27B" on this RAM class).
+ BF16-parity 27B-Q8 leads the coding battery (fcb15 0.800 vs the
+ flash arms' 0.667 — overlapping CIs, 2 items), while the quantized
+ flash arms lead reasoning decisively (AIME yearsplit 0.833/0.750
+ vs 0.417). No external per-quant benchmark for the Flash-Next
+ Q5/Q6 GGUFs exists to check against; community wisdom is
+ qualitative (Q5 ≈ Q6 ≈ Q8 perceptually; "flash even in Q4/Q5 over
+ the 27B" on this RAM class).
 - **Degradation-vs-self is battery-dependent.** fcb15 is quant-flat
-  (IQ4 = Q5 = 0.667 under the sharp template) while AIME shows IQ4
-  bleeding to 0.417 — reasoning depth degrades before short-task
-  codegen does. Saturated batteries cannot see this at all (iten12:
-  everyone 12/12 — the floor gate is ceiling-blind to quant loss). The
-  reasoning-effort dial interacts too (Q5's fcb15 rose 0.667 → 0.867 at
-  low effort), so quant conclusions hold only at a stated effort
-  level.
+ (IQ4 = Q5 = 0.667 under the sharp template) while AIME shows IQ4
+ bleeding to 0.417 — reasoning depth degrades before short-task
+ codegen does. Saturated batteries cannot see this at all (iten12:
+ everyone 12/12 — the floor gate is ceiling-blind to quant loss). The
+ reasoning-effort dial interacts too (Q5's fcb15 rose 0.667 → 0.867 at
+ low effort), so quant conclusions hold only at a stated effort
+ level.
 - **Owed: the unquantized anchor.** What we cannot yet say is how far
-  Q5/Q6 sit from their BF16 selves in absolute terms — Flash-Next BF16
-  (300+ GB) can never run on this box. The 27B's BF16 (~55 GB) can: a
-  BF16-27B cell on our batteries anchors the ladder, and GEFC's
-  [non-saturating threshold layer](https://github.com/PieBru/Good-Enough-For-Coding)
-  is the definitive instrument (θ across the quant ladder — its design
-  case).
+ Q5/Q6 sit from their BF16 selves in absolute terms — Flash-Next BF16
+ (300+ GB) can never run on this box. The 27B's BF16 (~55 GB) can: a
+ BF16-27B cell on our batteries anchors the ladder, and GEFC's
+ [non-saturating threshold layer](https://github.com/PieBru/Good-Enough-For-Coding)
+ is the definitive instrument (θ across the quant ladder — its design
+ case).
 
 ## Zebra — CSP logic ladder (GBench)
 
@@ -500,7 +499,7 @@ stratified):
 | DeepSeek V4.1 Flash (cloud) ⁷ | 0.42 | 0.19–0.68 | 12 |
 | GLM-5.3 (cloud) ⁷ | 0.25 | 0.09–0.53 | 12 |
 
-260920: the BF16 anchor row landed (0.65 — the morning cell had died
+: the BF16 anchor row landed (0.65 — the morning cell had died
 silently on a port transition, re-run clean), and the Q5 row at
 sharp-low matches it exactly — the champion at low effort closes the
 one battery where the 27B pair edged it (overlapping CIs throughout).
@@ -538,7 +537,7 @@ the deciding axis for coding.
 
 **Credit where due:** Halogen wins decode at depth (27.3/25.6 t/s at
 2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
-short decode (**34.8 t/s** tg128, 260921) now edges its 32.4. For
+short decode (**34.8 t/s** tg128 now edges its 32.4. For
 short-prompt chat it remains the faster engine; the collapse at depth
 is what kills it for our workload. Its 128k cell completed at 1770s —
 30s under our client timeout — real but with a thin margin; the
@@ -566,21 +565,21 @@ see the replication note in the recipe). Full recipe in
 Everything is in the repo:
 
 - [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
-  tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
-  results (`results.json`). Three commands reproduce a score — see
-  [benchmarks/README.md](benchmarks/README.md)
+ tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
+ results (`results.json`). Three commands reproduce a score — see
+ [benchmarks/README.md](benchmarks/README.md)
 - [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
-  batteries, Wilson-CI runner) behind the
-  [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
-  [zebra](#zebra--csp-logic-ladder-gbench) tables
+ batteries, Wilson-CI runner) behind the
+ [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
+ [zebra](#zebra--csp-logic-ladder-gbench) tables
 - [configs/](configs/) — exact serve commands, binary provenance (commits,
-  digests, build recipes), full sha256 checksums, flag-by-flag explanations
+ digests, build recipes), full sha256 checksums, flag-by-flag explanations
 - [models.ini](models.ini) — the single source of truth for all serving
-  options
+ options
 - [systemd/](systemd/) — the two unit files (HIP fast-prefill and Vulkan
-  vanilla), switchable with one command
+ vanilla), switchable with one command
 - [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
-  the nightly auto-improve loop (see the chapter below)
+ the nightly auto-improve loop (see the chapter below)
 
 ## The "sharp" chat template
 
@@ -592,11 +591,11 @@ on Hugging Face — attributed to its author and subject to their terms)
 because it is the control surface for thinking:
 
 - `enable_thinking` — default **true**: reasoning streams before the
-  answer, which is why the champion runs as a thinking model in our cells
+ answer, which is why the champion runs as a thinking model in our cells
 - `reasoning_effort` — `none`/`off` disables thinking outright;
-  `low`/`medium`/`xhigh` pick a tier (default `medium`)
+ `low`/`medium`/`xhigh` pick a tier (default `medium`)
 - `auto_disable_thinking_with_tools`, `preserve_reasoning` across turns,
-  an XML tool-call format, and vision plumbing
+ an XML tool-call format, and vision plumbing
 
 Two honesty notes: every measured quality and speed cell ran through
 this template — the numbers are template-specific, we have not run a
@@ -615,24 +614,24 @@ web app (htmx, 2 s poll) — and its user unit
 ### The WebUI (:8667)
 
 - **System cards** — GPU (GTT counters — the real UMA numbers, not the
-  1 GiB carve-out %), RAM, disk, CPU
+ 1 GiB carve-out %), RAM, disk, CPU
 - **Inference cards** — resident arm and recent loads, live tg and draft
-  acceptance sparklines, service and `/health` state
+ acceptance sparklines, service and `/health` state
 - **Error banner** — health / service / journal / dmesg, minus
-  known-benign patterns; **activity log** — live tail of the router
-  journal
-- **Operator links** (`/res/*`) — read-only excerpts: the router ini
-  header, latest morning report, spec-sweep results, harvest stats, and
-  `/res/doctor` — the latest nightly report
+ known-benign patterns; **activity log** — live tail of the router
+ journal
+- ** links** (`/res/*`) — read-only excerpts: the router ini
+ header, latest morning report, spec-sweep results, harvest stats, and
+ `/res/doctor` — the latest nightly report
 - **Read-only by design** — no ini writes, no arm swaps, no privileged
-  calls; ~25 MB RSS flat, sub-1% of one core
+ calls; ~25 MB RSS flat, sub-1% of one core
 
 Install — `ROUTER_UNITS` at the top of `Doctor.py` names the units it
 watches (defaults are the reference box's `model-router-pwilkin`/
 `-vanilla`; this repo's units are `llama-hip`/`llama-vulkan`):
 
 ```bash
-cp doctor/Doctor.py ~/Doctor.py    # edit ROUTER_UNITS if your units differ
+cp doctor/Doctor.py ~/Doctor.py # edit ROUTER_UNITS if your units differ
 install -Dm644 doctor/Doctor.service ~/.config/systemd/user/Doctor.service
 systemctl --user daemon-reload && systemctl --user enable --now Doctor
 ```
@@ -652,7 +651,7 @@ recorded: the four engine repos — llama.cpp, pwilkin/strix-halo,
 halo-box/strix-llama.cpp, antirez/ds4 — get a useful-to-us evaluation
 against the champion recipe's axes (deep-prefill, decode, RAM/GTT,
 PLE/lazy-load, speculation, gfx1151 correctness), with adopt-worthy
-changes flagged as proposals; adoption itself stays operator-sealed. It
+changes flagged as proposals; adoption itself stays -finalized. It
 never modifies the system.
 Findings carry severity (P1–P3), evidence labeled OBSERVED vs INFERRED,
 a proposed action, and a verify condition; carry items close only when a
@@ -663,17 +662,17 @@ later night's verify passes.
 The doctor's findings feed an auto-improve loop (repo Principles #3):
 findings and audits become *proposed* patches — to the serving stack,
 the batteries, or the doctor itself — and a human authorizes each one
-(`needs-operator-authorization: yes` on anything touching config,
+(`needs--authorization: yes` on anything touching config,
 services, or policy). Two worked examples from the same day:
 
 - **Loop working:** an audit caught the WebUI watching pre-rename
-  unit names (`flash-router`) — showing a healthy router as down. Fixed,
-  browser-verified, vendored into this repo the same day.
+ unit names (`flash-router`) — showing a healthy router as down. Fixed,
+ browser-verified, vendored into this repo the same day.
 - **Loop correctly stopped at a human:** the 03:00 report's P1 "orphaned
-  GTT leak" was an INFERRED misread — the GTT-vs-RSS gap is the PLE
-  lazy-loading footprint; identical GTT/RAM after a clean reboot
-  falsified the leak. The doctor proposed; the reboot's natural
-  experiment disposed — no change landed on a wrong inference.
+ GTT leak" was an INFERRED misread — the GTT-vs-RSS gap is the PLE
+ lazy-loading footprint; identical GTT/RAM after a clean reboot
+ falsified the leak. The doctor proposed; the reboot's natural
+ experiment disposed — no change landed on a wrong inference.
 
 ## Methodology
 
@@ -682,23 +681,23 @@ For those who want to check our work:
 - **Wall-clock** (request sent → response complete), never server-reported
 - **Prompts actually filled** — no empty-slot theater
 - Same item-selection seed (1300); **scored cells ran greedy (temp 0.0)** —
-  the serve recipe (temp 1.0, top_p 0.95, top_k 20) is the producer's
-  recommendation for live traffic, while the batteries grade greedy for
-  determinism; at temp 1.0 expect ±1–2 items variance at n=12
+ the serve recipe (temp 1.0, top_p 0.95, top_k 20) is the producer's
+ recommendation for live traffic, while the batteries grade greedy for
+ determinism; at temp 1.0 expect ±1–2 items variance at n=12
 - **The champion is a thinking model** — reasoning tokens stream before
-  the answer by default under our template (`reasoning_content`); the
-  batteries grade the *last* python block after the thinking, and
-  `max_tokens 6000` is sized to leave that thinking room
+ the answer by default under our template (`reasoning_content`); the
+ batteries grade the *last* python block after the thinking, and
+ `max_tokens 6000` is sized to leave that thinking room
 - Both natural translation conventions accepted (v2 battery; v1 had a
-  10/12 ceiling by forcing one convention — fixed)
+ 10/12 ceiling by forcing one convention — fixed)
 - All cells on identical hardware, same binary where noted
 - Speed numbers from the pwilkin HIP binary; vanilla-VK serves Q5 at
-  quality parity, but a fair speed comparison is owed (the vanilla config
-  may need `-ngl 999` — testing pending)
+ quality parity, but a fair speed comparison is owed (the vanilla config
+ may need `-ngl 999` — testing pending)
 - **Known limitation:** the iten12 battery measures translation quality,
-  not coding ability — that is measured by the [GBench fcb15 and zebra
-  cells](#coding--gbench-fcb15-deterministic-unit-tested); long-context
-  retrieval items are planned.
+ not coding ability — that is measured by the [GBench fcb15 and zebra
+ cells](#coding--gbench-fcb15-deterministic-unit-tested); long-context
+ retrieval items are planned.
 
 ## Acknowledgements
 
@@ -707,17 +706,17 @@ Standing on the shoulders of open-source giants:
 - [llama.cpp](https://github.com/ggml-org/llama.cpp) — the foundation
 - [unsloth](https://huggingface.co/unsloth) — the dynamic-quant GGUFs
 - [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) — ROCm tuning
-  and PLE lazy loading
+ and PLE lazy loading
 - [halo-box/strix-llama.cpp](https://github.com/halo-box/strix-llama.cpp) —
-  the community gfx1151 fork
+ the community gfx1151 fork
 - [antirez](https://github.com/antirez/ds4) — the [DS V4.1 inference
-  engine](https://github.com/antirez/ds4) and [GGUF
-  publication](https://huggingface.co/antirez/deepseek-v4.1-flash-gguf)
+ engine](https://github.com/antirez/ds4) and [GGUF
+ publication](https://huggingface.co/antirez/deepseek-v4.1-flash-gguf)
 - [tomasreminek/strix-halo](https://github.com/tomasreminek/strix-halo) —
-  independent Strix Halo benchmarks; shared methodology means shared
-  assumptions — treat as a reproducibility reference, not independent
-  validation; their 260917 run replicated our DeepSeek park verdict and
-  supplied the ds4 host-sqrt patch
+ independent Strix Halo benchmarks; shared methodology means shared
+ assumptions — treat as a reproducibility reference, not independent
+ validation; their run replicated our DeepSeek park verdict and
+ supplied the ds4 host-sqrt patch
 - [ROCm](https://github.com/ROCm/ROCm) — AMD's open compute stack
 - [Arch Linux](https://archlinux.org) — the rolling-release distro
 
