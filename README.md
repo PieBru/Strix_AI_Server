@@ -54,7 +54,7 @@ is counted in the [RAM accounting](#ram-accounting) table.
 | **tg128 / tg2048** | generation speed for a 128-token / 2048-token reply | the "how fast does it type" number |
 | **wall-clock** | measured from request sent to response complete | includes all overhead; the only honest metric |
 | **12/12** | our quality gate (see below) — a pass/fail floor, not a ranking | a model at 12/12 meets our quality bar; ranking within the passing tier is by fcb15 score, speed, and RAM |
-| **fcb15** | GBench coding score (0–1), 15-item census with a Wilson 95% CI | the one *scoring* quality axis — fixed bank with pre-registered ceiling swaps as the stopgap; GEFC's difficulty-threshold layer is the non-saturating endpoint. Discriminates inside the passing tier where 12/12 cannot — read it with the confounds note |
+| **fcb15** | the one *scoring* quality axis — Wilson 95% CI, template/effort-sensitive (pin both or the cell is garbage); full method + reproduce-command in [its chapter](#coding--gbench-fcb15-deterministic-unit-tested) |
 
 All speed numbers are **wall-clock on real text** — prompts actually filled
 with real content, never synthetic filler (except where explicitly marked).
@@ -184,9 +184,11 @@ only comparable ones. CIs and caveats live in
 [the coding section](#coding--gbench-fcb15-deterministic-unit-tested).
 Overlapping CIs throughout: no ranking claims.
 
-¹¹ Q6's fcb15 census is owed — items exceeded the 900 s HTTP budget at
-medium effort (the footnote-⁶ profile); a 1800 s retry is in flight, and
-the reasoning-effort sweep may replace the medium-effort cell outright.
+¹¹ Q6's fcb15: the medium-effort census never completed (the
+footnote-⁶ long-item profile at sustained-thrash speeds). The
+MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
+cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
+makes a full census uneconomic until the fork fix lands.
 
 ## RAM accounting
 
@@ -333,25 +335,45 @@ Wilson ceiling in mind: two models at 15/15 are rank-indistinguishable.
 Even so, a scoring cell discriminates wherever the gate saturates — which
 is why fcb15 earns a podium column.
 
-Uniform-template (sharp, medium effort) fcb15 column — Qwen arms on
-sharp, Muse on its stock template by family design:
+Uniform-template fcb15 column — sharp family, effort noted per cell
+(**low is the promoted default**, 260921):
 
-| model | template | fcb15 | CI95 |
+| model | template / effort | fcb15 | CI95 |
 |---|---|---:|---|
-| Qwen3.8 27B Q8 + DFlash | sharp | **0.800** (12/15, census) | 0.55–0.93 |
-| Muse-Glimmer Q8 | stock | 0.733 (11/15, census) | 0.48–0.89 |
-| **Flash-Next Q5_K_XL** | sharp | **0.667** (10/15, census) | 0.42–0.85 |
-| Flash-Next IQ4_NL | sharp | 0.667 (10/15, census) | 0.42–0.85 |
-| Flash-Next Q6_K_XL | sharp | owed ¹¹ | — |
+| **Flash-Next Q5_K_XL (champion)** | sharp **low** | **0.867** (13/15, census) | 0.62–0.96 |
+| Qwen3.8 27B Q8 + DFlash | sharp medium | **0.800** (12/15, census) | 0.55–0.93 |
+| Muse-Glimmer Q8 | stock (family design) | 0.733 (11/15, census) | 0.48–0.89 |
+| Flash-Next Q5_K_XL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
+| Flash-Next IQ4_NL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
+| Flash-Next Q6_K_XL | sharp medium | 0.50 partial ¹¹ | — |
 
-The template is not cosmetics: measured on two arms it **doubled**
-(IQ4 0.333 → 0.667) and **tripled** (27B 0.267 → 0.800) the coding
-score. Read the ranking with the usual discipline — overlapping CIs,
-2–3-item gaps at n=15, and Muse runs a different family's template.
-Under uniform templates the BF16-parity 27B-Q8 leads coding while the
-quantized flash arms lead reasoning (AIME yearsplit 0.833/0.750/0.417
-vs 0.417) — the quantization cost is battery-dependent (see the note
-below).
+The template is not cosmetics: measured on three arms it **doubled**
+(IQ4 0.333 → 0.667), **tripled** (27B 0.267 → 0.800), and on the
+champion itself runs 0.267 (stock embedded) → 0.667 (sharp medium) →
+**0.867 (sharp low)** — the effort dial is the same lever again
+(the full matrix lives in *Reasoning effort — measured*). Read the
+ranking with the usual discipline — overlapping CIs, 2–3-item gaps at
+n=15, and Muse runs a different family's template. Under uniform
+templates the BF16-parity 27B-Q8 leads coding while the quantized
+flash arms lead reasoning — the quantization cost is battery-dependent
+(see the note below).
+
+**Reproducing a cell (for agents).** Pin *both* the template file and
+the effort tier or the number is garbage — a stock-template run reads
+as a different model (that exact mislabel happened here, 260920):
+
+```bash
+cd gbench && uv run python3 scripts/probe.py --battery fcb15 \
+  --budget 15 --tag <model>-<template>-<effort> --model <arm> \
+  --http-timeout 2700 --rdir <evidence-dir>
+```
+
+The arm's `chat-template-file` (now `sharp-v22.5.0-low.jinja` by
+default) is set in the serving ini, not in the probe. `budget 15` =
+census (every item attempted); failed queries **spend** budget — a
+cell with `answered < budget` is an incident, not a score. Evidence
+is the stamped `.jsonl` + Wilson `.json` pair in `--rdir`; the repo
+copies live in `benchmarks/`.
 
 **How to read it** (260920 re-cut): the disentangling runs are done —
 IQ4-with-sharp doubled (0.333 → 0.667) and 27B-with-sharp tripled
