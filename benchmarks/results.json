@@ -434,7 +434,19 @@
   "cross_box_control": {
     "finding": "strixy and strixy2 are measured-identical: iten12 12/12 = 12/12; fcb15 0.6667 [0.4171,0.8482] = 0.667 [0.417,0.848] to the digit; AIME yearsplit 0.833 matches published stratified",
     "date": "2026-09-20",
-    "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)"
+    "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)",
+    "qwen38-27b-q6-df_260921": {
+      "model": "Qwen3.8 27B Q6_K_XL + DFlash2 (IQ4_XS draft, n-max 6)",
+      "note": "same weights, same probe, second box (strixy2) \u2014 the podium is strixy-measured, so this cell pair says how much of a speed number is the machine. This runs with the NEW combination that had no arm before this date.",
+      "strixy2": {
+        "pp4k": 348,
+        "pp32k": 297,
+        "pp128k": "n/a (served c=131072 < the ~160k-token window)",
+        "tg128": 25.1,
+        "tg2048": 16.2
+      },
+      "probe": "benchmarks/speed_probe.py"
+    }
   },
   "effort_axis": {
     "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp template, greedy, census)",
