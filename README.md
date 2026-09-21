@@ -7,7 +7,8 @@
  generation, then we measure wall-clock, not server-reported. See below,
  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
 3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
- comes from enterprise-level experience and community expert consensus
+ comes from enterprise-level experience and community expert consensus. See below,
+ [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
  on MoE quantization robustness, not from a 12-item battery alone.
  Our battery *confirms* Q5 meets the quality gate; the floor itself is
  practitioner judgment.
