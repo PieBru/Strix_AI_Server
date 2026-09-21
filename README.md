@@ -68,7 +68,7 @@ pass/fail at 12 — not an overall quality verdict.
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 0.800 ¹⁰ | 30 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | **409** ¹³ | 394 | 15.8 | **28.0** ¹³ | 10/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
@@ -190,6 +190,11 @@ footnote-⁶ long-item profile at sustained-thrash speeds). The
 MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
 cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
 makes a full census uneconomic until the fork fix lands.
+
+¹³ Measured 260921 on the DFlash2-tuned lab arm (n-max 6, sharp
+template, wall-clock probe: real-text corpus, streamed first→last
+token). Note both exceed the row's older cells (pp@4k 260, tg128
+15.8) — those predate the DFlash2 tuning; a re-harmonized row is owed.
 
 ¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
