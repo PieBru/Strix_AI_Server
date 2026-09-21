@@ -77,9 +77,9 @@ MTP draft, on a single 128 GB Strix Halo.
 - All **quality** scores are reproducible from this repo — serve
  commands, checksums, unit files, the batteries, and the champion's raw
  JSONL runs in [benchmarks/](benchmarks/), [configs/](configs/), and
- [systemd/](systemd/). The wall-clock speed probe is not yet committed
- (see the evidence note in
- [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
+ [systemd/](systemd/). The wall-clock speed probe is committed as
+ [benchmarks/speed_probe.py](benchmarks/speed_probe.py) — see
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
 
 **The template confound is measured, not hypothetical** lab
 run): IQ4_NL scored **0.333 on its stock template** overnight and
@@ -217,6 +217,123 @@ slot ceilings: **2 @256k, 5 @128k, 7 @96k** — but observed page-cache
 also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
 halve slot cost but is fork-untested on Q5 (the Q6 lazy-path wedge,
 *Why not Q6*).
+
+## Got a new model? Test it, then compare it to the podium
+
+Everything the podium rows are made of is reproducible from this repo with
+two committed tools. A full row takes about an hour of unattended GPU time
+on this box; a first read on a new model takes ten minutes.
+
+### 1. Serve it
+
+Any OpenAI-compatible chat endpoint works, and all the commands below take
+`--host`. Three common shapes:
+
+```bash
+# (a) add it as an arm to the router (one arm resident at a time)
+#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
+#     model/model-draft paths, set load-on-startup = false, reload the service
+# (b) a one-off server on the lab box
+llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
+    -c 65536 -ctk f16 -ctv f16 --jinja -fa on -ngl all
+# (c) a remote or vendor endpoint
+#     uv run python3 scripts/probe.py --host https://api.example.com --model <vendor-id>
+#     (needs GEFC_API_KEY in the env; refuses before sending a byte without it)
+```
+
+Ask the endpoint what it is actually serving — never infer it from the
+config you edited: `curl -s localhost:8080/v1/models`.
+
+**Two settings decide whether the numbers mean anything**
+
+- **Chat template.** The measured template effect on this family is 2–3×
+  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
+  template run is a valid measurement *of the stock template*, and is not
+  comparable to the podium's sharp-family rows. State which one you ran.
+- **Context.** Serve the context you intend to claim. Some models are
+  trained short (Muse-Glimmer: 131072) and the server silently caps the
+  slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
+  would be a fiction.
+
+### 2. Quality — the batteries, with a confidence interval
+
+```bash
+cd ~/Piero/Work/Qwen38/gbench
+
+# the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
+uv run python3 scripts/probe.py --battery iten12 --budget 12 \
+    --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
+
+# coding: the 15-item deterministically-graded bank (census for a podium row)
+uv run python3 scripts/probe.py --battery fcb15 --budget 15 \
+    --tag mymodel-fcb15 --model <arm> --host 127.0.0.1:8080
+
+# the pre-registered harder rungs — the threshold layer, where a saturating
+# model stops being measurable (see docs/FCB15-CALIBRATION.md in GEFC)
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3d --model <arm> \
+    --items-file batteries/fcb15_v3d.py
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
+    --items-file batteries/fcb15_v3de.py
+uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
+
+# reasoning tiers
+uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
+uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
+```
+
+Grading is deterministic and machine-only — a Python harness per item, no
+LLM judge, no rubric prose. A wrong answer fails on an `assert`, so a
+sabotaged grader shows up as a wrong number, not a loud bug.
+
+Read the **CI**, not the point estimate. `--budget` below the battery size
+spends exactly that many items and gives a Wilson 95% interval; a census is
+labelled as such. Two rows whose intervals overlap are **not** ranked by
+this suite — that is the whole reason the podium reports intervals.
+
+### 3. Speed — wall-clock, on this box
+
+```bash
+uv run python3 benchmarks/speed_probe.py --model <arm>          # all five cells
+uv run python3 benchmarks/speed_probe.py --model <arm> --tg-only # decode only
+```
+
+This is the probe the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns
+come from, and it measures the clock, not the server's own counters:
+
+- **prefill** — one request per window, timed send → complete, distinct
+  corpus offsets so no prompt cache flatters a cell
+- **decode** — streamed, timed first content delta → last, so prompt
+  processing is excluded; reasoning deltas count as output
+
+Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
+same offsets, temperature 0, **one client**. A cell measured while another
+job shares the GPU is not a cell — rerun it. A pp@128k request lands at
+~160k real tokens on code-dense text; the probe prints the realised token
+count, which is the number to quote.
+
+### 4. Compare
+
+| what | where |
+|---|---|
+| the podium table | [above](#podium) — the row format to match |
+| the raw rows behind every cell | [benchmarks/results.json](benchmarks/results.json) |
+| the per-item runs (resume-safe JSONL) | `gbench/results/fcb15-<tag>.jsonl` |
+| how a claim gets promoted or retired | [Policy](#policy) |
+
+A model earns a podium row when it clears: the Italian gate (12/12), a
+fcb15 census, a real speed sweep, and a RAM figure — **all at the same
+template and context you are claiming**. Until then it belongs in the
+prose of the chapter it is challenging, with its CI, not in the table.
+
+Two honest outcomes worth writing down when you do this:
+
+- **Saturation is a result too.** If a model caps the battery, that rung
+  has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
+  says nothing the previous model's row didn't.
+- **A negative A/B is a result.** This suite's most reused finding is
+  negative: the draft-length setting that lifted the 27B did **not** lift
+  Muse (14.4 vs 15.0 t/s), so a knob win does not transfer between trunks
+  until it is measured on the trunk you are shipping.
 
 ## RAM accounting
 
@@ -563,9 +680,10 @@ arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
 74, not 71; the probe's raw token counts will settle it.
 
 **Evidence note:** the wall-clock probe behind this table — and the
-pp/tg podium cells — is not yet committed. Quality cells reproduce from
-[benchmarks/](benchmarks/); the speed harness and its raw logs are
-owed.
+pp/tg podium cells — is committed as
+[benchmarks/speed_probe.py](benchmarks/speed_probe.py), and quality cells
+reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
+per-cell console logs behind the individual podium numbers.
 
 ## DeepSeek V4.1 Flash Q2 — tested, parked
 
