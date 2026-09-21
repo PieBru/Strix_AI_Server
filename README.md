@@ -582,14 +582,17 @@ batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates, both
 models on the **same template** (sharp-low, the promoted default), one
 box, one harness:
 
-| model | v3 (headline) | v3 + D rung | v3 + D+E rung | holds to |
-|---|---:|---:|---:|---|
-| Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | 10/15 | 12/15 | the deepest rung |
-| Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **12/15** | **12/15** | the deepest rung |
+| model | v3 (headline) | v3 + D rung | v3 + D+E rung | + F rung | holds to |
+|---|---:|---:|---:|---:|---|
+| Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | 10/15 | 12/15 | **11/15** | every rung we have |
+| Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **12/15** | **12/15** | **12/15** | every rung we have |
 
-**The result is a tie, and that is the finding.** On a template-uniform
-basis these two models do not separate at the D/E rungs — both hold to the
-deepest rung we have. The ladder's first discriminator turned out to be
+**The result is a tie at every depth, and that is the finding.** On a
+template-uniform basis these two models do not separate — not at D, not at
+D+E, and not at F (the rung drafted the same evening, after the uniform
+data showed D/E didn't separate them; both models *solved* the F items).
+Both models hold every rung we have; separating them needs a bigger
+difficulty jump or different families, not more of the same stacking. The ladder's first discriminator turned out to be
 the **template, not tier depth**, and it is a big one — the same 27B, the
 same deepest rung, only the template changed:
 
@@ -607,9 +610,20 @@ serving arm runs stock **on purpose** (sharp makes it +46% slower), so its
 back the depth; (3) to separate these two models at all, the ladder needs
 deeper tiers (F+) or more items per rung, which is the next GEFC step.
 
+**One more model was run through the ladder the same day** — the 27B
+**Q6_K_XL trunk + DFlash2 draft** (a combination with no arm before this;
+stock template, so its cells are *not* comparable to the sharp rows):
+iten12 **10/12** (fails the gate), fcb15 census **0.333**, ladder
+**4/15 → 3/15**, zebra **0.55**, AIME-30 **0.30**, and on the second box
+pp4k 348 / pp32k 297 / pp128k 197 / tg128 25.1 / tg2048 16.1. Tested,
+parked: the Q8 trunk dominates it at every depth, and it misses the gate
+the champion clears.
+
 Three honest notes: tier depth is *not* monotone (the champion scored
-higher on D+E than on D); the table is greedy-primary with the full retry
-protocol in the artifacts; and the raw rows are
+higher on D+E than on D, and one unchanged item flipped fail→pass between
+rungs at temperature 0 — treat single-rung deltas of ±1 as noise, the
+per-runk CI is wider than n=15 suggests); the table is greedy-primary with
+the full retry protocol in the artifacts; and the raw rows are
 `gbench/results/fcb15-{q5,q8df}-v3{,d,dem}*.jsonl` (stock) and
 `*-slow-260921.jsonl` (sharp-low). The scorer is
 `gbench/scripts/threshold_scorer.py` (selfchecked).

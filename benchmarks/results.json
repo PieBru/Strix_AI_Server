@@ -587,11 +587,13 @@
     "uniform_sharp_low": {
       "qwen38-flash-q5": {
         "v3+D": "10/15",
-        "v3+D+E": "12/15"
+        "v3+D+E": "12/15",
+        "v3+D+E+F": "11/15"
       },
       "qwen38-27b-q8-df": {
         "v3+D": "12/15",
-        "v3+D+E": "12/15"
+        "v3+D+E": "12/15",
+        "v3+D+E+F": "12/15"
       }
     },
     "template_effect_at_depth": {
@@ -609,7 +611,25 @@
       "q5": "10/15 (0.667)",
       "27b-q8-df": "12/15 (0.800, sharp-medium)"
     },
-    "conclusion": "On the uniform basis the two models do NOT separate at the D/E rungs \u2014 both hold to the deepest rung. The ladder's discriminator today was the template, not tier depth; deeper tiers (or more items) are needed to separate these two.",
+    "conclusion": "Even the F rung does not separate them (q5 11/15 vs 27B 12/15; both solved the F items). The two production models are statistically tied across every deeper rung on this bank; separating them needs a bigger difficulty jump or different families. Also: greedy temp-0 flips of +/-1 item were observed between rungs on unchanged items (q5 item 2) \u2014 the per-rung CI is wider than n=15 suggests.",
     "artifacts": "gbench/results/fcb15-{q5,q8df}-v3{d,dem}*.jsonl (stock) and *-slow-260921.jsonl (sharp-low)"
+  },
+  "qwen38_27b_q6_df_260921": {
+    "what": "the chapter's step-by-step verification model: 27B Q6_K_XL trunk + DFlash2 draft (a combination with no arm before today). ALL cells stock-template (the chapter-verification arm carried no template; labeled as such).",
+    "cells": {
+      "iten12": "10/12 (CI 0.55-0.95) \u2014 fails the 12/12 gate",
+      "fcb15_v3_census": "0.333 (CI 0.15-0.58)",
+      "ladder": "v3+D 4/15, v3+D+E 3/15 (stock)",
+      "zebra": "0.55 (CI 0.34-0.74)",
+      "aime": "0.30 (n=30, CI 0.17-0.48)",
+      "speed_strixy2": {
+        "pp4k": 348,
+        "pp32k": 297,
+        "pp128k": 197,
+        "tg128": 25.1,
+        "tg2048": 16.1
+      }
+    },
+    "verdict": "tested, parked: fails the Italian gate, bottom-tier coding/math on stock, and the Q8 trunk dominates it at every depth. Revisit only with the sharp template if ever."
   }
 }
