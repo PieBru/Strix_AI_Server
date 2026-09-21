@@ -498,6 +498,13 @@
       "decision": "CHAMPION PROMOTION: Qwen3.8 Flash-Next UD-Q5_K_XL + sharp template (sharp-medium effort) is the declared daily driver on both boxes",
       "evidence_base": "bb3f748 \u2014 podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
       "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
+    },
+    {
+      "date": "2026-09-21",
+      "sealed_by": "operator (todos 2/3/4 directive)",
+      "decision": "LOW EFFORT PROMOTED TO DEFAULT + Phase-1 rollout: router default arm + strixy2 mirror now serve sharp-low (verified by generation: brief thinking, correct answers); old-gen services confirmed already-disabled; scaffolding units removed; pi lan provider deleted",
+      "evidence": "fcb15 +0.20 at low (0.867); AIME-60 n=60 dead tie (0.533/0.517); zebra-30 tie; sli tie \u2014 coding-specific gain, zero measured downside, strictly faster",
+      "ops": "restart-limit drop-ins (RestartSec=45, 4/10min burst) close doctor-F1's storm class; doctor F2 fixed (live GTT column + down-service alert, self-tested)"
     }
   ],
   "sli_battery": {
