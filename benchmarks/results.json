@@ -516,7 +516,7 @@
     ]
   },
   "aime60_full": {
-    "note": "full AIME-60 battery (probe harness, distinct from yearsplit-12 run.py selection), 260921 night, paired low(strixy)/medium(strixy2)",
+    "note": "full AIME-60 paired night: LOW 0.533 [0.41-0.65] vs MEDIUM 0.517 [0.39-0.64] \u2014 dead tie at n=60 (1-item spread); the yearsplit-12 pattern (0.833/0.833) generalizes: AIME is effort-flat on the champion; the effort lever lives on coding batteries",
     "cells": [
       {
         "model": "Q5+sharp-LOW",
@@ -530,7 +530,13 @@
       },
       {
         "model": "Q5+sharp-MEDIUM",
-        "status": "in flight (strixy2)"
+        "score": 0.5167,
+        "ci95": [
+          0.3931,
+          0.6382
+        ],
+        "n": 60,
+        "date": "2026-09-21"
       }
     ]
   }
