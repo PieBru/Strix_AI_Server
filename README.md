@@ -50,7 +50,7 @@ pass/fail at 12 — not an overall quality verdict.
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁰ | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 | — | — | — | ~18 ³ | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — ¹⁶ | 34.5 | 15.2 ¹⁷ | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
 
@@ -155,16 +155,18 @@ other models' re-runs are owed. A 12/12 is a **pass/fail gate** —
 ² Q6's AIME cell is 8/11 (one item errored when the server died
 mid-battery — the denominator silently changed). See ⁴.
 
-³ Fails the 20 t/s decode floor. Listed as reference tier only
-(per-cell: the 27B's tg128 15.8 — its newer tg2048 28.0 ¹³ passes —
-and Muse's ~18).
+³ Fails the 20 t/s decode floor at depth: Muse's tg2048 15.2 ¹⁷
+(its tg128 34.5 clears it, as does the 27B's re-measured 20.5 ¹⁴), so
+Muse is listed as a reference tier on sustained decode only.
 
 ⁴ One item errored (INFRA — server died mid-battery), reducing the
 denominator to 11. The 0.833 vs 0.727 gap is 1–2 items — within sampling
 variance at temperature 1.0. Both models are in the same quality tier.
 
-⁵ Speed-at-depth probe not yet run for Q6 — the automated bench chain was
-OOM-killed before reaching it. Owed; not a zero.
+⁵ Q6's prefill-at-depth cells are still owed (the automated chain was
+OOM-killed before reaching them) — but decode-at-depth is now measured: a
+10-minute sustained single-client gate at `c=65536` held **27.4 t/s flat**
+(18k tokens, no decay), while `c=131072` still degrades (fork-owed).
 
 ⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
 and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
@@ -197,6 +199,14 @@ tokens — code-dense corpus — and are mutually comparable at equal n).
 n-max A/B for the 27B's DFlash2 draft at sustained decode: nm6 28.0 >
 nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the grid's nm7 pick doesn't
 generalize past short benches; nm6 stands.
+
+¹⁶ Muse's training context is **131072** tokens — the server caps the slot
+(`n_ctx_seq 262144 > n_ctx_train 131072`), so a 128k-token prefill is out of
+range by construction. Not a speed result; the cell is n/a.
+
+¹⁷ Muse's DFlash2 draft at n-max 7 gives tg2048 15.2 (tg128 34.5). The nm6
+A/B that lifted the 27B (28.0 vs 15.8 ¹⁴) does **not** transfer: Muse at nm6
+measured 14.4, so nm7 stays.
 
 ¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
