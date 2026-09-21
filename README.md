@@ -61,9 +61,10 @@ with real content, never synthetic filler (except where explicitly marked).
 
 ## Podium
 
-All wall-clock. Higher pp/tg is better; quality is pass/fail at 12.
+All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
+pass/fail at 12 — not an overall quality verdict.
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | quality (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
+| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
