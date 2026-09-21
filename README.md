@@ -2,13 +2,15 @@
 
 ## Policy
 
-0. **SEALED 260920 (operator)** — the champion is **Qwen3.8 Flash-Next
-   UD-Q5_K_XL + the sharp template** (sharp-medium effort): the declared
-   daily driver on both boxes. Evidence base: the podium below, the
-   template axis measured on Q5 itself (+0.40 coding / +0.25 reasoning
-   vs stock), BF16-anchor parity across three batteries, and the engine
-   axis proving the tuned fork is load-bearing. Config rollout (mirror
-   template, router defaults, old-gen purge) awaits separate approval.
+0. **SEALED + EXECUTED 260920/21 (operator)** — the champion is
+   **Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, and the
+   promoted default effort tier is **low** (sharp-low): both boxes'
+   serving configs updated and verified 260921. Evidence base: the
+   podium below, the template axis measured on Q5 itself (+0.40
+   coding / +0.25 reasoning vs stock), BF16-anchor parity across three
+   batteries, the effort matrix (low = better coding, flat elsewhere,
+   strictly faster), and the engine axis proving the tuned fork is
+   load-bearing.
 
 1. **Quality first** — within acceptable speed
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
@@ -80,9 +82,9 @@ MTP draft, on a single 128 GB Strix Halo.
   speed floor
 - Serves the full 262k-token context — whole codebases, no chunking —
   with ~6 GiB RAM headroom ([the math](#ram-accounting))
-- A 32k-token prompt (a big file plus instructions) prefills in 40
-  seconds (807 t/s) — the axis that matters for coding, and the
-  co-resident pair can't touch this
+- A 32k-token prompt (a big file plus instructions) prefills in ~48
+  seconds (**672 t/s**, 260921 probe) — the axis that matters for
+  coding, and the co-resident pair can't touch this
 - One main model + draft = zero swap overhead, simplest operations
 - All **quality** scores are reproducible from this repo — serve
   commands, checksums, unit files, the batteries, and the champion's raw
@@ -295,6 +297,21 @@ the same contract as the locals).
 
 Q6's lower score is 1–2 items at n=11 — same tier, see ⁴.
 
+**Full AIME-60 battery (260921 night, probe harness — distinct from
+the yearsplit-12 selection above):** LOW **0.533** [0.41–0.65] vs
+MEDIUM **0.517** [0.39–0.64], n=60 both, paired cross-box — a dead
+tie (one-item spread). AIME is effort-flat at the largest n measured;
+the effort lever is coding-specific (fcb15 +0.20 at low). The 0.833
+yearsplit cell remains the headline reasoning number for the champion
+(stratified 12-item selection; the full-60 bank includes harder
+unsolved-era items both tiers miss).
+
+## sli — structured-list integrity (GBench)
+
+First measurements 260921 (paired same-box): **10/10 at low = 10/10 at
+medium** — the battery saturates at both tiers; no effort sensitivity.
+Useful as a regression canary, not as a discriminator.
+
 **Year-stratified re-cut (2026-09-20)** — the contamination-owed fix,
 6×AIME2025 + 6×AIME2026, seed 1300, same graders:
 
@@ -427,10 +444,11 @@ fcb15 the effort curve is an inverted-U — xhigh 0.267 < medium/none
 On AIME the family is flat (0.667–0.917, single-item spreads), with
 nothink's 11/12 the best point estimate and xhigh the worst. Low
 wins coding outright, ties reasoning, and is strictly fastest in
-wall-clock — three batteries, cross-box, stamped evidence. An earlier
-version of this table recorded the stock-template cell (0.583) as
-"low" — a config slip, corrected 260920; the promotion of low to
-default awaits the operator seal.
+wall-clock — three batteries, cross-box, stamped evidence. **Promoted
+to the serving default 260921 (operator directive; both boxes
+verified by live generation).** An earlier version of this table
+recorded the stock-template cell (0.583) as "low" — a config slip,
+corrected 260920.
 
 **The template is the champion's biggest single lever — measured on
 Q5 itself** (same accidental controlled run): fcb15 **0.267 → 0.667**,
@@ -528,11 +546,13 @@ For context: a 32k prompt is roughly "a medium codebase plus your task."
 A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
 the deciding axis for coding.
 
-**Credit where due:** Halogen wins decode at every depth (32.4/27.3/25.6
-vs our 23.6–25.4 t/s) and wins prefill at 4k. For short-prompt chat,
-it's the faster engine. The collapse at depth is what kills it for our
-workload. Its 128k cell completed at 1770s — 30s under our client
-timeout — real but with a thin margin; the non-monotonic throughput
+**Credit where due:** Halogen wins decode at depth (27.3/25.6 t/s at
+2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
+short decode (**34.8 t/s** tg128, 260921) now edges its 32.4. For
+short-prompt chat it remains the faster engine; the collapse at depth
+is what kills it for our workload. Its 128k cell completed at 1770s —
+30s under our client timeout — real but with a thin margin; the
+non-monotonic throughput
 (60 → 71 t/s) is unexplained — the 32k cell matches nominal-size
 arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
 74, not 71; the probe's raw token counts will settle it.
