@@ -2,15 +2,6 @@
 
 ## Policy
 
-0. **SEALED + EXECUTED 260920/21 (operator)** — the champion is
-   **Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, and the
-   promoted default effort tier is **low** (sharp-low): both boxes'
-   serving configs updated and verified 260921. Evidence base: the
-   podium below, the template axis measured on Q5 itself (+0.40
-   coding / +0.25 reasoning vs stock), BF16-anchor parity across three
-   batteries, the effort matrix (low = better coding, flat elsewhere,
-   strictly faster), and the engine axis proving the tuned fork is
-   load-bearing.
 
 1. **Quality first** — within acceptable speed
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
@@ -61,6 +52,15 @@ pass/fail at 12 — not an overall quality verdict.
 | Muse-Glimmer-30B Q8 + DFlash2 | — | — | — | ~18 ³ | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
+
+**Sealed and executed (operator, 260920/21):** the champion is
+**Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, with the
+promoted default effort tier **low** (sharp-low) — both boxes' serving
+configs updated and verified 260921. The evidence base: the podium
+above, the template axis measured on Q5 itself (+0.40 coding / +0.25
+reasoning vs stock), BF16-anchor parity across three batteries, the
+effort matrix (low = better coding, flat elsewhere, strictly faster),
+and the engine axis proving the tuned fork is load-bearing.
 
 **The winner:** llama.cpp + Qwen3.8 Flash-Next Q5_K_XL (147 GiB) + its
 MTP draft, on a single 128 GB Strix Halo.
