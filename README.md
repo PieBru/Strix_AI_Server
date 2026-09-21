@@ -560,6 +560,39 @@ Qwen3.8-over-Muse consensus is about; that regime stays untested here.
 Q6's cell is owed (items exceeded the 900 s HTTP budget — retry in
 flight).
 
+### The tier ladder — where a model stops holding
+
+fcb15's fixed bank saturates for strong models, which is exactly when a
+"how many of 15" score stops discriminating. The pre-registered answer
+(GEFC's `docs/FCB15-CALIBRATION.md`, contract v3) is a **ladder of harder
+tiers**: the solved-by-all items are swapped, rung by rung, for
+constraint-stacked variants (tiers B, C, D, E — drafted and selfchecked
+*before* anyone saturated). The swap into the headline battery fires only
+when >=2 models saturate the current rung; until then the deeper rungs are
+administered as a *measurement* (`scripts/fcb15_run.py --items-file
+batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates,
+first full ladder, all four legs on one box, one harness:
+
+| model | v3 (headline) | v3 + D rung | v3 + D+E rung | breaks at |
+|---|---:|---:|---:|---|
+| Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | **10/15** | **12/15** | holds the deepest rung |
+| Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **3/15** | **2/15** | below the D rung |
+
+This is why the podium's fcb15 cell was never the whole story: the
+headline census ranks the 27B *above* the champion (0.80 vs 0.67), but the
+ladder shows that ranking inverts the moment the constraint stacks get
+deeper — the champion barely moves (10 → 12) while the 27B collapses
+(12 → 3 → 2). Two honest notes: (1) tier depth is *not* monotone in
+difficulty — the E rung scored higher than D for the champion, so each
+rung's pass rate is a measurement, not a difficulty scale; (2) both
+models' rows carry the full retry protocol in the artifacts, but the
+ladder table is greedy-primary (the with-retry column is in
+[benchmarks/results.json](benchmarks/results.json)).
+
+The scorer behind the table is
+`gbench/scripts/threshold_scorer.py` (selfchecked; the break-point floor
+is 50%). Raw per-item rows: `gbench/results/fcb15-{q5,q8df}-v3{,d,de}*.jsonl`.
+
 ### Reasoning effort — measured
 
 The sharp template's effort dial is a real quality axis, not just a

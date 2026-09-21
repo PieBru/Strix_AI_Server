@@ -581,5 +581,23 @@
     "window_s": 658,
     "config": "c=65536, ctk/ctv f16, loader none+on-direct, MTP-only, single-client essay generation",
     "decay": "none (26.7@2k -> 27.4@18k)"
+  },
+  "threshold_ladder_260921": {
+    "what": "GEFC L1 tier ladder (pre-registered contract v3) \u2014 greedy pass rates, one box, one harness; v3 columns are the headline censuses for context",
+    "floors": "break point = deepest rung with >=50% greedy",
+    "qwen38-flash-q5": {
+      "v3": "10/15",
+      "v3+D": "10/15",
+      "v3+D+E": "12/15",
+      "break": "holds v3+D+E"
+    },
+    "qwen38-27b-q8-df": {
+      "v3": "12/15",
+      "v3+D": "3/15",
+      "v3+D+E": "2/15",
+      "break": "below the D rung"
+    },
+    "artifacts": "gbench/results/fcb15-{q5,q8df}-v3{d,dem}.jsonl; scorer gbench/scripts/threshold_scorer.py",
+    "notes": "the headline census ranks the 27B above the champion; the ladder inverts it at depth. Tier depth is not monotone (E scored above D for the champion)."
   }
 }
