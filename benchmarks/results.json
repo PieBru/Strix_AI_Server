@@ -61,6 +61,13 @@
       "date": "2026-09-20",
       "battery": "v3.1",
       "note": "anchor cell; Q8 cells 10/12(stock)/11/12(sharp) \u2014 noise tier on a saturated floor"
+    },
+    {
+      "model": "Qwen3.8 27B Q8 + DFlash2 (sharp)",
+      "score": "11/12",
+      "n": 12,
+      "date": "2026-09-20",
+      "note": "CONS sharp-template re-run; supersedes the stale 10/12 podium cell (pre-sharp); item 7 sole failure; hardened grader"
     }
   ],
   "aime": [
@@ -546,5 +553,13 @@
         "date": "2026-09-21"
       }
     ]
+  },
+  "q6_64k_gate": {
+    "verdict": "PASS",
+    "effective_tps": 27.4,
+    "tokens": 18000,
+    "window_s": 658,
+    "config": "c=65536, ctk/ctv f16, loader none+on-direct, MTP-only, single-client essay generation",
+    "decay": "none (26.7@2k -> 27.4@18k)"
   }
 }

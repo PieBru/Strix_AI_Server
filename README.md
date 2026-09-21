@@ -123,8 +123,12 @@ arms ran and failed evening):** `--load-mode mmap --lazy-mode on`
 and HIP unified memory fight over the same physical pages); `c=32768 +
 KV q8_0` = loads but wedges on first real generation (GPU 0%, zero
 timing prints, requests hang — a fork lazy-path bug). The cure is
-fork-level (or a re-quant); until then Q6 is a fresh-load tier, not a
-sustained-serving tier.
+fork-level (or a re-quant) for the *131k* tier — **but at c=65536 the
+cliff disappears**: a 10-minute sustained gate measured **27.4 t/s
+flat** (18k tokens, no decay; the ~1.5 GiB of extra KV headroom keeps
+the eviction away). **Q6 at 64k is a working sustained tier** — a
+single client with a whole-codebase prompt under 64k tokens gets Q6
+quality at 27 t/s.
 
 ### Why not the 27B + Muse pair?
 
