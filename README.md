@@ -55,7 +55,7 @@ pass/fail at 12 — not an overall quality verdict.
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁵ | 97 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁰ | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 | — | — | — | ~18 ³ | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
