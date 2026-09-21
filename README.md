@@ -53,7 +53,7 @@ is counted in the [RAM accounting](#ram-accounting) table.
 | **pp @Nk** | prefill throughput: tokens/second while *reading* a prompt of N thousand tokens | the "how long until it starts thinking" number — dominates coding/agentic use |
 | **tg128 / tg2048** | generation speed for a 128-token / 2048-token reply | the "how fast does it type" number |
 | **wall-clock** | measured from request sent to response complete | includes all overhead; the only honest metric |
-| **12/12** | our quality gate (see below) — a pass/fail floor, not a ranking | a model at 12/12 meets our quality bar; ranking within the passing tier is by fcb15 score, speed, and RAM |
+| **12/12** | the Italian gate (iten12): pass/fail floor, not a ranking | a model at 12/12 meets the bar; ranking within the passing tier is by fcb15 score, speed, and RAM |
 | **fcb15** | the one *scoring* quality axis — Wilson 95% CI, template/effort-sensitive (pin both or the cell is garbage); full method + reproduce-command in [its chapter](#coding--gbench-fcb15-deterministic-unit-tested) |
 
 All speed numbers are **wall-clock on real text** — prompts actually filled
