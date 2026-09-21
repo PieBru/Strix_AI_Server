@@ -48,19 +48,6 @@ browser-based monitoring. If you reproduce this, a headless setup keeps
 ~5 GiB of RAM free that a desktop would otherwise consume — that margin
 is counted in the [RAM accounting](#ram-accounting) table.
 
-## Reading the tables (60-second glossary)
-
-| symbol | means | why you care |
-|---|---|---|
-| **pp @Nk** | prefill throughput: tokens/second while *reading* a prompt of N thousand tokens | the "how long until it starts thinking" number — dominates coding/agentic use |
-| **tg128 / tg2048** | generation speed for a 128-token / 2048-token reply | the "how fast does it type" number |
-| **wall-clock** | measured from request sent to response complete | includes all overhead; the only honest metric |
-| **12/12** | the Italian gate (iten12): pass/fail floor, not a ranking | a model at 12/12 meets the bar; ranking within the passing tier is by fcb15 score, speed, and RAM |
-| **fcb15** | the one *scoring* quality axis — Wilson 95% CI, template/effort-sensitive (pin both or the cell is garbage); full method + reproduce-command in [its chapter](#coding--gbench-fcb15-deterministic-unit-tested) |
-
-All speed numbers are **wall-clock on real text** — prompts actually filled
-with real content, never synthetic filler (except where explicitly marked).
-
 ## Podium
 
 All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
@@ -69,12 +56,7 @@ pass/fail at 12 — not an overall quality verdict.
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁵ | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | —
-   The champion's podium cell is its **promoted default tier (low,
-   0.867)**; the medium-basis cell (0.667) for uniform-template ranking
-   lives in the fcb15 chapter.
-
-¹¹ | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 | — | — | — | ~18 ³ | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
@@ -193,6 +175,9 @@ measured template effect is 2–3×, so template-uniform columns are the
 only comparable ones. CIs and caveats live in
 [the coding section](#coding--gbench-fcb15-deterministic-unit-tested).
 Overlapping CIs throughout: no ranking claims.
+   The champion's podium cell is its **promoted default tier (low,
+   0.867)**; the medium-basis cell (0.667) for uniform-template ranking
+   lives in the fcb15 chapter.
 
 ¹¹ Q6's fcb15: the medium-effort census never completed (the
 footnote-⁶ long-item profile at sustained-thrash speeds). The
