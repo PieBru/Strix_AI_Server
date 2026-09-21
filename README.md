@@ -238,7 +238,7 @@ Where the numbers come from:
 - **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
  versions used a looser estimate — this table is the corrected one).
 
-## Quality battery (iten12)
+## Italian (iten12)
 
 This battery doesn't find "the best model" — it identifies which models
 are **good enough** for our mission. Models that pass are then ranked by
