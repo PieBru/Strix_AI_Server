@@ -622,7 +622,7 @@ the champion clears.
 Three honest notes: tier depth is *not* monotone (the champion scored
 higher on D+E than on D, and one unchanged item flipped fail→pass between
 rungs at temperature 0 — treat single-rung deltas of ±1 as noise, the
-per-runk CI is wider than n=15 suggests); the table is greedy-primary with
+per-rung CI is wider than n=15 suggests); the table is greedy-primary with
 the full retry protocol in the artifacts; and the raw rows are
 `gbench/results/fcb15-{q5,q8df}-v3{,d,dem}*.jsonl` (stock) and
 `*-slow-260921.jsonl` (sharp-low). The scorer is
