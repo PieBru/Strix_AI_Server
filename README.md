@@ -586,6 +586,18 @@ first full ladder, all four legs on one box, one harness:
 | Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | **10/15** | **12/15** | holds the deepest rung |
 | Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **3/15** | **2/15** | below the D rung |
 
+**Template basis — read before quoting the 27B's rungs:** the champion's
+legs ran on its serving template (sharp-low); the 27B's legs ran on the
+model's *stock* template (the lab arm carried no
+`chat-template-file`). The measured template effect on this family is
+2–3× (IQ4_NL: 0.333 stock → 0.667 sharp), so the 27B's deep-rung collapse
+is partly the stock-template penalty layered on the tier difficulty. The
+*direction* holds — its own v3 census, sharp-medium, is 12/15 while its
+stock-template deep rungs are 3/15 and 2/15 — but the magnitude is
+confounded until the 27B's legs re-run on sharp-low. That re-run is queued;
+until it lands, treat the 27B's rung cells as *stock-template* rows, not
+template-uniform ones.
+
 This is why the podium's fcb15 cell was never the whole story: the
 headline census ranks the 27B *above* the champion (0.80 vs 0.67), but the
 ladder shows that ranking inverts the moment the constraint stacks get
