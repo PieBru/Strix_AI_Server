@@ -307,9 +307,23 @@ come from, and it measures the clock, not the server's own counters:
 
 Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
 same offsets, temperature 0, **one client**. A cell measured while another
-job shares the GPU is not a cell — rerun it. A pp@128k request lands at
-~160k real tokens on code-dense text; the probe prints the realised token
-count, which is the number to quote.
+job shares the GPU is not a cell — rerun it.
+
+Two traps that cost us a whole measurement pass, both worth knowing before
+you trust a number:
+
+- **Serve the context the cell needs, or read the refusal honestly.** A
+  pp@128k request sends a ~160k-token window on code-dense text, so an arm
+  served at `c=131072` refuses it with HTTP 400 — the probe prints
+  `n/a`, which is the correct cell, not a zero. The probe prints the
+  realised token count; that is the number to quote.
+- **Keep the box quiet, including its disk.** The champion's serving
+  config leaves ~1 GiB of host headroom, so any large file I/O evicts the
+  model's cached weights and decode collapses: a 26 GiB transfer running
+  beside one battery item took the arm from **34 t/s to 0.93 t/s** and
+  produced a 291 s "failure" that was pure page-cache thrash. We threw
+  that run away and re-ran it. Copy files *between* measurement passes,
+  never during one.
 
 ### 4. Compare
 
