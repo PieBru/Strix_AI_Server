@@ -4,7 +4,8 @@
 
 1. **Quality first** — within acceptable speed
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
- generation, then we measure wall-clock, not server-reported
+ generation, then we measure wall-clock, not server-reported. See below,
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
 3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
  comes from enterprise-level experience and community expert consensus
  on MoE quantization robustness, not from a 12-item battery alone.
