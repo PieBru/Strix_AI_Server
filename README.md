@@ -65,7 +65,7 @@ All wall-clock. Higher pp/tg is better; quality is pass/fail at 12.
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | quality (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | — | 394 | 15.8 | — | 10/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
@@ -189,6 +189,16 @@ footnote-⁶ long-item profile at sustained-thrash speeds). The
 MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
 cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
 makes a full census uneconomic until the fork fix lands.
+
+¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
+pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
+96.5 + MTP draft 2.8 + vision 0.9 + buffers 3.0 + OS 5.0); each
+slot's KV is **6.0 GiB @256k** / 3.0 @128k / 2.25 @96k. Theoretical
+slot ceilings: **2 @256k, 5 @128k, 7 @96k** — but observed page-cache
++ streaming working sets eat ~7 GiB, so **safe: 1 / 3 / 4**. Slots
+also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
+halve slot cost but is fork-untested on Q5 (the Q6 lazy-path wedge,
+*Why not Q6*).
 
 ## RAM accounting
 
