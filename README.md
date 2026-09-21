@@ -66,10 +66,10 @@ pass/fail at 12 — not an overall quality verdict.
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² | **641** | **807** | **647** | **23.6** | **25.4** | **12/12** | 0.667 | 97 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | 0.667 | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 ³ | 260 | **409** ¹³ | 394 | 15.8 | **28.0** ¹³ | 10/12 | 0.800 ¹⁰ | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 ³ | — | — | — | ~18 | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 | — | — | — | ~18 ³ | — | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
 ### Why Q5 wins
 
@@ -161,7 +161,9 @@ other models' re-runs are owed. A 12/12 is a **pass/fail gate** —
 ² Q6's AIME cell is 8/11 (one item errored when the server died
 mid-battery — the denominator silently changed). See ⁴.
 
-³ Both fail the 20 t/s decode floor. Listed as reference tier only.
+³ Fails the 20 t/s decode floor. Listed as reference tier only
+(per-cell: the 27B's tg128 15.8 — its newer tg2048 28.0 ¹³ passes —
+and Muse's ~18).
 
 ⁴ One item errored (INFRA — server died mid-battery), reducing the
 denominator to 11. The 0.833 vs 0.727 gap is 1–2 items — within sampling
@@ -191,10 +193,13 @@ MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
 cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
 makes a full census uneconomic until the fork fix lands.
 
-¹³ Measured 260921 on the DFlash2-tuned lab arm (n-max 6, sharp
-template, wall-clock probe: real-text corpus, streamed first→last
-token). Note both exceed the row's older cells (pp@4k 260, tg128
-15.8) — those predate the DFlash2 tuning; a re-harmonized row is owed.
+¹⁴ Speed cells re-measured 260921 with one identical wall-clock
+probe (real-text corpus, request-sent→complete; tg streamed
+first→last incl. reasoning deltas; pp@128k cells ran at 159.9k real
+tokens — code-dense corpus — and are mutually comparable at equal n).
+n-max A/B for the 27B's DFlash2 draft at sustained decode: nm6 28.0 >
+nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the 260915 grid's nm7 pick doesn't
+generalize past short benches; nm6 stands.
 
 ¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
