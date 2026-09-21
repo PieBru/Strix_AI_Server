@@ -68,8 +68,12 @@ MTP draft, on a single 128 GB Strix Halo.
 
 - Passes the quality gate (12/12, tied with Q6 and IQ4_NL) **and** the
  speed floor
-- Serves the full 262k-token context — whole codebases, no chunking —
- with ~6 GiB RAM headroom ([the math](#ram-accounting))
+- Serves a **200k-token context** — whole codebases, no chunking —
+ with real headroom ([the math](#ram-accounting)). The native 262k was
+ deliberately walked back: at `c=262144` the arm allocates ~111.8 GiB of
+ the box's 124 GiB and, under sustained load, the kernel enters a
+ swap/refault storm that takes decode from ~35 t/s to **under 1 t/s**
+ (measured twice). 200k is the value that survives a night of load
 - A 32k-token prompt (a big file plus instructions) prefills in ~48
  seconds (**672 t/s** probe) — the axis that matters for
  coding, and the co-resident pair can't touch this
@@ -106,9 +110,9 @@ not planned:** the catalog's 131k arm (`c = 131072`) ran the full overnight
 re-run chain on a dedicated process — iten12 12/12 under the hardened
 grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GB** —
 no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
-pool is pre-allocated and cannot outgrow the margin. Q5 at full 262k
-stays the pick; Q6 at 131k is now a demonstrated fallback tier, not a
-hope.
+pool is pre-allocated and cannot outgrow the margin. Q5 ships at 200k for
+the same measured reason (see *Why Q5 wins*); Q6 at 131k is a
+demonstrated fallback tier, not a hope.
 
 **But there is a second, slower disease, measured):** sustained
 decode *degrades* even at 131k. With ngram speculation off (MTP-only,
@@ -352,6 +356,10 @@ Two honest outcomes worth writing down when you do this:
 ## RAM accounting
 
 One method, applied to every candidate. All figures GiB.
+
+The @262k columns are the *arithmetic* at the native ceiling — the
+champion actually serves 200k (the measured-stable value; see *Why Q5
+wins*), and Q6 ships at 64k (its sustained gate).
 
 | component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k |
 |---|---:|---:|---:|---:|
