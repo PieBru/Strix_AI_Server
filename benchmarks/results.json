@@ -445,7 +445,15 @@
         "tg128": 25.1,
         "tg2048": 16.2
       },
-      "probe": "benchmarks/speed_probe.py"
+      "probe": "benchmarks/speed_probe.py",
+      "strixy2_full": {
+        "pp4k": 348,
+        "pp32k": 297,
+        "pp128k": 197,
+        "tg128": 25.1,
+        "tg2048": 16.1,
+        "note": "full sweep at c=200000 (needs >=160k for the pp128k cell: it sent 159,750 real tokens in 810s)"
+      }
     }
   },
   "effort_axis": {
