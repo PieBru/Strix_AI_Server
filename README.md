@@ -578,40 +578,41 @@ constraint-stacked variants (tiers B, C, D, E — drafted and selfchecked
 *before* anyone saturated). The swap into the headline battery fires only
 when >=2 models saturate the current rung; until then the deeper rungs are
 administered as a *measurement* (`scripts/fcb15_run.py --items-file
-batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates,
-first full ladder, all four legs on one box, one harness:
+batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates, both
+models on the **same template** (sharp-low, the promoted default), one
+box, one harness:
 
-| model | v3 (headline) | v3 + D rung | v3 + D+E rung | breaks at |
+| model | v3 (headline) | v3 + D rung | v3 + D+E rung | holds to |
 |---|---:|---:|---:|---|
-| Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | **10/15** | **12/15** | holds the deepest rung |
-| Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **3/15** | **2/15** | below the D rung |
+| Qwen3.8 Flash-Next Q5_K_XL (champion) | 10/15 | 10/15 | 12/15 | the deepest rung |
+| Qwen3.8 27B Q8_K_XL + DFlash2 | 12/15 | **12/15** | **12/15** | the deepest rung |
 
-**Template basis — read before quoting the 27B's rungs:** the champion's
-legs ran on its serving template (sharp-low); the 27B's legs ran on the
-model's *stock* template (the lab arm carried no
-`chat-template-file`). The measured template effect on this family is
-2–3× (IQ4_NL: 0.333 stock → 0.667 sharp), so the 27B's deep-rung collapse
-is partly the stock-template penalty layered on the tier difficulty. The
-*direction* holds — its own v3 census, sharp-medium, is 12/15 while its
-stock-template deep rungs are 3/15 and 2/15 — but the magnitude is
-confounded until the 27B's legs re-run on sharp-low. That re-run is queued;
-until it lands, treat the 27B's rung cells as *stock-template* rows, not
-template-uniform ones.
+**The result is a tie, and that is the finding.** On a template-uniform
+basis these two models do not separate at the D/E rungs — both hold to the
+deepest rung we have. The ladder's first discriminator turned out to be
+the **template, not tier depth**, and it is a big one — the same 27B, the
+same deepest rung, only the template changed:
 
-This is why the podium's fcb15 cell was never the whole story: the
-headline census ranks the 27B *above* the champion (0.80 vs 0.67), but the
-ladder shows that ranking inverts the moment the constraint stacks get
-deeper — the champion barely moves (10 → 12) while the 27B collapses
-(12 → 3 → 2). Two honest notes: (1) tier depth is *not* monotone in
-difficulty — the E rung scored higher than D for the champion, so each
-rung's pass rate is a measurement, not a difficulty scale; (2) both
-models' rows carry the full retry protocol in the artifacts, but the
-ladder table is greedy-primary (the with-retry column is in
-[benchmarks/results.json](benchmarks/results.json)).
+| 27B Q8+DFlash2, v3+D+E rung | greedy |
+|---|---:|
+| stock template (its as-served arm) | **2/15** |
+| sharp-low template | **12/15** |
 
-The scorer behind the table is
-`gbench/scripts/threshold_scorer.py` (selfchecked; the break-point floor
-is 50%). Raw per-item rows: `gbench/results/fcb15-{q5,q8df}-v3{,d,de}*.jsonl`.
+A 2 → 12 swing is a 6× template effect at depth — much larger than the
+2–3× already measured on the headline bank, because a weak template costs
+*more* exactly where the constraints stack. Practical consequences: (1)
+never quote a deep-rung score without naming its template; (2) the 27B's
+serving arm runs stock **on purpose** (sharp makes it +46% slower), so its
+*as-served* deep-rung ability genuinely is 2/15 — the speed decision buys
+back the depth; (3) to separate these two models at all, the ladder needs
+deeper tiers (F+) or more items per rung, which is the next GEFC step.
+
+Three honest notes: tier depth is *not* monotone (the champion scored
+higher on D+E than on D); the table is greedy-primary with the full retry
+protocol in the artifacts; and the raw rows are
+`gbench/results/fcb15-{q5,q8df}-v3{,d,dem}*.jsonl` (stock) and
+`*-slow-260921.jsonl` (sharp-low). The scorer is
+`gbench/scripts/threshold_scorer.py` (selfchecked).
 
 ### Reasoning effort — measured
 
