@@ -338,6 +338,15 @@ every other zebra cell in this table is an n=12 seed-1300 probe. Mixed n is
 kept because the n=20 row is the champion's shipped-default measurement —
 its CI is correspondingly tighter, and n is printed wherever it is not 12.
 
+<a id="fn22"></a>²² Cloud coding and structured-list cells, filled 260922 (same harness;
+fcb15 as full 15-item censuses, matching the champion's cells; artifacts
+`probe-{fcb15,sli}-{glm-5-3,glm-5-3-flash,dsv4f}*.json`). The coding
+picture is the sharpest separator in this table: the champion's
+shipped-default 0.867 sits above every cloud census (0.533 / 0.60 /
+0.667 — only the flash variant's CI brushes the champion's lower bound).
+sli mostly saturates (GLM-5.3 matches the champion's 10/10; both flash
+variants drop 2/10 — the first non-saturating sli results measured).
+
 ## Got a new model? Test it, then compare it to the podium
 
 Everything the podium rows are made of is reproducible from this repo with
@@ -916,8 +925,8 @@ effort/thinking tuning on our side).
 | AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
 | AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | not measured | not measured |
 | Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
-| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | not measured | not measured | not measured |
-| sli structured-list | **10/10** | not measured | not measured | not measured |
+| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
+| sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
 | decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
 
 Reading it honestly:
