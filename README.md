@@ -294,10 +294,14 @@ Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
 22.3) remain at the 64k-era basis from [⁸](#fn8).
 
 <a id="fn11"></a>¹¹ Q6's fcb15: the medium-effort census never completed (the
-footnote-[⁶](#fn6) long-item profile at sustained-thrash speeds). The
-MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
-cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
-makes a full census uneconomic until the fork fix lands.
+footnote-[⁶](#fn6) long-item profile at sustained-thrash speeds), and the
+**260922 retry at the 192k tier met the same disease**: live decode decayed
+13 → 7 → 3 t/s within 17 minutes of back-to-back code generation (measured
+per-minute from the router's timing prints; 0 faults — a speed disease,
+not a crash). A 15-item census is unreachable at that rate; the MTP-only
+budget-6 probe remains the only scored cell: **0.50** [0.19–0.81]. The
+cure is fork-level (row residency), and the 192k tier does not buy it —
+if anything the extra KV headroom hastens it.
 
 <a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
 probe (real-text corpus, request-sent→complete; tg streamed
