@@ -26,7 +26,7 @@
 - [Zebra — CSP logic ladder (GBench)](#zebra--csp-logic-ladder-gbench)
 - [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
 - [DeepSeek V4.1 Flash Q2 — tested, parked](#deepseek-v41-flash-q2--tested-parked)
-- [Reproduce it](#reproduce-it)
+- [Reproduce our tests](#reproduce-our-tests)
 - [The "sharp" chat template](#the-sharp-chat-template)
 - [The Doctor — 24/7 monitoring and the nightly auto-improve loop](#the-doctor--247-monitoring-and-the-nightly-auto-improve-loop)
   - [The WebUI (:8667)](#the-webui-8667)
@@ -824,7 +824,7 @@ replicated with the same verdict — parked
 see the replication note in the recipe). Full recipe in
 [configs/deepseek-v41-parked.md](configs/deepseek-v41-parked.md).
 
-## Reproduce it
+## Reproduce our tests
 
 Everything is in the repo:
 
