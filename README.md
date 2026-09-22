@@ -175,6 +175,43 @@ the eviction away). **Q6 at 64k is a working sustained tier** — a
 single client with a whole-codebase prompt under 64k tokens gets Q6
 quality at 27 t/s.
 
+**Context ladder — measured end to end on 260922** (Q6 + MTP, lazy
+`on-direct`, f16 KV, run under a `MemoryMax=118G` cap so the kernel keeps
+a reserve instead of racing the GPU for pages):
+
+| `c` | loads | decode | ~114k-token prefill | faults |
+|---|---|---|---|---|
+| 65536 (shipped) | ✓ | 27.4 t/s flat (gate) | not tried | 0 (8/8 census) |
+| **131072** | ✓ | **24.9 / 25.1 t/s** | **726 t/s, then 25.1 t/s** | **0** |
+| 196608 | ✓ | 21.8 t/s | ✗ SIGABRT | 0 |
+| 262144 | ✗ | — | — | — |
+
+- **131k is the validated Q6 tier** — an 8000-token generation holds
+  ~25 t/s and a **113,933-token prompt** prefills at **726 t/s** then
+decodes at 25.1 t/s, with the reply demonstrably reading the prompt
+  (it summarised its content). One run measured 14.9 t/s — the
+  disk-streaming variance the *second disease* above describes.
+- **192k loads and decodes, but long prefills abort** inside
+  `ggml_cuda_flash_attn_ext_qsa`: the QSA attention workspace is
+  allocated *per attention call* and scales with prompt/batch size, so it
+  fails under the cap. RAM was never the binding constraint — every
+  failure above ran with **8.7–10.7 GB spare**. The obvious untried lever
+  is a smaller `ub`, shrinking that workspace.
+- **256k is a fork limit, not a RAM limit**: with f16 KV the graph build
+  asserts at `qwen4exp.cpp:1365` (`build_attn_qsa`, reached from
+  `resolve_fused_ops`); with `fa = off` it fails to create the context
+  and the router then retry-loops. KV quantisation cannot buy the room
+  back — the same assert demands `k/v == F16`, so `ctk/ctv = q8_0` aborts
+  the load. **Q6's honest ceiling today is 131k validated, 192k with a
+  short-prompt caveat** — 2× the shipped tier, not the 256k the model
+  card suggests.
+- **The GPU page faults are a teardown/reclaim race, not a load killer.**
+  Across every run in that table: **zero** `[gfxhub] page fault` events.
+  The three seen on 260922 all hit lab servers *during teardown* or an
+  uncapped census; under the cap `avail` held 2.5–3 GB where the uncapped
+  run drove it to 71–112 MB. The driver is already the inbox `amdgpu` AMD
+  recommends for gfx1151 (no DKMS installed).
+
 ### Why not the 27B + Muse pair?
 
 Both components fail the speed floor (15.8 and ~18 t/s decode). And an
@@ -262,8 +299,9 @@ slot's KV is **6.0 GiB @256k** / 3.0 @128k / 2.25 @96k. Theoretical
 slot ceilings: **2 @256k, 5 @128k, 7 @96k** — but observed page-cache
 + streaming working sets eat ~7 GiB, so **safe: 1 / 3 / 4**. Slots
 also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
-halve slot cost but is fork-untested on Q5 (the Q6 lazy-path wedge,
-*Why not Q6*).
+halve slot cost but the fork refuses it outright — `qwen4exp.cpp:1365`
+asserts `k/v == GGML_TYPE_F16`, so a q8_0 KV aborts the load (it also
+wedged at 32k [⁵](#fn5); measured 260922, *Why not Q6*).
 
 <a id="fn19"></a>¹⁹ The Italian gate has been run against exactly one cloud API: GLM-5.3,
 **7/12** (the cell published in the iten12 chapter above — no raw artifact
