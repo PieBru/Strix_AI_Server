@@ -29,7 +29,17 @@ ROUTER_INI = _router_ini() or "/home/piero/Piero/Work/Qwen38/models.ini"
 JN = lambda n=300: subprocess.run(["journalctl","--user"]+_JU+["-n",str(n),"--no-pager"],
                                   capture_output=True, text=True, timeout=8).stdout.splitlines()
 
-PEAK = {"gpu": 0, "t": 0.0}   # GPU% high-water mark since service start (or last reset)
+PEAKS = {}   # key -> {v: max value, t: when set}; accrued in refresh() (always-on sampler)
+
+def track(key, val):
+    """Update a card's high-water mark."""
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return
+    p = PEAKS.get(key)
+    if p is None or v > p["v"]:
+        PEAKS[key] = {"v": v, "t": time.time()}
 
 def gpu():
     # pure sysfs (UMA truth 260914): rocm-smi's VRAM% is the 1GiB carve-out (always ~90%),
@@ -124,8 +134,11 @@ def _loads_recent():
 
 def refresh():
     try:
-        g = int(gpu()[0].strip("%") or 0)
-        if g > PEAK["gpu"]: PEAK.update(gpu=g, t=time.time())
+        _g = gpu(); _r = ram_disk_cpu()
+        track("GPU", int(_g[0].strip("%") or 0)); track("VRAM", int(_g[1].strip("%") or 0))
+        track("GPU temp", float(_g[2][:-2] or 0)); track("GPU power", float(_g[3][:-1] or 0))
+        track("RAM", int(_r[0].strip("%") or 0)); track("SWAP", int(_r[5].strip("%") or 0))
+        track("DISK", int(_r[2].strip("%") or 0)); track("CPU", float(_r[4]))
     except Exception: pass
     sw = _sw_pages()
     if sw and _SW["t"]:
@@ -137,6 +150,10 @@ def refresh():
         dt = max(time.time() - _IO["t"], 1e-3)
         CACHE["io"] = (max(io[0] - _IO["r"], 0) / 1e6 / dt, max(io[1] - _IO["w"], 0) / 1e6 / dt)
     if io: _IO.update(t=time.time(), r=io[0], w=io[1])
+    if CACHE.get("io"): track("DISK I/O", sum(CACHE["io"]))
+    if CACHE.get("swio"): track("SWAP rate", sum(CACHE["swio"]))
+    if CACHE.get("tg"): track("LIVE tg", CACHE["tg"][2])
+    if CACHE.get("acc"): track("DRAFT acc", CACHE["acc"][0])
     try: h = json.load(urlopen("http://127.0.0.1:8080/health", timeout=4))["status"]
     except Exception: h = "unreachable"
     try: svc = next((s for s in (
@@ -201,22 +218,24 @@ def stats():
     except ValueError: gpv = 0
     NCPU = os.cpu_count() or 1
     cpup = min(float(ld)/NCPU*100, 100)
-    _pk = PEAK["gpu"]
-    _pkt = (" " + time.strftime("%H:%M", time.localtime(PEAK["t"]))) if PEAK["t"] else ""
-    _gpub = "GPU" \
-            + (f' <i class=pk style="color:#888;font-style:normal;font-size:.8em">peak {_pk}%{_pkt}</i>' if _pk else "") \
-            + '<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this)" title="reset peak">↺</button>'
-    sysrow = (card(_gpub, gp, bar(gpv, heat(gpv)))
-            + card("VRAM", vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
-              + card("GPU temp", gt, bar(tm, heat(tm))) + card("GPU power", gpw, bar(pw, heat(pw)))
-              + card("RAM · GiB", f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
-              + card("SWAP · GiB" + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
+    def pchip(key, unit="", fmt="{:.0f}"):
+        """Peak chip + per-card reset button for a card title."""
+        p = PEAKS.get(key)
+        if not p or p["v"] <= 0: return ""
+        t = time.strftime("%H:%M", time.localtime(p["t"]))
+        return (f' <i class=pk>peak {fmt.format(p["v"])}{unit} {t}</i>'
+                f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>')
+    sysrow = (card("GPU" + pchip("GPU", "%"), gp, bar(gpv, heat(gpv)))
+            + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
+              + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
+              + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
+              + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.1f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
                      f"{st.replace(' GiB','')} · in/out {CACHE.get('swio', (0.0, 0.0))[0]:.1f}/{CACHE.get('swio', (0.0, 0.0))[1]:.1f} MB/s",
                      bar(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)), heat(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)))))
-              + card("DISK · GiB", f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat(dv)))
-              + card("DISK I/O · MB/s", (lambda a: f"R {a[0]:.1f} · W {a[1]:.1f}")(CACHE.get("io", (0.0, 0.0))),
+              + card("DISK · GiB" + pchip("DISK", "%"), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat(dv)))
+              + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.1f}"), (lambda a: f"R {a[0]:.1f} · W {a[1]:.1f}")(CACHE.get("io", (0.0, 0.0))),
                      bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
-              + card(f"CPU · 1 min avg", ld, bar(cpup, heat(cpup)))
+              + card(f"CPU · 1 min avg" + pchip("CPU", "", "{:.2f}"), ld, bar(cpup, heat(cpup)))
               )
     hok, sok = h == "ok", svc == "active"
     def spark(series, color):
@@ -245,9 +264,9 @@ def stats():
               f'<b class="{"h on" if not ARM_SORT_MODE else "h"}" onclick="armOrd(0)">at</b>'
               + _rows + '</div>')
     infrow = (card(f'ARM {_pills}', armtxt, w=2, h=2)
-              + '<div class="card" style="grid-column:span 2"><b>LIVE tg <span id="tgv" style="color:#4c9aff">…</span></b>'
+              + '<div class="card" style="grid-column:span 2"><b>LIVE tg ' + pchip("LIVE tg", " t/s", "{:.1f}") + ' <span id="tgv" style="color:#4c9aff">…</span></b>'
               '<svg class="sp" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline id="tgline" fill="none" stroke="#4c9aff" stroke-width="1.3"/></svg></div>'
-              '<div class="card" style="grid-column:span 2"><b>DRAFT acc <span id="accv" style="color:#6dd66d">…</span></b>'
+              '<div class="card" style="grid-column:span 2"><b>DRAFT acc ' + pchip("DRAFT acc", "", "{:.2f}") + ' <span id="accv" style="color:#6dd66d">…</span></b>'
               '<svg class="sp" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline id="accline" fill="none" stroke="#6dd66d" stroke-width="1.3"/></svg></div>'
               + svc_h + hlt_h)
     charts = ''  # chart shells are static in the page (outside htmx swap)
@@ -291,7 +310,7 @@ document.addEventListener('htmx:afterSwap',e=>{if(e.target.id==='stats'){draw('t
 if(lastTgV)document.getElementById('tgv').innerHTML=lastTgV;
 if(lastAccV)document.getElementById('accv').innerHTML=lastAccV}})</script>
 <script>function cpBox(btn,sel){var L=btn.closest(sel);var ls=L.textContent.trim();function done(ok){if(ok){btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}}if(navigator.clipboard){navigator.clipboard.writeText(ls).then(()=>done(1),()=>done(0));return}var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();done(ok)}
-function peakReset(btn){fetch('/peak/reset').then(()=>{btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u21ba',900)})}
+function peakReset(btn,key){fetch('/peak/reset'+(key?'/'+encodeURIComponent(key):'')).then(()=>{btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u21ba',900)})}
 function cpLog(btn){var L=btn.closest('.log');var ls=[].map.call(L.querySelectorAll('.l'),d=>d.textContent).join('\\n');
 function fallback(){var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ls.length);
 var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
@@ -314,6 +333,7 @@ h1 .up{float:right;font-size:.55em;color:#888;font-weight:normal}
 .bar i{display:block;height:100%;background:#4c9aff;border-radius:3px}
 .sp{width:100%;height:52px;margin-top:8px;background:#151515;border-radius:5px}
 .ok{color:#6dd66d}.bad{color:#ff6b6b}
+.pk{color:#888;font-style:normal;font-size:.8em}
 details.chk summary{cursor:pointer;list-style:none}
 details.chk summary::-webkit-details-marker{display:none}
 details.chk summary::before{content:"▸ ";color:#4c9aff}
@@ -423,8 +443,10 @@ def checkup_html():
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/peak/reset":
-            PEAK.update(gpu=0, t=0.0)
+        if self.path == "/peak/reset" or self.path.startswith("/peak/reset/"):
+            k = self.path.rsplit("/", 1)[-1] if "/" in self.path[13:] else None
+            if k: PEAKS.pop(k, None)
+            else: PEAKS.clear()
             body, ct = "ok", "text/plain"
         elif self.path == "/chk":
             try: body, ct = checkup_html(), "text/html"   # swapped into the STATIC morning-report box (60s cadence, not 2s)
