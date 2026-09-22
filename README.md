@@ -372,6 +372,12 @@ DeepSeek V4.1 Flash 0.483 (260916), GLM-5.3 0.433 and GLM-5.3-flash
 still overlap pairwise, but the champion's 0.533 leads every cloud arm
 nominally.
 
+<a id="fn24"></a>²⁴ Cloud rows in the per-battery tables are the 260922 redo/fill cells
+(the cloud chapter is the canonical table). The 260916 GLM-5.3 gate cell
+(7/12) and zebra cell (0.25) were superseded — they left no artifacts and
+the redo measured materially higher (12/12, 0.50); keeping the old cells
+anywhere would contradict the artifact-backed ones.
+
 ## Got a new model? Test it, then compare it to the podium
 
 Everything the podium rows are made of is reproducible from this repo with
@@ -563,7 +569,9 @@ speed, RAM, and context headroom.
 | Muse-Glimmer Q8 | **12/12** |
 | Qwen3.8 27B Q8 | 10/12 |
 | DeepSeek V4.1 Flash Q2 (local, SSD-streamed) [⁷](#fn7) | 10/12 |
-| GLM-5.3 (cloud) [⁷](#fn7) | 7/12 |
+| GLM-5.3 (cloud) [²⁴](#fn24) | **12/12** |
+| GLM-5.3-flash (cloud) [²⁴](#fn24) | 11/12 |
+| DeepSeek V4.1 Flash (cloud) [²⁴](#fn24) | **12/12** |
 
 All local cells ran the hardened **v3.1** grader (overnight re-run,
  — the battery is uniform across the table at last.
@@ -593,7 +601,8 @@ the same contract as the locals).
 | Qwen3.8 27B Q8 † | 0.667 | 12 |
 | Muse-Glimmer Q8 † | 0.583 | 12 |
 | DeepSeek V4.1 Flash (cloud) [⁷](#fn7) [⁸](#fn8) † | 0.667 | 12 |
-| GLM-5.3 (cloud) [⁷](#fn7) † | 0.500 | 12 |
+| GLM-5.3 (cloud) [²⁴](#fn24) † | 0.583 | 12 |
+| GLM-5.3-flash (cloud) [²⁴](#fn24) † | 0.333 | 12 |
 
 Q6's lower score is 1–2 items at n=11 — same tier, see [⁴](#fn4).
 
@@ -868,7 +877,8 @@ stratified):
 | Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
 | Flash-Next IQ4_NL | 0.42 | 0.19–0.68 | 12 |
 | DeepSeek V4.1 Flash (cloud) [⁷](#fn7) | 0.42 | 0.19–0.68 | 12 |
-| GLM-5.3 (cloud) [⁷](#fn7) | 0.25 | 0.09–0.53 | 12 |
+| GLM-5.3 (cloud) [²⁴](#fn24) | 0.50 | 0.25–0.75 | 12 |
+| GLM-5.3-flash (cloud) [²⁴](#fn24) | 0.42 | 0.19–0.68 | 12 |
 
 : the BF16 anchor row landed (0.65 — the morning cell had died
 silently on a port transition, re-run clean), and the Q5 row at
