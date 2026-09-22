@@ -303,7 +303,11 @@ per-minute from the router's timing prints; 0 faults — a speed disease,
 not a crash). A 15-item census is unreachable at that rate; the MTP-only
 budget-6 probe remains the only scored cell: **0.50** [0.19–0.81]. The
 cure is fork-level (row residency), and the 192k tier does not buy it —
-if anything the extra KV headroom hastens it.
+if anything the extra KV headroom hastens it. **The disease is
+Q6-specific, not tier-generic (measured 260922): the same 15-item census
+run against Q5 at 131k on strixy2 completed in 8 minutes flat, 0.8
+[0.55–0.93] n=15** — which also replicates the champion's own fcb15-low
+cell cross-box (0.867 [0.62–0.96], overlapping CIs).
 
 <a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
 probe (real-text corpus, request-sent→complete; tg streamed
