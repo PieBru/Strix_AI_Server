@@ -48,7 +48,7 @@ pass/fail at 12 — not an overall quality verdict.
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁰ | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | — ⁵ | — ⁵ | — ⁵ | 24.6 ⁶ | 25.6 ⁶ | **12/12** | — ¹¹ | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | **730** | **699** | — ¹⁸ | **34.3** | **22.3** | **12/12** | — ¹¹ | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — ¹⁶ | 34.5 | 15.2 ¹⁷ | **12/12** | 0.733 ¹⁰ | 32 GiB |
 
@@ -167,10 +167,9 @@ Muse is listed as a reference tier on sustained decode only.
 denominator to 11. The 0.833 vs 0.727 gap is 1–2 items — within sampling
 variance at temperature 1.0. Both models are in the same quality tier.
 
-⁵ Q6's prefill-at-depth cells are still owed (the automated chain was
-OOM-killed before reaching them) — but decode-at-depth is now measured: a
-10-minute sustained single-client gate at `c=65536` held **27.4 t/s flat**
-(18k tokens, no decay), while `c=131072` still degrades (fork-owed).
+⁵ Q6's prefill cells are now measured at its shipped `c=65536` (pp4k/pp32k
+below) and its decode-at-depth gate held **27.4 t/s flat** over 18k tokens;
+`c=131072` still degrades (fork-owed).
 
 ⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
 and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
@@ -189,6 +188,11 @@ Overlapping CIs throughout: no ranking claims.
  The champion's podium cell is its **promoted default tier (low,
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
  lives in the fcb15 chapter.
+
+¹⁸ Q6 serves a 64k context, so the pp@128k cell (a ~160k-token window) is
+**n/a by design** — no larger-context serve is offered for this arm. The
+speed cells were re-measured wall-clock at that shipped config (pp beats the
+champion's: 730/699 vs 689/672; decode 34.3 short / 22.3 sustained).
 
 ¹¹ Q6's fcb15: the medium-effort census never completed (the
 footnote-⁶ long-item profile at sustained-thrash speeds). The
