@@ -79,7 +79,7 @@ def _io_bytes():
 ARM_SORT_MODE = 0   # server-side row order: 0 = recency (default), 1 = load time
 BENIGN = re.compile(r"request cancelled while waiting for model|requires ctx_other|failed to measure the memory of the extra model"
                     r"|attention rotation force disabled|Qwen-VL models require|image-min-tokens|issues/16842"
-                    r"|preserving reasoning")  # routine: arm-swap probe race, normal memory-fit pre-pass, per-load advisories
+                    r"|preserving reasoning|exceeds the available context size")  # routine: arm-swap probe race, memory-fit pre-pass, per-load advisories, client sent an oversized request (probe noise, not a fault)
 
 def _models_max():
     try:
