@@ -98,7 +98,7 @@ pass/fail at 12 — not an overall quality verdict.
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | fcb15 [¹⁰](#fn10) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** [¹⁰](#fn10) | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | — [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | — [¹¹](#fn11) | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | — [¹¹](#fn11) | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 [¹⁰](#fn10) | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.733 [¹⁰](#fn10) | 32 GiB |
 
@@ -284,10 +284,14 @@ Overlapping CIs throughout: no ranking claims.
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
  lives in the fcb15 chapter.
 
-<a id="fn18"></a>¹⁸ Q6 serves a 64k context, so the pp@128k cell (a ~160k-token window) is
-**n/a by design** — no larger-context serve is offered for this arm. The
-speed cells were re-measured wall-clock at that shipped config (pp beats the
-champion's: 730/699 vs 689/672; decode 34.3 short / 22.3 sustained).
+<a id="fn18"></a>¹⁸ No longer n/a: the Q6 arm was raised to a **192k tier** on
+260922 (`c=196608, ub=1024`, see *Why not Q6*), so the pp@128k cell is now
+measured — a 127,066-token prompt prefilled at **198.9 t/s**. Treat it as
+the floor, not the mean: three other same-config runs the same day
+measured 434.8 / 472.8 / 491.9 t/s (150k-class prompts), so deep prefill
+at this tier is streaming-variance-heavy — the row-eviction disease the
+Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
+22.3) remain at the 64k-era basis from [⁸](#fn8).
 
 <a id="fn11"></a>¹¹ Q6's fcb15: the medium-effort census never completed (the
 footnote-[⁶](#fn6) long-item profile at sustained-thrash speeds). The
