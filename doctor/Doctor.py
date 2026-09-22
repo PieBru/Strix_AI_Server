@@ -29,6 +29,8 @@ ROUTER_INI = _router_ini() or "/home/piero/Piero/Work/Qwen38/models.ini"
 JN = lambda n=300: subprocess.run(["journalctl","--user"]+_JU+["-n",str(n),"--no-pager"],
                                   capture_output=True, text=True, timeout=8).stdout.splitlines()
 
+PEAK = {"gpu": 0, "t": 0.0}   # GPU% high-water mark since service start (or last reset)
+
 def gpu():
     # pure sysfs (UMA truth 260914): rocm-smi's VRAM% is the 1GiB carve-out (always ~90%),
     # not real use; GTT counters are the actual GPU-addressable memory (matches nvtop).
@@ -121,6 +123,10 @@ def _loads_recent():
     return loads_h
 
 def refresh():
+    try:
+        g = int(gpu()[0].strip("%") or 0)
+        if g > PEAK["gpu"]: PEAK.update(gpu=g, t=time.time())
+    except Exception: pass
     sw = _sw_pages()
     if sw and _SW["t"]:
         dt = max(time.time() - _SW["t"], 1e-3)
@@ -195,7 +201,13 @@ def stats():
     except ValueError: gpv = 0
     NCPU = os.cpu_count() or 1
     cpup = min(float(ld)/NCPU*100, 100)
-    sysrow = (card("GPU", gp, bar(gpv, heat(gpv))) + card("VRAM", vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
+    _pk = PEAK["gpu"]
+    _pkt = (" " + time.strftime("%H:%M", time.localtime(PEAK["t"]))) if PEAK["t"] else ""
+    _gpub = "GPU" \
+            + (f' <i class=pk style="color:#888;font-style:normal;font-size:.8em">peak {_pk}%{_pkt}</i>' if _pk else "") \
+            + '<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this)" title="reset peak">↺</button>'
+    sysrow = (card(_gpub, gp, bar(gpv, heat(gpv)))
+            + card("VRAM", vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
               + card("GPU temp", gt, bar(tm, heat(tm))) + card("GPU power", gpw, bar(pw, heat(pw)))
               + card("RAM · GiB", f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
               + card("SWAP · GiB" + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
@@ -279,6 +291,7 @@ document.addEventListener('htmx:afterSwap',e=>{if(e.target.id==='stats'){draw('t
 if(lastTgV)document.getElementById('tgv').innerHTML=lastTgV;
 if(lastAccV)document.getElementById('accv').innerHTML=lastAccV}})</script>
 <script>function cpBox(btn,sel){var L=btn.closest(sel);var ls=L.textContent.trim();function done(ok){if(ok){btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}}if(navigator.clipboard){navigator.clipboard.writeText(ls).then(()=>done(1),()=>done(0));return}var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();done(ok)}
+function peakReset(btn){fetch('/peak/reset').then(()=>{btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u21ba',900)})}
 function cpLog(btn){var L=btn.closest('.log');var ls=[].map.call(L.querySelectorAll('.l'),d=>d.textContent).join('\\n');
 function fallback(){var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ls.length);
 var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
@@ -410,7 +423,10 @@ def checkup_html():
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/chk":
+        if self.path == "/peak/reset":
+            PEAK.update(gpu=0, t=0.0)
+            body, ct = "ok", "text/plain"
+        elif self.path == "/chk":
             try: body, ct = checkup_html(), "text/html"   # swapped into the STATIC morning-report box (60s cadence, not 2s)
             except Exception as e: body, ct = f"<div class='err'>chk error: {html.escape(str(e))}</div>", "text/html"
         elif self.path == "/stats":
