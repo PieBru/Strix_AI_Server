@@ -183,7 +183,8 @@ a reserve instead of racing the GPU for pages):
 |---|---|---|---|---|
 | 65536 (shipped) | ✓ | 27.4 t/s flat (gate) | not tried | 0 (8/8 census) |
 | **131072** | ✓ | **24.9 / 25.1 t/s** | **726 t/s, then 25.1 t/s** | **0** |
-| 196608 | ✓ | 21.8 t/s | ✗ SIGABRT | 0 |
+| 196608 (`ub=4096`) | ✓ | 21.8 t/s | ✗ SIGABRT | 0 |
+| **196608 (`ub=1024`)** | ✓ | **22.65 t/s** | **434.8 t/s, then 27.8 t/s** | **0** |
 | 262144 | ✗ | — | — | — |
 
 - **131k is the validated Q6 tier** — an 8000-token generation holds
@@ -191,12 +192,14 @@ a reserve instead of racing the GPU for pages):
 decodes at 25.1 t/s, with the reply demonstrably reading the prompt
   (it summarised its content). One run measured 14.9 t/s — the
   disk-streaming variance the *second disease* above describes.
-- **192k loads and decodes, but long prefills abort** inside
-  `ggml_cuda_flash_attn_ext_qsa`: the QSA attention workspace is
+- **192k loads and decodes, and its long-prefill abort has a cure: `ub`.**
+  At the shipped `ub = 4096` a ~143k-token prefill aborts inside
+  `ggml_cuda_flash_attn_ext_qsa` — the QSA attention workspace is
   allocated *per attention call* and scales with prompt/batch size, so it
-  fails under the cap. RAM was never the binding constraint — every
-  failure above ran with **8.7–10.7 GB spare**. The obvious untried lever
-  is a smaller `ub`, shrinking that workspace.
+  fails under the cap. With **`ub = 1024`** the same 192k tier prefills
+  **163,199 tokens at 434.8 t/s** and decodes at 27.8 t/s, no abort
+  (decode 22.65 t/s on a 3k-token generation). RAM was never the binding
+  constraint — every failure above ran with **8.7–10.7 GB spare**.
 - **256k is a fork limit, not a RAM limit**: with f16 KV the graph build
   asserts at `qwen4exp.cpp:1365` (`build_attn_qsa`, reached from
   `resolve_fused_ops`); with `fa = off` it fails to create the context
