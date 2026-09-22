@@ -26,6 +26,7 @@
 - [Zebra — CSP logic ladder (GBench)](#zebra--csp-logic-ladder-gbench)
 - [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
 - [DeepSeek V4.1 Flash Q2 — tested, parked](#deepseek-v41-flash-q2--tested-parked)
+- [Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53)
 - [Reproduce our tests](#reproduce-our-tests)
 - [The "sharp" chat template](#the-sharp-chat-template)
 - [The Doctor — 24/7 monitoring and the nightly auto-improve loop](#the-doctor--247-monitoring-and-the-nightly-auto-improve-loop)
@@ -263,6 +264,13 @@ slot ceilings: **2 @256k, 5 @128k, 7 @96k** — but observed page-cache
 also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
 halve slot cost but is fork-untested on Q5 (the Q6 lazy-path wedge,
 *Why not Q6*).
+
+¹⁹ The Italian gate has not been run against any cloud API. The 10/12 in
+the iten12 chapter is the **parked local** DeepSeek V4.1 Flash Q2 (the
+340 GiB SSD-streamed MoE, [*tested, parked*](#deepseek-v41-flash-q2--tested-parked)) —
+it runs the same code-block contract as our locals. A cloud model failing
+that contract would score 0/12 for format rather than for Italian, which
+is why the cell is left empty rather than approximated.
 
 ## Got a new model? Test it, then compare it to the podium
 
@@ -823,6 +831,45 @@ replicated with the same verdict — parked
 ([tomasreminek/strix-halo](https://github.com/tomasreminek/strix-halo);
 see the replication note in the recipe). Full recipe in
 [configs/deepseek-v41-parked.md](configs/deepseek-v41-parked.md).
+
+## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
+
+The same batteries that grade our locals, run against commercial APIs
+through the same probe harness (same items, same graders, same strict
+format contract). Two caveats decide how to read this table, both from
+footnote ⁷: a cloud API that does not obey the one-code-block answer
+contract scores as a *format* failure, so cloud cells are compatibility
+checks first and capability signals second; and empty cells are
+model/battery pairs **we have not measured** — they are not zeros.
+Cloud cells were probed 260916 at the vendor default API config (no
+effort/thinking tuning on our side).
+
+| metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
+|---|---|---|---|---|
+| Italian gate (iten12) | **12/12** (n=12) | not measured ¹⁹ | not measured ¹⁹ | pending (429) |
+| AIME yearsplit-12 | **0.833** [0.55–0.95] (n=12) | 0.667 [0.39–0.86] (n=12) | 0.500 [0.25–0.75] (n=12) | pending (429) |
+| AIME-60 census | **0.533** low / 0.517 med, n=60 | 0.483 [0.36–0.61] (n=60) | not measured | pending (429) |
+| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) | 0.42 [0.19–0.68] (n=12) | 0.25 [0.09–0.53] (n=12) | pending (429) |
+| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | not measured | not measured | pending (429) |
+| sli structured-list | **10/10** | not measured | not measured | pending (429) |
+| decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
+
+Reading it honestly:
+
+- **No cell here is a verdict.** Every shared cell has overlapping CIs at
+these n, and the cloud column carries the format caveat. What the data
+supports is "at least level, nominally ahead" — not "beats the frontier".
+- **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
+where both sides have a tight interval): 0.533 vs 0.483 — a three-item
+gap, i.e. a tie at this n.
+- **The cloud rows have no Italian-gate result at all**, and the gate is
+exactly the strict-format scenario footnote ⁷ warns about. Filling that
+one cell (a cloud model that refuses the one-code-block contract scores
+0/12 for format, not for Italian) is the next measurement worth taking —
+ahead of re-running GLM when its cap resets.
+- Cloud cells are cheap to add and cheap to keep: an API key and a probe
+run per model. The table can grow a row per model without touching the
+local test rig.
 
 ## Reproduce our tests
 
