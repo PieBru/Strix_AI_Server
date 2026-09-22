@@ -327,6 +327,12 @@ overlapping the champion's 0.833) and its zebra 0.417 ties DeepSeek's
 cloud cell. Read it as: better instruction-following than its full
 sibling, weaker reasoning than everything else measured here.
 
+<a id="fn21"></a>²¹ The champion's zebra cell is the **n=20 sharp-low re-cut** from the
+[zebra chapter](#zebra--csp-logic-ladder-gbench) (its own table lists n per row);
+every other zebra cell in this table is an n=12 seed-1300 probe. Mixed n is
+kept because the n=20 row is the champion's shipped-default measurement —
+its CI is correspondingly tighter, and n is printed wherever it is not 12.
+
 ## Got a new model? Test it, then compare it to the podium
 
 Everything the podium rows are made of is reproducible from this repo with
@@ -901,10 +907,10 @@ effort/thinking tuning on our side).
 
 | metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
 |---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (n=12, passes) | not measured [¹⁹](#fn19) | 7/12 (n=12, fails) [¹⁹](#fn19) | **11/12** (n=12, passes) [²⁰](#fn20) |
-| AIME yearsplit-12 | **0.833** [0.55–0.95] (n=12) | 0.667 [0.39–0.86] (n=12) | 0.500 [0.25–0.75] (n=12) | 0.333 [0.14–0.61] (n=12) [²⁰](#fn20) |
-| AIME-60 census | **0.533** low / 0.517 med, n=60 | 0.483 [0.36–0.61] (n=60) | not measured | not measured |
-| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) | 0.42 [0.19–0.68] (n=12) | 0.25 [0.09–0.53] (n=12) | 0.417 [0.19–0.68] (n=12) [²⁰](#fn20) |
+| Italian gate (iten12) | **12/12** (passes) | not measured [¹⁹](#fn19) | 7/12 (fails) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
+| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.500 [0.25–0.75] | 0.333 [0.14–0.61] [²⁰](#fn20) |
+| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | not measured | not measured |
+| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.25 [0.09–0.53] | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | not measured | not measured | not measured |
 | sli structured-list | **10/10** | not measured | not measured | not measured |
 | decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
