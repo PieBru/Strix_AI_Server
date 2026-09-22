@@ -306,7 +306,14 @@ cure is fork-level (row residency), and the 192k tier does not buy it —
 if anything the extra KV headroom hastens it. **The disease is
 Q6-specific, not tier-generic (measured 260922): the same 15-item census
 run against Q5 at 131k on strixy2 completed in 8 minutes flat, 0.8
-[0.55–0.93] n=15** — which also replicates the champion's own fcb15-low
+[0.55–0.93] n=15**. And the 192k tier itself proved to be a
+**zero-headroom specialist** the same night: a nightly soak held 0.917
+iten12 and 198.9 t/s prefill in its quiet window, but a single
+co-resident 107 G file copy tipped the box into a zram thrash storm
+(prefill collapsed to 44.7 t/s). 192k serves alone or not at all — the
+128k q5 arm stays the daily driver. The mirrored arm on strixy2 (same
+flags, `q6-serve-192k.service`, switch runbook embedded in the unit)
+validated at 521 t/s @ 78k-token prefill. — which also replicates the champion's own fcb15-low
 cell cross-box (0.867 [0.62–0.96], overlapping CIs).
 
 <a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
