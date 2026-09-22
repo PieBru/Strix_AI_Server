@@ -352,10 +352,12 @@ down when you do this:
 - **Saturation is a result too.** If a model caps the battery, that rung
   has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
   says nothing the previous model's row didn't.
-- **A negative A/B is a result.** This suite's most reused finding is
+- **A negative A/B is a result.** This suite's most reused findings are
   negative: the draft-length setting that lifted the 27B did **not** lift
-  Muse (14.4 vs 15.0 t/s), so a knob win does not transfer between trunks
-  until it is measured on the trunk you are shipping.
+  Muse (14.4 vs 15.0 t/s), and a Strix-Halo neighbour project's best MTP
+  tuning (3 draft tokens, n-gram off, +62% on their box) **tied** our
+  production config here (35.8/26.4 vs 36.0/25.7). A knob win does not
+  transfer between trunks or setups until it is measured on yours.
 
 ## RAM accounting
 

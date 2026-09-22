@@ -631,5 +631,36 @@
       }
     },
     "verdict": "tested, parked: fails the Italian gate, bottom-tier coding/math on stock, and the Q8 trunk dominates it at every depth. Revisit only with the sharp template if ever."
+  },
+  "knob_transfers_260922": {
+    "what": "knob wins measured on OTHER setups, re-tested here (strixllama takeaways)",
+    "nm3_ngram_off": {
+      "here": "tg128 35.8 / tg2048 26.4",
+      "production_nm5_ngram_mod": "36.0 / 25.7 (c=131072, sharp-low)",
+      "verdict": "TIE \u2014 strixllama's +62% does not transfer to this fork/model"
+    },
+    "ctx_slope": {
+      "ms_per_token": [
+        [
+          2000,
+          29.9
+        ],
+        [
+          32000,
+          37.5
+        ],
+        [
+          64000,
+          39.5
+        ],
+        [
+          96000,
+          39.8
+        ]
+      ],
+      "slope_2k_96k": "~0.105 ms/token per 1k ctx (non-linear: steep to 32k, flat after)",
+      "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 \u2014 we are NOT in the broken-dense state",
+      "method": "/tmp/ctx_slope.py pattern: fill corpus window, stream 256 tokens, ms/token at fill"
+    }
   }
 }
