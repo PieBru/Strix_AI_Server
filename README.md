@@ -205,9 +205,14 @@ decodes at 25.1 t/s, with the reply demonstrably reading the prompt
   `resolve_fused_ops`); with `fa = off` it fails to create the context
   and the router then retry-loops. KV quantisation cannot buy the room
   back — the same assert demands `k/v == F16`, so `ctk/ctv = q8_0` aborts
-  the load. **Q6's honest ceiling today is 131k validated, 192k with a
-  short-prompt caveat** — 2× the shipped tier, not the 256k the model
-  card suggests.
+  the load. **Q6's honest ceiling today is 192k, validated in
+  production** — wired as the `deep` arm on 260922 under
+  `MemoryMax=120G`, where a **150,247-token prompt prefilled at
+  472.8 t/s** end-to-end with the reply demonstrably reading it. The cap
+  is the cliff, not the context: at the old 118G the same prefill
+  crawled at ~147 t/s (GPU ~10% busy, disk-bound row eviction) and died
+  mid-flight; at 120G the GPU runs well-loaded. 256k remains
+  fork-refused.
 - **The GPU page faults are a teardown/reclaim race, not a load killer.**
   Across every run in that table: **zero** `[gfxhub] page fault` events.
   The three seen on 260922 all hit lab servers *during teardown* or an
