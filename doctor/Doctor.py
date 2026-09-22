@@ -215,6 +215,9 @@ def stats():
     # DISK zones (operator 260922): 80% is normal for an LLM-serving disk —
     # green to 80, yellow to 90, red beyond.
     heat_disk = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
+    # RAM zones (operator 260922): RAM is there to be used — same shape as
+    # DISK: green to 80, yellow to 90, red beyond (the risky zone).
+    heat_ram = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
     card = lambda l, v, b="", w=1, h=1: f'<div class="card"{f" style=\"grid-column:span {w}{f';grid-row:span {h}' if h>1 else ''}\"" if w>1 or h>1 else ""}><b>{l}</b><span>{v}</span>{b}</div>'
     try: tm = float(gt[:-2]) if gt.endswith("°C") else 0
     except ValueError: tm = 0
@@ -237,7 +240,7 @@ def stats():
     sysrow = (card("GPU" + pchip("GPU", "%"), gp, bar(gpv, heat(gpv)))
             + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
               + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
-              + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
+              + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
                      (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))),
                      bar(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)), heat(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)))))
