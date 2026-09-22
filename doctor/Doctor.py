@@ -209,6 +209,9 @@ def stats():
     h, svc, arm, tg, acc, jn, errs, gpu_err = inference()
     bar = lambda p, c=None: f'<div class="bar"><i style="width:{min(max(p,0),100)}%;{f"background:{c}" if c else ""}"></i></div>'
     heat = lambda v: f"hsl({120-1.2*min(max(v,0),100)},90%,55%)"
+    # VRAM zones (operator 260922): green <90 is the intended-usage zone,
+    # yellow 90-95 is the caution band, red >95 is where the danger starts.
+    heat_vram = lambda v: "hsl(120,90%,55%)" if v < 90 else ("hsl(60,90%,55%)" if v <= 95 else "hsl(0,90%,55%)")
     card = lambda l, v, b="", w=1, h=1: f'<div class="card"{f" style=\"grid-column:span {w}{f';grid-row:span {h}' if h>1 else ''}\"" if w>1 or h>1 else ""}><b>{l}</b><span>{v}</span>{b}</div>'
     try: tm = float(gt[:-2]) if gt.endswith("°C") else 0
     except ValueError: tm = 0
@@ -229,7 +232,7 @@ def stats():
         return (f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>'
                 f'<i class=pk style="float:right">peak {fmt.format(p["v"])}{unit} {t}</i>')
     sysrow = (card("GPU" + pchip("GPU", "%"), gp, bar(gpv, heat(gpv)))
-            + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
+            + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
               + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
               + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.1f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
