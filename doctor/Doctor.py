@@ -236,7 +236,7 @@ def stats():
               + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
               + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
-                     f"{st.replace(' GiB','')} · in/out {CACHE.get('swio', (0.0, 0.0))[0]:.0f}/{CACHE.get('swio', (0.0, 0.0))[1]:.0f} MB/s",
+                     (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))),
                      bar(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)), heat(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)))))
               + card("DISK · GiB" + pchip("DISK", "%"), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat(dv)))
               + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}"), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
