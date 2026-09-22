@@ -219,12 +219,15 @@ def stats():
     NCPU = os.cpu_count() or 1
     cpup = min(float(ld)/NCPU*100, 100)
     def pchip(key, unit="", fmt="{:.0f}"):
-        """Peak chip + per-card reset button for a card title."""
+        """Peak chip + per-card reset button, both right-aligned at the card title.
+        For float:right the source order is reversed — the button is emitted
+        first so it lands rightmost (the card edge) and the peak sits just left
+        of it; the title text stays left-aligned."""
         p = PEAKS.get(key)
         if not p or p["v"] <= 0: return ""
         t = time.strftime("%H:%M", time.localtime(p["t"]))
-        return (f' <i class=pk>peak {fmt.format(p["v"])}{unit} {t}</i>'
-                f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>')
+        return (f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>'
+                f'<i class=pk style="float:right">peak {fmt.format(p["v"])}{unit} {t}</i>')
     sysrow = (card("GPU" + pchip("GPU", "%"), gp, bar(gpv, heat(gpv)))
             + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
               + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
