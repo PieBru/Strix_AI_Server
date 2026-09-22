@@ -49,13 +49,25 @@ def gpu():
 def ram_disk_cpu():
     with open("/proc/meminfo") as f: d = dict(l.split(":",1) for l in f)
     tot, avail = int(d["MemTotal"].split()[0]), int(d["MemAvailable"].split()[0])
+    swt, swf, swc = (int(d.get(k, "0 kB").split()[0]) for k in ("SwapTotal", "SwapFree", "SwapCached"))
+    swu = max(swt - swf - swc, 0)          # cached swap pages are reclaimable, not "used"
     s = shutil.disk_usage("/"); ld = open("/proc/loadavg").read().split()[0]
     return (f"{100*(tot-avail)/tot:.0f}%", f"{(tot-avail)/1048576:.0f}/{tot/1048576:.0f} GiB",
-            f"{100*s.used/s.total:.0f}%", f"{s.used/1e9:.0f}/{s.total/1e9:.0f} GiB", ld)
+            f"{100*s.used/s.total:.0f}%", f"{s.used/1e9:.0f}/{s.total/1e9:.0f} GiB", ld,
+            f"{100*swu/swt:.0f}%" if swt else "0%", f"{swu/1048576:.1f}/{swt/1048576:.0f} GiB")
 
 CACHE = {"h": "?", "svc": "?", "arm": "?", "tg": None, "acc": None, "jn": [], "errs": [], "gpu_err": [], "sig": None, "sig_t": 0.0}
 TG_H, ACC_H = deque(maxlen=120), deque(maxlen=120)  # ~4 min at live pace
 _IO = {"t": 0.0, "r": 0, "w": 0}   # prev /sys/block/nvme0n1/stat snapshot for I/O deltas
+
+_SW = {"t": 0.0, "i": 0, "o": 0}   # prev /proc/vmstat pswpin/pswpout snapshot for swap-rate deltas
+
+def _sw_pages():
+    # /proc/vmstat: pswpin/pswpout are CUMULATIVE pages swapped in/out since boot
+    try:
+        d = dict(l.split() for l in open("/proc/vmstat") if l.startswith(("pswpin", "pswpout")))
+        return int(d["pswpin"]), int(d["pswpout"])
+    except Exception: return None
 
 def _io_bytes():
     # /sys/block/nvme0n1/stat fields: reads, merges, sectors_read, ... writes, merges, sectors_written (512B sectors)
@@ -109,6 +121,11 @@ def _loads_recent():
     return loads_h
 
 def refresh():
+    sw = _sw_pages()
+    if sw and _SW["t"]:
+        dt = max(time.time() - _SW["t"], 1e-3)
+        CACHE["swio"] = (max(sw[0] - _SW["i"], 0) * 4096 / 1e6 / dt, max(sw[1] - _SW["o"], 0) * 4096 / 1e6 / dt)
+    if sw: _SW.update(t=time.time(), i=sw[0], o=sw[1])
     io = _io_bytes()
     if io and _IO["t"]:
         dt = max(time.time() - _IO["t"], 1e-3)
@@ -165,7 +182,7 @@ def inference():
     return CACHE["h"], CACHE["svc"], CACHE["arm"], CACHE["tg"], CACHE["acc"], CACHE["jn"], CACHE["errs"], CACHE["gpu_err"]
 
 def stats():
-    gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld = ram_disk_cpu()
+    gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
     h, svc, arm, tg, acc, jn, errs, gpu_err = inference()
     bar = lambda p, c=None: f'<div class="bar"><i style="width:{min(max(p,0),100)}%;{f"background:{c}" if c else ""}"></i></div>'
     heat = lambda v: f"hsl({120-1.2*min(max(v,0),100)},90%,55%)"
@@ -181,6 +198,9 @@ def stats():
     sysrow = (card("GPU", gp, bar(gpv, heat(gpv))) + card("VRAM", vr, bar((vv := int(vr.strip("%") or 0)), heat(vv)))
               + card("GPU temp", gt, bar(tm, heat(tm))) + card("GPU power", gpw, bar(pw, heat(pw)))
               + card("RAM · GiB", f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat(rv)))
+              + card("SWAP · GiB" + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
+                     f"{st.replace(' GiB','')} · in/out {CACHE.get('swio', (0.0, 0.0))[0]:.1f}/{CACHE.get('swio', (0.0, 0.0))[1]:.1f} MB/s",
+                     bar(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)), heat(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)))))
               + card("DISK · GiB", f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat(dv)))
               + card("DISK I/O · MB/s", (lambda a: f"R {a[0]:.1f} · W {a[1]:.1f}")(CACHE.get("io", (0.0, 0.0))),
                      bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
@@ -280,6 +300,10 @@ h1 .up{float:right;font-size:.55em;color:#888;font-weight:normal}
 .bar i{display:block;height:100%;background:#4c9aff;border-radius:3px}
 .sp{width:100%;height:52px;margin-top:8px;background:#151515;border-radius:5px}
 .ok{color:#6dd66d}.bad{color:#ff6b6b}
+details.chk summary{cursor:pointer;list-style:none}
+details.chk summary::-webkit-details-marker{display:none}
+details.chk summary::before{content:"▸ ";color:#4c9aff}
+details.chk[open] summary::before{content:"▾ "}
 .err{background:#3a1111;border:1px solid #ff6b6b;color:#ffb3b3;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85em;white-space:pre-wrap}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
@@ -370,16 +394,18 @@ def checkup_html():
         n = p.get("new", {}); b = p.get("backlog", {})
         nums = f"new: P1×{n.get('P1',0)} P2×{n.get('P2',0)} P3×{n.get('P3',0)} · backlog: {b.get('count',0)} (oldest {b.get('oldest_days',0)}d)"
         summ = "".join(f"<div class='l'>{html.escape(s)}</div>" for s in p.get("summary", [])[:6])
-        return (f'<div class="card log" style="margin-bottom:14px"><b>LAST NIGHT\'S CHECKUP — {when} '
-                f'<span style="color:#888">{nums}</span></b>{summ}'
-                '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></div>')
+        # collapsible, default collapsed: the summary line carries the counts so
+        # the collapsed page still informs; the storm-relevant body is one click away
+        return (f'<details class="card log chk" style="margin-bottom:14px"><summary><b>LAST NIGHT\'S CHECKUP — {when} '
+                f'</b><span style="color:#888">{nums}</span></summary>{summ}'
+                '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></details>')
     except Exception:
         return ''
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/stats":
-            try: body, ct = checkup_html() + stats()[0], "text/html"
+            try: body, ct = stats()[0] + checkup_html(), "text/html"   # err box first after title; checkup just before activity
             except Exception as e: body, ct = f"<div class='err'>dash error: {html.escape(str(e))}</div>", "text/html"
         elif self.path.startswith("/armorder"):
             global ARM_SORT_MODE
