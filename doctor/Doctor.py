@@ -218,6 +218,11 @@ def stats():
     # RAM zones (operator 260922): RAM is there to be used — same shape as
     # DISK: green to 80, yellow to 90, red beyond (the risky zone).
     heat_ram = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
+    # SWAP zones (operator 260922): swap is an emergency resource, graded in
+    # ABSOLUTE GiB not percent — green to 0.5 (OS noise), yellow to 2, red
+    # beyond (may signal a loading problem). The bar fills toward the 2 GiB
+    # red threshold so the emergency scale is readable at a glance.
+    heat_swap = lambda g: "hsl(120,90%,55%)" if g < 0.5 else ("hsl(60,90%,55%)" if g <= 2 else "hsl(0,90%,55%)")
     card = lambda l, v, b="", w=1, h=1: f'<div class="card"{f" style=\"grid-column:span {w}{f';grid-row:span {h}' if h>1 else ''}\"" if w>1 or h>1 else ""}><b>{l}</b><span>{v}</span>{b}</div>'
     try: tm = float(gt[:-2]) if gt.endswith("°C") else 0
     except ValueError: tm = 0
@@ -243,7 +248,7 @@ def stats():
               + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
                      (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))),
-                     bar(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)), heat(max(int(sp.strip("%") or 0), min(int(sum(CACHE.get("swio", (0.0, 0.0)))), 100)))))
+                     bar(min((sg := float((st.replace(' GiB','') or '0').split('/')[0])) / 2.0 * 100, 100), heat_swap(sg)))
               + card("DISK · GiB" + pchip("DISK", "%"), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
               + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}"), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
                      bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
