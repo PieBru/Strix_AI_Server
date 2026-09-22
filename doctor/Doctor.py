@@ -244,7 +244,7 @@ def stats():
     if not hok: probs.append(f"/health: {h}")
     probs += [f"journal: {html.escape(e[-160:])}" for e in errs]
     probs += [f"dmesg: {html.escape(e[-160:])}" for e in gpu_err]
-    banner = (f'<div class="err">{ "<br>".join(probs) }</div>' if probs else "")
+    banner = ('<div class="err"><button class="cp" style="float:right;margin-left:8px" onclick="cpBox(this,\'.err\')" title="copy errors">⧉</button>' + "<br>".join(probs) + "</div>") if probs else ""
     act = []
     for l in jn[-60:]:
         t = re.sub(r"^.*?llama-server\[\d+\]: ", "", l)
@@ -278,7 +278,8 @@ var lastTgV='',lastAccV='';
 document.addEventListener('htmx:afterSwap',e=>{if(e.target.id==='stats'){draw('tgline',H_TG);draw('accline',H_ACC);
 if(lastTgV)document.getElementById('tgv').innerHTML=lastTgV;
 if(lastAccV)document.getElementById('accv').innerHTML=lastAccV}})</script>
-<script>function cpLog(btn){var L=btn.closest('.log');var ls=[].map.call(L.querySelectorAll('.l'),d=>d.textContent).join('\\n');
+<script>function cpBox(btn,sel){var L=btn.closest(sel);var ls=L.textContent.trim();function done(ok){if(ok){btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}}if(navigator.clipboard){navigator.clipboard.writeText(ls).then(()=>done(1),()=>done(0));return}var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();done(ok)}
+function cpLog(btn){var L=btn.closest('.log');var ls=[].map.call(L.querySelectorAll('.l'),d=>d.textContent).join('\\n');
 function fallback(){var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ls.length);
 var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
 if(ok){btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}
@@ -327,6 +328,9 @@ details.chk[open] summary::before{content:"▾ "}
 </style></head><body>
 <h1>Doctor · __HOST__ · system + inference<span class="up">__UPTIME__</span></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
+<details class="actbox"><summary>morning report</summary>
+<div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
+</details>
 <details class="actbox"><summary>activity</summary>
 <div id="stats2" hx-get="/stats2" hx-trigger="every 2s" hx-swap="innerHTML"></div>
 </details>
@@ -394,18 +398,23 @@ def checkup_html():
         n = p.get("new", {}); b = p.get("backlog", {})
         nums = f"new: P1×{n.get('P1',0)} P2×{n.get('P2',0)} P3×{n.get('P3',0)} · backlog: {b.get('count',0)} (oldest {b.get('oldest_days',0)}d)"
         summ = "".join(f"<div class='l'>{html.escape(s)}</div>" for s in p.get("summary", [])[:6])
-        # collapsible, default collapsed: the summary line carries the counts so
-        # the collapsed page still informs; the storm-relevant body is one click away
-        return (f'<details class="card log chk" style="margin-bottom:14px"><summary><b>LAST NIGHT\'S CHECKUP — {when} '
-                f'</b><span style="color:#888">{nums}</span></summary>{summ}'
-                '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></details>')
+        # /chk body only — the collapsible box itself is STATIC html (outside the
+        # 2s htmx swap) so the open/closed state survives refreshes, like .actbox
+        return (f'<div class="card log"><b>LAST NIGHT\'S CHECKUP — {when} '
+                f'</b><span style="color:#888">{nums}</span>'
+                '<button class="cp" style="float:right" onclick="cpBox(this,\'.log\')" title="copy report">⧉</button>'
+                f'{summ}'
+                '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></div>')
     except Exception:
         return ''
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/stats":
-            try: body, ct = stats()[0] + checkup_html(), "text/html"   # err box first after title; checkup just before activity
+        if self.path == "/chk":
+            try: body, ct = checkup_html(), "text/html"   # swapped into the STATIC morning-report box (60s cadence, not 2s)
+            except Exception as e: body, ct = f"<div class='err'>chk error: {html.escape(str(e))}</div>", "text/html"
+        elif self.path == "/stats":
+            try: body, ct = stats()[0], "text/html"   # err box first after title; the morning report has its own /chk box
             except Exception as e: body, ct = f"<div class='err'>dash error: {html.escape(str(e))}</div>", "text/html"
         elif self.path.startswith("/armorder"):
             global ARM_SORT_MODE
