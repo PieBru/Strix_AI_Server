@@ -218,6 +218,10 @@ def stats():
     # RAM zones (operator 260922): RAM is there to be used — same shape as
     # DISK: green to 80, yellow to 90, red beyond (the risky zone).
     heat_ram = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
+    # DISK I/O zones (operator-approved batch 260922): saturation semantics
+    # against the 500 MB/s bar ceiling — green <250, yellow to 500, red pegged
+    # (sustained red while serving = the row-eviction streaming disease).
+    heat_io = lambda v: "hsl(120,90%,55%)" if v < 50 else ("hsl(60,90%,55%)" if v < 100 else "hsl(0,90%,55%)")
     # SWAP zones (operator 260922): swap is an emergency resource, graded in
     # ABSOLUTE GiB not percent — green to 0.5 (OS noise), yellow to 2, red
     # beyond (may signal a loading problem). The bar fills toward the 2 GiB
@@ -251,7 +255,7 @@ def stats():
                      bar(min((sg := float((st.replace(' GiB','') or '0').split('/')[0])) / 2.0 * 100, 100), heat_swap(sg)))
               + card("DISK · GiB" + pchip("DISK", "%"), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
               + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}"), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
-                     bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
+                     bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat_io(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
               + card(f"CPU · 1 min avg" + pchip("CPU", "", "{:.2f}"), ld, bar(cpup, heat(cpup)))
               )
     hok, sok = h == "ok", svc == "active"
