@@ -311,17 +311,17 @@ halve slot cost but the fork refuses it outright — `qwen4exp.cpp:1365`
 asserts `k/v == GGML_TYPE_F16`, so a q8_0 KV aborts the load (it also
 wedged at 32k [⁵](#fn5); measured 260922, *Why not Q6*).
 
-<a id="fn19"></a>¹⁹ The Italian gate has been run against exactly one cloud API: GLM-5.3,
-**7/12** (the cell published in the iten12 chapter above — no raw artifact
-survives in the results store and the grader revision for that cloud cell
-is not recorded, so treat it as declared rather than re-verifiable). The
-10/12 in the iten12 chapter is the **parked local** DeepSeek V4.1 Flash Q2
-(the 340 GiB SSD-streamed MoE,
+<a id="fn19"></a>¹⁹ The GLM-5.3 gate/AIME/zebra cells and the DeepSeek V4.1 Flash
+gate cell were **redone 260922** with artifacts on disk
+(`probe-glm53r-*.json`, `probe-dsv4f-iten12.json`; same harness, seed and
+n as the neighbouring rows). The redo matters: the 260916 GLM-5.3 cells
+(7/12 gate, 0.25 zebra) left no surviving artifacts and are now believed
+to be format artifacts, not capability — both corrected numbers are
+higher. The 10/12 in the iten12 chapter remains the **parked local**
+DeepSeek V4.1 Flash Q2 (the 340 GiB SSD-streamed MoE,
 [*tested, parked*](#deepseek-v41-flash-q2--tested-parked)) — it runs the
-same code-block contract as our locals. The DeepSeek cloud API has not been
-gated, which is why that cell is left empty rather than approximated: a
-cloud model failing the contract scores 0/12 for format rather than for
-Italian (see [⁷](#fn7)).
+same code-block contract as our locals; its cloud sibling now measures
+12/12.
 
 <a id="fn20"></a>²⁰ GLM-5.3-flash cells were probed 260922 via the z.ai coding-plan
 endpoint with the same harness, seed and n=12 as the neighbouring rows
@@ -912,10 +912,10 @@ effort/thinking tuning on our side).
 
 | metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
 |---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (passes) | not measured [¹⁹](#fn19) | 7/12 (fails) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
-| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.500 [0.25–0.75] | 0.333 [0.14–0.61] [²⁰](#fn20) |
+| Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
+| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
 | AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | not measured | not measured |
-| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.25 [0.09–0.53] | 0.417 [0.19–0.68] [²⁰](#fn20) |
+| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | not measured | not measured | not measured |
 | sli structured-list | **10/10** | not measured | not measured | not measured |
 | decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
@@ -928,16 +928,13 @@ supports is "at least level, nominally ahead" — not "beats the frontier".
 - **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
 where both sides have a tight interval): 0.533 vs 0.483 — a three-item
 gap, i.e. a tie at this n.
-- **The cloud rows' Italian-gate evidence is thin, and where it exists it
-fails.** GLM-5.3's 7/12 is the only cloud gate result on record — below the
-12/12 pass bar — and footnote [⁷](#fn7) says a format artifact is the
-likelier cause than an Italian weakness. The DeepSeek cloud API has never
-been put through the gate (its 10/12 row belongs to the parked *local*
-Q2), and GLM-5.3-flash is pending. Those two cells are the next
-measurement worth taking, ahead of re-running GLM when its cap resets: a
-cloud model that refuses the one-code-block contract scores 0/12 for
-format, not for Italian, and we cannot yet tell which failure we would be
-looking at.
+- **The Italian gate no longer discriminates cloud from local.** Redone
+260922 with artifacts on disk, both full cloud models **pass at 12/12**
+(DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
+stale 7/12 cell, which had no surviving artifact and was most plausibly a
+format artifact of the kind footnote [⁷](#fn7) warns about). Only the
+flash variant drops an item (11/12). The gate's remaining value is as a
+regression tripwire, not a cloud separator.
 - Cloud cells are cheap to add and cheap to keep: an API key and a probe
 run per model. The table can grow a row per model without touching the
 local test rig.
