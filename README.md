@@ -84,12 +84,12 @@ is counted in the [RAM accounting](#ram-accounting) table.
 All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
 pass/fail at 12 — not an overall quality verdict.
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)¹ | fcb15 ¹⁰ | RAM (weights) |
+| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | fcb15 [¹⁰](#fn10) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** ¹² ¹⁴ | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** ¹⁰ | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP ² | **730** | **699** | — ¹⁸ | **34.3** | **22.3** | **12/12** | — ¹¹ | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 ¹⁴ | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 ¹⁰ | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — ¹⁶ | 34.5 | 15.2 ¹⁷ | **12/12** | 0.733 ¹⁰ | 32 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** [¹⁰](#fn10) | 97 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | — [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | — [¹¹](#fn11) | 107 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 [¹⁰](#fn10) | 30 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.733 [¹⁰](#fn10) | 32 GiB |
 
 ### Why Q5 wins
 
@@ -185,7 +185,7 @@ untested as a serving configuration.
 
 ### Footnotes
 
-¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
+<a id="fn1"></a>¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
 bidirectional translation items, graded deterministically by a Python
 harness that asserts on content keywords AND false-friend discriminators
 (*attendere* for *attend* = fail). Both natural rendering conventions are
@@ -195,22 +195,22 @@ longer passes). The Q5 cell is re-scored under v3.1 — still 12/12;
 other models' re-runs are owed. A 12/12 is a **pass/fail gate** —
 "meets our floor," not "best in class."
 
-² Q6's AIME cell is 8/11 (one item errored when the server died
-mid-battery — the denominator silently changed). See ⁴.
+<a id="fn2"></a>² Q6's AIME cell is 8/11 (one item errored when the server died
+mid-battery — the denominator silently changed). See [⁴](#fn4).
 
-³ Fails the 20 t/s decode floor at depth: Muse's tg2048 15.2 ¹⁷
-(its tg128 34.5 clears it, as does the 27B's re-measured 20.5 ¹⁴), so
+<a id="fn3"></a>³ Fails the 20 t/s decode floor at depth: Muse's tg2048 15.2 [¹⁷](#fn17)
+(its tg128 34.5 clears it, as does the 27B's re-measured 20.5 [¹⁴](#fn14)), so
 Muse is listed as a reference tier on sustained decode only.
 
-⁴ One item errored (INFRA — server died mid-battery), reducing the
+<a id="fn4"></a>⁴ One item errored (INFRA — server died mid-battery), reducing the
 denominator to 11. The 0.833 vs 0.727 gap is 1–2 items — within sampling
 variance at temperature 1.0. Both models are in the same quality tier.
 
-⁵ Q6's prefill cells are now measured at its shipped `c=65536` (pp4k/pp32k
+<a id="fn5"></a>⁵ Q6's prefill cells are now measured at its shipped `c=65536` (pp4k/pp32k
 below) and its decode-at-depth gate held **27.4 t/s flat** over 18k tokens;
 `c=131072` still degrades (fork-owed).
 
-⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
+<a id="fn6"></a>⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
 and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
 Honesty note: that 9.3k generation exceeds the documented 6000-token cap —
 the journal of that window shows generations up to ~11.9k, so the cell ran
@@ -218,7 +218,7 @@ with a looser cap than the protocol states. Treat as indicative: same decode
 tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
 these cells.
 
-¹⁰ fcb15 cells are census scores under battery v3, uniform-template
+<a id="fn10"></a>¹⁰ fcb15 cells are census scores under battery v3, uniform-template
 (sharp) for the Qwen family, stock for Muse by family design — the
 measured template effect is 2–3×, so template-uniform columns are the
 only comparable ones. CIs and caveats live in
@@ -228,18 +228,18 @@ Overlapping CIs throughout: no ranking claims.
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
  lives in the fcb15 chapter.
 
-¹⁸ Q6 serves a 64k context, so the pp@128k cell (a ~160k-token window) is
+<a id="fn18"></a>¹⁸ Q6 serves a 64k context, so the pp@128k cell (a ~160k-token window) is
 **n/a by design** — no larger-context serve is offered for this arm. The
 speed cells were re-measured wall-clock at that shipped config (pp beats the
 champion's: 730/699 vs 689/672; decode 34.3 short / 22.3 sustained).
 
-¹¹ Q6's fcb15: the medium-effort census never completed (the
-footnote-⁶ long-item profile at sustained-thrash speeds). The
+<a id="fn11"></a>¹¹ Q6's fcb15: the medium-effort census never completed (the
+footnote-[⁶](#fn6) long-item profile at sustained-thrash speeds). The
 MTP-only budget-6 probe measured **0.50** [0.19–0.81] — a partial
 cell, wide CI, and Q6's serving-speed ceiling (see *Why not Q6*)
 makes a full census uneconomic until the fork fix lands.
 
-¹⁴ Speed cells re-measured with one identical wall-clock
+<a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
 probe (real-text corpus, request-sent→complete; tg streamed
 first→last incl. reasoning deltas; pp@128k cells ran at 159.9k real
 tokens — code-dense corpus — and are mutually comparable at equal n).
@@ -247,15 +247,15 @@ n-max A/B for the 27B's DFlash2 draft at sustained decode: nm6 28.0 >
 nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the grid's nm7 pick doesn't
 generalize past short benches; nm6 stands.
 
-¹⁶ Muse's training context is **131072** tokens — the server caps the slot
+<a id="fn16"></a>¹⁶ Muse's training context is **131072** tokens — the server caps the slot
 (`n_ctx_seq 262144 > n_ctx_train 131072`), so a 128k-token prefill is out of
 range by construction. Not a speed result; the cell is n/a.
 
-¹⁷ Muse's DFlash2 draft at n-max 7 gives tg2048 15.2 (tg128 34.5). The nm6
-A/B that lifted the 27B (28.0 vs 15.8 ¹⁴) does **not** transfer: Muse at nm6
+<a id="fn17"></a>¹⁷ Muse's DFlash2 draft at n-max 7 gives tg2048 15.2 (tg128 34.5). The nm6
+A/B that lifted the 27B (28.0 vs 15.8 [¹⁴](#fn14)) does **not** transfer: Muse at nm6
 measured 14.4, so nm7 stays.
 
-¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
+<a id="fn12"></a>¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
 96.5 + MTP draft 2.8 + vision 0.9 + buffers 3.0 + OS 5.0); each
 slot's KV is **6.0 GiB @256k** / 3.0 @128k / 2.25 @96k. Theoretical
@@ -265,12 +265,17 @@ also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
 halve slot cost but is fork-untested on Q5 (the Q6 lazy-path wedge,
 *Why not Q6*).
 
-¹⁹ The Italian gate has not been run against any cloud API. The 10/12 in
-the iten12 chapter is the **parked local** DeepSeek V4.1 Flash Q2 (the
-340 GiB SSD-streamed MoE, [*tested, parked*](#deepseek-v41-flash-q2--tested-parked)) —
-it runs the same code-block contract as our locals. A cloud model failing
-that contract would score 0/12 for format rather than for Italian, which
-is why the cell is left empty rather than approximated.
+<a id="fn19"></a>¹⁹ The Italian gate has been run against exactly one cloud API: GLM-5.3,
+**7/12** (the cell published in the iten12 chapter above — no raw artifact
+survives in the results store and the grader revision for that cloud cell
+is not recorded, so treat it as declared rather than re-verifiable). The
+10/12 in the iten12 chapter is the **parked local** DeepSeek V4.1 Flash Q2
+(the 340 GiB SSD-streamed MoE,
+[*tested, parked*](#deepseek-v41-flash-q2--tested-parked)) — it runs the
+same code-block contract as our locals. The DeepSeek cloud API has not been
+gated, which is why that cell is left empty rather than approximated: a
+cloud model failing the contract scores 0/12 for format rather than for
+Italian (see [⁷](#fn7)).
 
 ## Got a new model? Test it, then compare it to the podium
 
@@ -462,8 +467,8 @@ speed, RAM, and context headroom.
 | Flash-Next Q6_K_XL | **12/12** |
 | Muse-Glimmer Q8 | **12/12** |
 | Qwen3.8 27B Q8 | 10/12 |
-| DeepSeek V4.1 Flash Q2 (local, SSD-streamed) ⁷ | 10/12 |
-| GLM-5.3 (cloud) ⁷ | 7/12 |
+| DeepSeek V4.1 Flash Q2 (local, SSD-streamed) [⁷](#fn7) | 10/12 |
+| GLM-5.3 (cloud) [⁷](#fn7) | 7/12 |
 
 All local cells ran the hardened **v3.1** grader (overnight re-run,
  — the battery is uniform across the table at last.
@@ -476,7 +481,7 @@ check, not a top-tier discriminator. Coding is now covered separately
 [zebra](#zebra--csp-logic-ladder-gbench)); long-context retrieval is
 still planned.
 
-⁷ Cloud and streamed-local models must follow the same strict format
+<a id="fn7"></a>⁷ Cloud and streamed-local models must follow the same strict format
 contract (ONE python code block printing the answer). A frontier cloud
 model scoring 7/12 is more likely a format-compliance artifact of the
 battery than a capability signal — treat cloud cells as format checks,
@@ -488,14 +493,14 @@ the same contract as the locals).
 | model | score | n |
 |---|---:|---:|
 | **Flash-Next Q5_K_XL** | **0.833** | 12 |
-| Flash-Next Q6_K_XL † | 0.727 | 11 ⁴ |
+| Flash-Next Q6_K_XL † | 0.727 | 11 [⁴](#fn4) |
 | Flash-Next IQ4_NL † | 0.667 | 12 |
 | Qwen3.8 27B Q8 † | 0.667 | 12 |
 | Muse-Glimmer Q8 † | 0.583 | 12 |
-| DeepSeek V4.1 Flash (cloud) ⁷ ⁸ † | 0.667 | 12 |
-| GLM-5.3 (cloud) ⁷ † | 0.500 | 12 |
+| DeepSeek V4.1 Flash (cloud) [⁷](#fn7) [⁸](#fn8) † | 0.667 | 12 |
+| GLM-5.3 (cloud) [⁷](#fn7) † | 0.500 | 12 |
 
-Q6's lower score is 1–2 items at n=11 — same tier, see ⁴.
+Q6's lower score is 1–2 items at n=11 — same tier, see [⁴](#fn4).
 
 **Full AIME-60 battery night, probe harness — distinct from
 the yearsplit-12 selection above):** LOW **0.533** [0.41–0.65] vs
@@ -546,7 +551,7 @@ contamination-likely; 4 come from AIME 2026. A year-stratified re-cut
 is owed (see `aime_selection_split` in
 [results.json](benchmarks/results.json)).
 
-⁸ The DeepSeek cloud cell was also run as a full 60-item census:
+<a id="fn8"></a>⁸ The DeepSeek cloud cell was also run as a full 60-item census:
 29/60 = 0.483. The 12-item seed-1300 subset scored 8/12 = 0.667 — the
 subset ran easy for it. The census is the more reliable cloud number;
 both are reported, none hidden.
@@ -583,7 +588,7 @@ Uniform-template fcb15 column — sharp family, effort noted per cell
 | Muse-Glimmer Q8 | stock (family design) | 0.733 (11/15, census) | 0.48–0.89 |
 | Flash-Next Q5_K_XL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
 | Flash-Next IQ4_NL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
-| Flash-Next Q6_K_XL | sharp medium | 0.50 partial ¹¹ | — |
+| Flash-Next Q6_K_XL | sharp medium | 0.50 partial [¹¹](#fn11) | — |
 
 The template is not cosmetics: measured on three arms it **doubled**
 (IQ4 0.333 → 0.667), **tripled** (27B 0.267 → 0.800), and on the
@@ -767,8 +772,8 @@ stratified):
 | **Flash-Next Q5_K_XL** | **0.50** | 0.25–0.75 | 12 |
 | Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
 | Flash-Next IQ4_NL | 0.42 | 0.19–0.68 | 12 |
-| DeepSeek V4.1 Flash (cloud) ⁷ | 0.42 | 0.19–0.68 | 12 |
-| GLM-5.3 (cloud) ⁷ | 0.25 | 0.09–0.53 | 12 |
+| DeepSeek V4.1 Flash (cloud) [⁷](#fn7) | 0.42 | 0.19–0.68 | 12 |
+| GLM-5.3 (cloud) [⁷](#fn7) | 0.25 | 0.09–0.53 | 12 |
 
 : the BF16 anchor row landed (0.65 — the morning cell had died
 silently on a port transition, re-run clean), and the Q5 row at
@@ -837,7 +842,7 @@ see the replication note in the recipe). Full recipe in
 The same batteries that grade our locals, run against commercial APIs
 through the same probe harness (same items, same graders, same strict
 format contract). Two caveats decide how to read this table, both from
-footnote ⁷: a cloud API that does not obey the one-code-block answer
+footnote [⁷](#fn7): a cloud API that does not obey the one-code-block answer
 contract scores as a *format* failure, so cloud cells are compatibility
 checks first and capability signals second; and empty cells are
 model/battery pairs **we have not measured** — they are not zeros.
@@ -846,7 +851,7 @@ effort/thinking tuning on our side).
 
 | metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
 |---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (n=12) | not measured ¹⁹ | not measured ¹⁹ | pending (429) |
+| Italian gate (iten12) | **12/12** (n=12, passes) | not measured [¹⁹](#fn19) | 7/12 (n=12, fails) [¹⁹](#fn19) | pending (429) |
 | AIME yearsplit-12 | **0.833** [0.55–0.95] (n=12) | 0.667 [0.39–0.86] (n=12) | 0.500 [0.25–0.75] (n=12) | pending (429) |
 | AIME-60 census | **0.533** low / 0.517 med, n=60 | 0.483 [0.36–0.61] (n=60) | not measured | pending (429) |
 | Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) | 0.42 [0.19–0.68] (n=12) | 0.25 [0.09–0.53] (n=12) | pending (429) |
@@ -862,11 +867,16 @@ supports is "at least level, nominally ahead" — not "beats the frontier".
 - **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
 where both sides have a tight interval): 0.533 vs 0.483 — a three-item
 gap, i.e. a tie at this n.
-- **The cloud rows have no Italian-gate result at all**, and the gate is
-exactly the strict-format scenario footnote ⁷ warns about. Filling that
-one cell (a cloud model that refuses the one-code-block contract scores
-0/12 for format, not for Italian) is the next measurement worth taking —
-ahead of re-running GLM when its cap resets.
+- **The cloud rows' Italian-gate evidence is thin, and where it exists it
+fails.** GLM-5.3's 7/12 is the only cloud gate result on record — below the
+12/12 pass bar — and footnote [⁷](#fn7) says a format artifact is the
+likelier cause than an Italian weakness. The DeepSeek cloud API has never
+been put through the gate (its 10/12 row belongs to the parked *local*
+Q2), and GLM-5.3-flash is pending. Those two cells are the next
+measurement worth taking, ahead of re-running GLM when its cap resets: a
+cloud model that refuses the one-code-block contract scores 0/12 for
+format, not for Italian, and we cannot yet tell which failure we would be
+looking at.
 - Cloud cells are cheap to add and cheap to keep: an API key and a probe
 run per model. The table can grow a row per model without touching the
 local test rig.
