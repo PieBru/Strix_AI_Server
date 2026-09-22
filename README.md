@@ -1,6 +1,6 @@
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/85b23c70-3e0b-4801-8a66-be50f6ded16b" />
-
 # Is one Strix Halo enough for a dev? TL;DR Yes.
+
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/85b23c70-3e0b-4801-8a66-be50f6ded16b" />
 
 <!-- toc -->
 
