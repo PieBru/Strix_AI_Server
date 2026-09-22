@@ -3,6 +3,7 @@
 <!-- toc -->
 
 - [Policy](#policy)
+- [In a hurry? Look at these 2 tables](#in-a-hurry-look-at-these-2-tables)
 - [Hardware](#hardware)
 - [Podium](#podium)
   - [Why Q5 wins](#why-q5-wins)
@@ -61,6 +62,16 @@
 5. **Open source only** — closed engines are evaluated for reference,
  never adopted
 6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+
+## In a hurry? Look at these 2 tables
+
+The whole README distils into two tables:
+[**the podium**](#podium) — which local model this fleet serves and why
+(speed × quality × RAM, every cell wall-clock and re-measured), and
+[**the champion vs the cloud**](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53) — the same batteries run
+against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
+what staying local costs or saves. Everything else in this file is
+evidence, method, or operations.
 
 ## Hardware
 
