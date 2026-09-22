@@ -367,9 +367,10 @@ sli mostly saturates (GLM-5.3 matches the champion's 10/10; both flash
 variants drop 2/10 — the first non-saturating sli results measured).
 
 <a id="fn23"></a>²³ Cloud AIME-60 censuses (n=60, the tightest-CI cell in the table):
-DeepSeek V4.1 Flash 0.483 (260916), GLM-5.3 0.433 (260922,
-`probe-aime60-glm-5-3.json`). At n=60 all three overlap — the champion's
-0.533 leads nominally.
+DeepSeek V4.1 Flash 0.483 (260916), GLM-5.3 0.433 and GLM-5.3-flash
+0.367 (260922, `probe-aime60-glm-5-3{,-flash}.json`). At n=60 the CIs
+still overlap pairwise, but the champion's 0.533 leads every cloud arm
+nominally.
 
 ## Got a new model? Test it, then compare it to the podium
 
@@ -947,7 +948,7 @@ effort/thinking tuning on our side).
 |---|---|---|---|---|
 | Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
 | AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | 0.433 [0.32–0.56] [²³](#fn23) | running |
+| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
 | Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
 | sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
