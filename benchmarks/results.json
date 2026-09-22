@@ -661,6 +661,26 @@
       "slope_2k_96k": "~0.105 ms/token per 1k ctx (non-linear: steep to 32k, flat after)",
       "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 \u2014 we are NOT in the broken-dense state",
       "method": "/tmp/ctx_slope.py pattern: fill corpus window, stream 256 tokens, ms/token at fill"
+    },
+    "therock_sdk": {
+      "what": "same-source compiler A/B (pwilkin b0f31f58, Q5 champion, c=131072, strixy2, system ROCm runtime): TheRock Clang 23 + ROCWMMA nightly wheels vs the production GNU 16.2.1 build",
+      "therock": {
+        "pp4k": 688,
+        "pp32k": 676,
+        "tg128": 32.1,
+        "tg2048": 25.8
+      },
+      "production": {
+        "pp4k": 686,
+        "pp32k": 661,
+        "tg128": 34.0,
+        "tg2048": 26.0
+      },
+      "verdict": "TIE within noise (pp32k +2.3%, tg slightly down) \u2014 strixllama's +60% (Windows, ROCm 7.1->10.1) does not transfer to Linux on this toolchain",
+      "notes": [
+        "TheRock 7.14 nightly runtime core-dumps on this fork; the Clang-23-built binary runs fine on the system runtime",
+        "true production source located at .local/share/qwen3.8-strix-halo/src/llama.cpp (pwilkin b0f31f58) \u2014 the fn-src dev clone is a different lineage and lacks lazy-mode"
+      ]
     }
   }
 }
