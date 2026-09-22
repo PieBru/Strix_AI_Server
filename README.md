@@ -343,7 +343,11 @@ fcb15 census, a real speed sweep, and a RAM figure — **all at the same
 template and context you are claiming**. Until then it belongs in the
 prose of the chapter it is challenging, with its CI, not in the table.
 
-Two honest outcomes worth writing down when you do this:
+Before trusting any number — yours or ours — read
+[benchmarks/measuring.md](benchmarks/measuring.md): the ways this project
+measured itself wrong (template confounds, the quiet-box rule, noise
+floors, and the tooling that lies). Two honest outcomes worth writing
+down when you do this:
 
 - **Saturation is a result too.** If a model caps the battery, that rung
   has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
