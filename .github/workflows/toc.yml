@@ -1,0 +1,36 @@
+name: toc
+
+# GitHub has no in-file ToC directive (that is GitLab's [[_TOC_]]). GitHub does
+# anchor every heading, so this regenerates the link list in README.md from the
+# headings themselves and commits it whenever the README changes — which is the
+# closest thing to "the ToC updates itself".
+on:
+  push:
+    branches: [main]
+    paths: ['README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  toc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regenerate the ToC
+        run: python3 scripts/toc.py
+      - name: Commit if it changed
+        run: |
+          if git diff --quiet README.md; then
+            echo "ToC already up to date"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "toc: regenerate from headings (automated) [skip ci]"
+          git push

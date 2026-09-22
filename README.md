@@ -1,5 +1,43 @@
 # Is one Strix Halo enough for a dev? TL;DR Yes.
 
+<!-- toc -->
+
+- [Policy](#policy)
+- [Hardware](#hardware)
+- [Podium](#podium)
+  - [Why Q5 wins](#why-q5-wins)
+  - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
+  - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
+  - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
+  - [Footnotes](#footnotes)
+- [Got a new model? Test it, then compare it to the podium](#got-a-new-model-test-it-then-compare-it-to-the-podium)
+  - [1. Serve it](#1-serve-it)
+  - [2. Quality — the batteries, with a confidence interval](#2-quality--the-batteries-with-a-confidence-interval)
+  - [3. Speed — wall-clock, on this box](#3-speed--wall-clock-on-this-box)
+  - [4. Compare](#4-compare)
+- [RAM accounting](#ram-accounting)
+- [Italian (iten12)](#italian-iten12)
+- [AIME-12 (reasoning)](#aime-12-reasoning)
+- [sli — structured-list integrity (GBench)](#sli--structured-list-integrity-gbench)
+- [Coding — GBench fcb15 (deterministic, unit-tested)](#coding--gbench-fcb15-deterministic-unit-tested)
+  - [The tier ladder — where a model stops holding](#the-tier-ladder--where-a-model-stops-holding)
+  - [Reasoning effort — measured](#reasoning-effort--measured)
+  - [Quantization and coding/agentic quality — the honest note](#quantization-and-codingagentic-quality--the-honest-note)
+- [Zebra — CSP logic ladder (GBench)](#zebra--csp-logic-ladder-gbench)
+- [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
+- [DeepSeek V4.1 Flash Q2 — tested, parked](#deepseek-v41-flash-q2--tested-parked)
+- [Reproduce it](#reproduce-it)
+- [The "sharp" chat template](#the-sharp-chat-template)
+- [The Doctor — 24/7 monitoring and the nightly auto-improve loop](#the-doctor--247-monitoring-and-the-nightly-auto-improve-loop)
+  - [The WebUI (:8667)](#the-webui-8667)
+  - [The nightly job (03:00, unattended, read-only)](#the-nightly-job-0300-unattended-read-only)
+  - [The loop it enables — proposals out, human seal on every change](#the-loop-it-enables--proposals-out-human-seal-on-every-change)
+- [Methodology](#methodology)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+
+<!-- /toc -->
+
 ## Policy
 
 1. **Quality first** — within acceptable speed
@@ -144,7 +182,7 @@ unit — this is a component-level comparison. The pair's theoretical
 advantage (62 GiB total weights, more room for context) is real but
 untested as a serving configuration.
 
-### The footnotes
+### Footnotes
 
 ¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
 bidirectional translation items, graded deterministically by a Python
