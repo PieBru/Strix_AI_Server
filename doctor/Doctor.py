@@ -11,6 +11,7 @@ import json, shutil, subprocess, socket, glob, re, html, time, threading, os
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import urlopen
+from urllib.parse import unquote
 
 # Router unit names this panel watches (journal + is-active). Reference box:
 # model-router-pwilkin / model-router-vanilla. This repo's units: llama-hip, llama-vulkan.
@@ -28,6 +29,11 @@ def _router_ini():
 ROUTER_INI = _router_ini() or "/home/piero/Piero/Work/Qwen38/models.ini"
 JN = lambda n=300: subprocess.run(["journalctl","--user"]+_JU+["-n",str(n),"--no-pager"],
                                   capture_output=True, text=True, timeout=8).stdout.splitlines()
+# 260923: time-windowed journal for the error banner — a line-count window
+# (-n 300) on an idle router shows hours-old storm tails forever; 30 min keeps
+# the banner fresh-only (stale classes age out, new ones appear instantly).
+JN_TW = lambda m=30: subprocess.run(["journalctl","--user"]+_JU+[f"--since=-{m}min","--no-pager"],
+                                    capture_output=True, text=True, timeout=8).stdout.splitlines()
 
 PEAKS = {}   # key -> {v: max value, t: when set}; accrued in refresh() (always-on sampler)
 
@@ -180,7 +186,7 @@ def refresh():
             acc = (float(m.group(1)), float(m.group(2)))
         if tg and acc: break
     benign = BENIGN
-    errs = [l for l in jn if re.search(r"\bERROR\b|error:|failed|fatal", l, re.I) and not benign.search(l)][-5:]
+    errs = [l for l in JN_TW(30) if re.search(r"\bERROR\b|error:|failed|fatal", l, re.I) and not benign.search(l)][-5:]
     try:
         dmesg = subprocess.run(["dmesg","--since","-5min"], capture_output=True, text=True, timeout=4).stdout
         gpu_err = [l for l in dmesg.splitlines() if "amdgpu" in l and re.search(r"error|fault|timeout|hang", l, re.I)][-3:]
@@ -215,9 +221,10 @@ def stats():
     # DISK zones (operator 260922): 80% is normal for an LLM-serving disk —
     # green to 80, yellow to 90, red beyond.
     heat_disk = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
-    # RAM zones (operator 260922): RAM is there to be used — same shape as
-    # DISK: green to 80, yellow to 90, red beyond (the risky zone).
-    heat_ram = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 90 else "hsl(0,90%,55%)")
+    # RAM zones (operator 260922; red threshold raised to >95 on 260923):
+    # RAM is there to be used — green to 80, yellow to 95, red beyond
+    # (zram-backed box; ~95% is where reclaim pressure starts to bite).
+    heat_ram = lambda v: "hsl(120,90%,55%)" if v < 80 else ("hsl(60,90%,55%)" if v <= 95 else "hsl(0,90%,55%)")
     # DISK I/O zones (operator-approved batch 260922): saturation semantics
     # against the 500 MB/s bar ceiling — green <250, yellow to 500, red pegged
     # (sustained red while serving = the row-eviction streaming disease).
@@ -236,27 +243,41 @@ def stats():
     except ValueError: gpv = 0
     NCPU = os.cpu_count() or 1
     cpup = min(float(ld)/NCPU*100, 100)
-    def pchip(key, unit="", fmt="{:.0f}"):
+    def pchip(key, unit="", fmt="{:.0f}", hf=None, xform=lambda v: v):
         """Peak chip + per-card reset button, both right-aligned at the card title.
         For float:right the source order is reversed — the button is emitted
         first so it lands rightmost (the card edge) and the peak sits just left
-        of it; the title text stays left-aligned."""
+        of it; the title text stays left-aligned.
+        hf = the card's bar heat fn; xform converts the peak's native unit into
+        the quantity the bar feeds hf (260923: chip graded like the bar)."""
         p = PEAKS.get(key)
         if not p or p["v"] <= 0: return ""
         t = time.strftime("%H:%M", time.localtime(p["t"]))
+        c = ""
+        if hf:
+            col = hf(xform(p["v"]))
+            m = re.match(r"hsl\(([\d.]+)", col)
+            # 260923 (revised ×2): grey through the whole green range incl.
+            # light-green (hue > 60); colorize only from true yellow up to red.
+            # Peaks that never left the green zone are not shown at all — the
+            # operator's rule: only "it reached at least yellow" is interesting.
+            if m and float(m.group(1)) <= 60:
+                c = f";color:{col}"
+        if not c:
+            return ""
         return (f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>'
-                f'<i class=pk style="float:right">peak {fmt.format(p["v"])}{unit} {t}</i>')
-    sysrow = (card("GPU" + pchip("GPU", "%"), gp, bar(gpv, heat(gpv)))
-            + card("VRAM" + pchip("VRAM", "%"), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
-              + card("GPU temp" + pchip("GPU temp", "°C"), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W"), gpw, bar(pw, heat(pw)))
-              + card("RAM · GiB" + pchip("RAM", "%"), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
-              + card("SWAP · GiB" + pchip("SWAP", "%") + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
+                f'<i class=pk style="float:right{c}">peak {fmt.format(p["v"])}{unit} {t}</i>')
+    sysrow = (card("GPU" + pchip("GPU", "%", hf=heat), gp, bar(gpv, heat(gpv)))
+            + card("VRAM" + pchip("VRAM", "%", hf=heat_vram), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
+              + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat), gpw, bar(pw, heat(pw)))
+              + card("RAM · GiB" + pchip("RAM", "%", hf=heat_ram), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
+              + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
                      (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))),
                      bar(min((sg := float((st.replace(' GiB','') or '0').split('/')[0])) / 2.0 * 100, 100), heat_swap(sg)))
-              + card("DISK · GiB" + pchip("DISK", "%"), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
-              + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}"), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
+              + card("DISK · GiB" + pchip("DISK", "%", hf=heat_disk), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
+              + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}", hf=heat_io, xform=lambda v: min(v/500*100, 100)), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
                      bar((iop := min(sum(CACHE.get("io", (0.0, 0.0))) / 500 * 100, 100)), heat_io(iop)))  # ponytail: 500 MB/s bar ceiling — rescale if sustained NVMe range matters
-              + card(f"CPU · 1 min avg" + pchip("CPU", "", "{:.2f}"), ld, bar(cpup, heat(cpup)))
+              + card(f"CPU · 1 min avg" + pchip("CPU", "", "{:.2f}", hf=heat, xform=lambda v: min(v/NCPU*100, 100)), ld, bar(cpup, heat(cpup)))
               )
     hok, sok = h == "ok", svc == "active"
     def spark(series, color):
@@ -342,11 +363,13 @@ if(navigator.clipboard&&navigator.clipboard.writeText)
 navigator.clipboard.writeText(ls).then(()=>{btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}).catch(fallback);
 else fallback()}</script><style>
 body{font-family:system-ui;margin:40px auto;max-width:80%;color:#ddd;background:#111}
-h1{font-size:1.2em;color:#fff}h2{font-size:.95em;color:#888;margin:20px 0 8px}
+h1{font-size:1.2em;color:#fff;display:flex;align-items:center;gap:8px}h2{font-size:.95em;color:#888;margin:20px 0 8px}
 summary{font-size:.95em;color:#888;margin:20px 0 8px;cursor:pointer;list-style:none}
 summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-h1 .up{float:right;font-size:.55em;color:#888;font-weight:normal}
+h1 .up{margin-left:auto;font-size:.55em;color:#888;font-weight:normal}
+h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
+h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
 .card{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:12px}
 .card b{display:block;font-size:.8em;color:#888;margin-bottom:6px}
 .card>span{font-size:1.25em}.card span i{font-size:.7em;color:#999}
@@ -380,7 +403,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>Doctor · __HOST__ · system + inference<span class="up">__UPTIME__</span></h1>
+<h1>Doctor · __HOST__ · system + inference<span class="up">__UPTIME__</span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -413,12 +436,20 @@ def res(name):
 
 def _metrics_logger():
     # pi-doctor-dream: append one CSV line/min for c_resources.py trends.
-    # ts,cpu,gpu,ram_avail,temp,load1 — CPU% via 1s /proc/stat delta.
+    # ts,cpu,gpu,ram_avail,temp,load1,gtt_used — CPU% via 1s /proc/stat delta;
+    # ram/gtt in MB (260923 F2: gtt_used added, old rows simply lack the col).
     d = os.environ.get("DOCTOR_STATE_DIR", os.path.expanduser("~/.pi/agent/skills/doctor-dream/state"))
     os.makedirs(d, exist_ok=True)
     p = os.path.join(d, "metrics.csv")
     if not os.path.exists(p):
-        open(p, "w").write("ts,cpu,gpu,ram_avail,temp,load1\n")
+        open(p, "w").write("ts,cpu,gpu,ram_avail,temp,load1,gtt_used\n")
+    else:
+        # one-time migration: rewrite a 6-col header so new rows align
+        with open(p) as fh: first = fh.readline().rstrip("\n")
+        if first and "gtt_used" not in first:
+            lines = open(p).read().splitlines(True)
+            lines[0] = first + ",gtt_used\n"
+            open(p, "w").writelines(lines)
     def _cpu():
         s1 = open("/proc/stat").readline().split()[1:5]; time.sleep(1)
         s2 = open("/proc/stat").readline().split()[1:5]
@@ -435,8 +466,10 @@ def _metrics_logger():
                 try: t = max(t, int(open(f).read()) // 1000)
                 except Exception: pass
             ram = next((int(x.split()[1]) for x in open("/proc/meminfo") if x.startswith("MemAvailable")), 0) // 1024
+            try: gtt = int(open("/sys/class/drm/card0/device/mem_info_gtt_used").read()) // 2**20
+            except Exception: gtt = ""
             l1 = open("/proc/loadavg").read().split()[0]
-            row = f"{int(time.time())},{_cpu()},{g},{ram},{t},{l1}"
+            row = f"{int(time.time())},{_cpu()},{g},{ram},{t},{l1},{gtt}"
             with open(p, "a") as fh: fh.write(row + "\n")
         except Exception:
             pass
@@ -463,9 +496,26 @@ def checkup_html():
         return ''
 
 class H(BaseHTTPRequestHandler):
+    def do_POST(self):
+        # /restart: restart own service. POST-only (no stray GET/link/prefetch can
+        # fire it); the systemctl call is a fixed argv, not user input. LAN-trusted
+        # posture matches the :8080 no-auth decision (260911).
+        if self.path == "/restart":
+            subprocess.Popen(["/bin/bash", "-c", "sleep 1; systemctl --user restart Doctor.service"],
+                             start_new_session=True)
+            body, ct = "restarting Doctor.service…", "text/plain"
+            self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
+        else:
+            self.send_response(404); self.end_headers()
+
     def do_GET(self):
         if self.path == "/peak/reset" or self.path.startswith("/peak/reset/"):
-            k = self.path.rsplit("/", 1)[-1] if "/" in self.path[13:] else None
+            # 260923: was [13:] — an off-by-one past the key's first char, so
+            # every per-card reset fell through to PEAKS.clear() (all cards).
+            # Also unquote: multi-word keys arrive percent-encoded from the UI.
+            k = unquote(self.path[12:]) or None
             if k: PEAKS.pop(k, None)
             else: PEAKS.clear()
             body, ct = "ok", "text/plain"
