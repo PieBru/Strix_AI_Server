@@ -990,6 +990,7 @@ Uniform-template fcb15 column — sharp family, effort noted per cell
 |---|---|---:|---|
 | **Flash-Next Q5_K_XL (champion)** | sharp **low** | **0.867** (13/15, census) | 0.62–0.96 |
 | Qwen3.8 27B Q8 + DFlash | sharp medium | **0.800** (12/15, census) | 0.55–0.93 |
+| Qwen3.8 27B Q8 + DFlash | sharp **low** | **0.800** (12/15, census) | 0.55–0.93 |
 | Muse-Glimmer Q8 | stock (family design) | 0.733 (11/15, census) | 0.48–0.89 |
 | Flash-Next Q5_K_XL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
 | Flash-Next IQ4_NL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
@@ -1002,7 +1003,13 @@ champion itself runs 0.267 (stock embedded) → 0.667 (sharp medium) →
 **0.867 (sharp low)** — the effort dial is the same lever again
 (the full matrix lives in *Reasoning effort — measured*). Read the
 ranking with the usual discipline — overlapping CIs, 2–3-item gaps at
-n=15, and Muse runs a different family's template. Under uniform
+n=15, and Muse runs a different family's template.
+
+**Effort is family-specific, measured on the same arms.** On the Flash-Next
+family sharp-low beats sharp-medium by 0.20 (0.867 vs 0.667); on the dense 27B
+the two are a dead tie (**0.800 both**), and that tie is not the same run twice:
+low and medium fail *different* items (5 and 11), so the dial moves which items
+break without moving the count — what a score-level tie at n=15 looks like. Under uniform
 templates the BF16-parity 27B-Q8 leads coding while the quantized
 flash arms lead reasoning — the quantization cost is battery-dependent
 (see the note below).
