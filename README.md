@@ -117,6 +117,47 @@ its stock template by family design).
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
+## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
+
+The same batteries that grade our locals, run against commercial APIs
+through the same probe harness (same items, same graders, same strict
+format contract). Two caveats decide how to read this table, both from
+footnote [⁷](#fn7): a cloud API that does not obey the one-code-block answer
+contract scores as a *format* failure, so cloud cells are compatibility
+checks first and capability signals second; and empty cells are
+model/battery pairs **we have not measured** — they are not zeros.
+Cloud cells were probed 260916 at the vendor default API config (no
+effort/thinking tuning on our side).
+
+| metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
+|---|---|---|---|---|
+| Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
+| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
+| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
+| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
+| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
+| sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
+| decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
+
+Reading it honestly:
+
+- **No cell here is a verdict.** Every shared cell has overlapping CIs at
+these n, and the cloud column carries the format caveat. What the data
+supports is "at least level, nominally ahead" — not "beats the frontier".
+- **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
+where both sides have a tight interval): 0.533 vs 0.483 — a three-item
+gap, i.e. a tie at this n.
+- **The Italian gate no longer discriminates cloud from local.** Redone
+260922 with artifacts on disk, both full cloud models **pass at 12/12**
+(DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
+stale 7/12 cell, which had no surviving artifact and was most plausibly a
+format artifact of the kind footnote [⁷](#fn7) warns about). Only the
+flash variant drops an item (11/12). The gate's remaining value is as a
+regression tripwire, not a cloud separator.
+- Cloud cells are cheap to add and cheap to keep: an API key and a probe
+run per model. The table can grow a row per model without touching the
+local test rig.
+
 ## Arch Linux minimal server — the base install
 
 Everything in this file runs on a plain Arch install with **no desktop
@@ -146,40 +187,71 @@ The same decisions as config JSON, for an `archinstall --config` run:
 `"kernels": ["linux"]`, `"audio_config": {"audio": "none"}`,
 `"swap": {"enabled": false}`, `"disk_config": {"config_type": "default_layout"}`.
 
-### Swap: answer **No** to zram (measured, not taste)
+### Swap: answer **No** to zram — and why
 
 archinstall asks *"Would you like to use swap on zram?"* and its sample
-config ships `"swap": {"enabled": true}` — both nodes came up with `zram0`
-(zstd, priority `100`) from install day. On an inference server that default
-is a trap, and we measured the bill before switching it off:
+config ships `"swap": {"enabled": true}`; both nodes came up with `zram0`
+(zstd, priority `100`) from install day. We switched it off on both. The
+reason is worth writing down, because that default is a good one — for a
+different workload.
+
+**What zram is for.** It is a compressed swap *device backed by RAM*: pages
+the kernel evicts are compressed and kept in memory, so a later fault-in
+costs a decompress instead of a disk read. On the workload it was designed
+for — desktop anon, browsers, editors, build jobs, where pages are full of
+text, pointers and repetition — it compresses 2–4× and turns slow paging
+into cheap paging. The ordinary anon on our own box measures 2.1×, exactly
+as advertised.
+
+**Why it inverts here.** Under pressure, an inference server does not hand
+the kernel ordinary anon. What floods out is model- and KV-class memory —
+weights, their shmem-backed GPU mappings, activation buffers — high-entropy
+data that measured **1.09×** (4.5 GiB of real storm content stored in
+4.1 GiB of RAM). For this class the premise "swap is compressible" is
+simply false, and every consequence of zram turns against us:
+
+- **The reclaim target cannot be met, so reclaim never stops.** The kernel
+  reclaims *bytes of RAM*. If evicting a page frees 9 % of it, it must evict
+  roughly eleven pages to bank one, at full per-page cost. That is a
+  treadmill rather than a one-way drain: `si≈so≈250 MB/s`, sustained, with
+  decode collapsing from ~37 t/s to 1.7 t/s at the same tier. A disk swap
+  frees 100 % per page, so the same pressure resolves and *ends*.
+- **The wrong tier is used first.** `zram0` carries priority `100` against
+  the swapfile's `-1`, so every squeeze hits the ~9 % device before the
+  100 % device is touched at all — the effective tier only engages after
+  zram is full (16–32 GiB of stored pages).
+- **Every fault-in costs twice.** A zstd decompress on the way back, *plus*
+  the amdgpu userptr restore stall for any page a GPU mapping needs — so the
+  pages that stall inference are exactly the expensive ones to restore. On
+  disk the same page is one read, and the kernel can page-cluster it.
+- **It stays resident.** The compressed store keeps holding its RAM after
+  the storm (4.5 GiB still held hours later), so the memory zram "freed" is
+  not free, `avail` stays depressed, and the next pressure event arrives
+  sooner.
 
 | | zram, as the installer ships it | plain 32 GiB swapfile, what we run |
 |---|---:|---:|
 | compression on the pages that actually got swapped | **1.09×** (4.5 GiB → 4.1 GiB of RAM still held) | n/a |
 | RAM freed per page swapped out | **≈9 %** | 100 % |
-| price of a fault-in | zstd decompress, then the amdgpu userptr restore stall | one SSD read |
+| price of a fault-in | zstd decompress **+** amdgpu userptr restore stall | one SSD read |
 | behaviour under sustained pressure | 250 MB/s treadmill, decode 37 → 1.7 t/s | makes progress, then ends |
 
-The premise of zram is *swap is compressible*. The pages a serving load
-hands it under pressure are model/KV-class — high-entropy, effectively
-incompressible (1.09× measured on 4.5 GiB of real storm content) — so the
-kernel swaps ~250 MB/s, reclaims ~9 % of it, and swaps again. That is the
-signature we see: `si≈so≈250 MB/s` with decode collapsing from ~37 t/s to
-1.7 t/s at the same tier, where a disk swap instead makes real progress and
-*stops*. And because `zram0` carries priority `100` against the swapfile's
-`-1`, it is the first target of every squeeze — then stays resident, holding
-the RAM it was supposed to free (4.5 GiB held, hours after the storm). Any
-box can be checked in two commands: `swapon --show`, then `cat
-/sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the real ratio).
-
-Our setup on both nodes: `swapoff /dev/zram0`, the zram generator disabled
-in `/etc/systemd/zram-generator.conf`, a 32 GiB `swapfile` in `/etc/fstab`
+**What we run instead.** `swapoff /dev/zram0`; the zram generator disabled
+in `/etc/systemd/zram-generator.conf`; a 32 GiB `swapfile` in `/etc/fstab`
 (guided mode's swap step is zram-only — a swapfile is three commands
-afterwards, or a swap partition in the manual disk layout), and
-`vm.swappiness = 10` in `/etc/sysctl.d/`. The number to watch is not swap
-*use* but swap *rate*: `si`/`so` at zero with 106 GiB of GTT is healthy;
-either one pinned at hundreds of MB/s is the failure mode this chapter
-exists to prevent.
+afterwards, or a swap partition in the manual disk layout); `vm.swappiness =
+10` in `/etc/sysctl.d/`, so the kernel prefers dropping cache over pushing a
+working set to swap. The number to watch is not swap *use* but swap *rate*:
+`si`/`so` at zero with 106 GiB of GTT is healthy, either one pinned at
+hundreds of MB/s is the failure mode this chapter exists to prevent.
+`swapon --show` plus `cat /sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the
+real ratio) is the whole diagnosis: if that ratio is near 1, zram is a pure
+cost on that box.
+
+**Not a verdict on the default.** On a laptop or a general-purpose server
+archinstall's answer is *yes* — compressible anon is the common case, and
+none of the above applies. This is specifically a RAM-resident-model box,
+where the pages that get swapped *are* the model, that should answer **No**.
 
 ### After the install
 
@@ -1050,47 +1122,6 @@ replicated with the same verdict — parked
 ([tomasreminek/strix-halo](https://github.com/tomasreminek/strix-halo);
 see the replication note in the recipe). Full recipe in
 [configs/deepseek-v41-parked.md](configs/deepseek-v41-parked.md).
-
-## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
-
-The same batteries that grade our locals, run against commercial APIs
-through the same probe harness (same items, same graders, same strict
-format contract). Two caveats decide how to read this table, both from
-footnote [⁷](#fn7): a cloud API that does not obey the one-code-block answer
-contract scores as a *format* failure, so cloud cells are compatibility
-checks first and capability signals second; and empty cells are
-model/battery pairs **we have not measured** — they are not zeros.
-Cloud cells were probed 260916 at the vendor default API config (no
-effort/thinking tuning on our side).
-
-| metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
-|---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
-| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
-| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
-| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
-| sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
-| decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
-
-Reading it honestly:
-
-- **No cell here is a verdict.** Every shared cell has overlapping CIs at
-these n, and the cloud column carries the format caveat. What the data
-supports is "at least level, nominally ahead" — not "beats the frontier".
-- **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
-where both sides have a tight interval): 0.533 vs 0.483 — a three-item
-gap, i.e. a tie at this n.
-- **The Italian gate no longer discriminates cloud from local.** Redone
-260922 with artifacts on disk, both full cloud models **pass at 12/12**
-(DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
-stale 7/12 cell, which had no surviving artifact and was most plausibly a
-format artifact of the kind footnote [⁷](#fn7) warns about). Only the
-flash variant drops an item (11/12). The gate's remaining value is as a
-regression tripwire, not a cloud separator.
-- Cloud cells are cheap to add and cheap to keep: an API key and a probe
-run per model. The table can grow a row per model without touching the
-local test rig.
 
 ## Reproduce our tests
 
