@@ -1245,6 +1245,18 @@ install -Dm644 doctor/Doctor.service ~/.config/systemd/user/Doctor.service
 systemctl --user daemon-reload && systemctl --user enable --now Doctor
 ```
 
+**Deployed on both nodes** (2026-09-23). One Doctor per box, each reading its
+own journal and GTT: the reference box watches `model-router-pwilkin` +
+`-vanilla`, the second node watches its own `q5-serve` + `q6-serve-192k` (the
+only edit needed — `ROUTER_UNITS`). Both bind `:8667` on their own address, so
+`http://<host>:8667` reaches the right one.
+
+Two cards are naturally empty on a box that does not run the multi-arm router:
+the resident-*arm* line (it reads `models.ini`, and the second node serves a
+fixed model through `q5-serve`'s own flags) and the `/res/*` links to a nightly
+report. Everything else — system cards, live tg/acceptance, the error banner,
+the journal tail, the restart button — works per box.
+
 `:8667` binds `0.0.0.0` without auth on the reference box — the same
 trust decision as `:8080`. Bind loopback if that is not your threat
 model.
