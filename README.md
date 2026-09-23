@@ -284,7 +284,12 @@ only comparable ones. CIs and caveats live in
 Overlapping CIs throughout: no ranking claims.
  The champion's podium cell is its **promoted default tier (low,
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
- lives in the fcb15 chapter.
+ lives in the fcb15 chapter. Effort tiers are per-cell — see the census
+ table: the 27B cell (0.800) is medium-basis (its only census; no low run
+ exists), so the two rows are not effort-matched; the champion's low cell
+ is the one cross-box replicated. Basis decision (260923, operator-
+ delegated): podium shows as-shipped tiers, the chapter holds the uniform
+ medium view.
 
 <a id="fn18"></a>¹⁸ No longer n/a: the Q6 arm was raised to a **192k tier** on
 260922 (`c=196608, ub=1024`, see *Why not Q6*), so the pp@128k cell is now
