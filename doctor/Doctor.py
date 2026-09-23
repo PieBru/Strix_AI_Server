@@ -71,7 +71,7 @@ def ram_disk_cpu():
     swu = max(swt - swf - swc, 0)          # cached swap pages are reclaimable, not "used"
     s = shutil.disk_usage("/"); ld = open("/proc/loadavg").read().split()[0]
     return (f"{100*(tot-avail)/tot:.0f}%", f"{(tot-avail)/1048576:.0f}/{tot/1048576:.0f} GiB",
-            f"{100*s.used/s.total:.0f}%", f"{s.used/1e9:.0f}/{s.total/1e9:.0f} GiB", ld,
+            f"{100*s.used/s.total:.0f}%", f"{s.free/2**30:.0f} GiB free", ld,
             f"{100*swu/swt:.0f}%" if swt else "0%", f"{swu/1048576:.1f}/{swt/1048576:.0f} GiB")
 
 CACHE = {"h": "?", "svc": "?", "arm": "?", "tg": None, "acc": None, "jn": [], "errs": [], "gpu_err": [], "sig": None, "sig_t": 0.0}
