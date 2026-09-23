@@ -112,8 +112,8 @@ its stock template by family design).
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — [¹¹](#fn11) | 10/10 [¹¹](#fn11) | — [¹¹](#fn11) | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | — [¹¹](#fn11) | 107 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
 ## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
@@ -595,8 +595,9 @@ MTP draft, on a single 128 GB Strix Halo.
 **The template confound is measured, not hypothetical:** IQ4_NL scored **0.333 on its stock template** overnight and
 **0.667 with the sharp template** — same quant, battery, protocol,
 hardware class; the template alone doubled the score. The
-uniform-template re-cut of the Qwen-family cells is underway (IQ4
-done, 27B in flight); Muse runs its stock template by family design.
+uniform-template re-cut of the Qwen-family cells is complete (every local row
+now has a sharp cell; the flash family and the 27B were re-cut at sharp-low
+2026-09-23); Muse runs its stock template by family design.
 
 ### Why not IQ4_NL? (also 12/12, faster decode, less RAM)
 
@@ -758,8 +759,9 @@ Overlapping CIs throughout: no ranking claims.
  The champion's podium cell is its **promoted default tier (low,
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
  lives in the fcb15 chapter. Effort tiers are per-cell — see the census
- table: the 27B cell (0.800) is medium-basis (its only census; no low run
- exists), so the two rows are not effort-matched; the champion's low cell
+ table: the 27B now has both censuses (medium and low both 0.800, failing
+ different items — 2026-09-23), so the rows are effort-matched; the
+ champion's low cell
  is the one cross-box replicated. Basis decision (2026-09-23, operator-
  delegated): podium shows as-shipped tiers, the chapter holds the uniform
  medium view.
@@ -772,9 +774,13 @@ Overlapping CIs throughout: no ranking claims.
   sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm
   serves sharp-low), per [¹⁰](#fn10)'s rule.
 - **sli:** 10/10 [0.72–1.0] — the canary saturates here too.
-- **zebra and the ladder are not obtainable at this tier.** The 20 long-CSP items
+- **zebra is not obtainable at this tier; the ladder is.** The 20 long-CSP items
   stormed the box (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
-  prints for 4+ min) and had to be SIGKILLed. So 64k sustains ~6k-token census
+  prints for 4+ min) and had to be SIGKILLed. The ladder, re-run later the same
+  day on a fresh reload, completed clean: **13/15 greedy | 13/15 with-retry**
+  (fails items 2 and 13; retries never flip them) — every rung held at 64k,
+  the best greedy ladder cell of the three local rows. So 64k sustains
+  ~6k-token census
   items and the sli canary, but not zebra's long thinking generations: cumulative
   activated expert rows cross the ~14 GB GTT headroom and trigger the row-eviction
   storm. Same disease as the 131k/192k decay, one tier lower — the 10-minute
@@ -886,12 +892,16 @@ consistent with its fcb15 cell). Pre-grader-fix † cells and contamination
 caveats live in the AIME chapter. **ladder** = deepest fcb15 tier rung
 held under greedy (`v3+D+E+F`); "all rungs" means the model holds every
 rung drafted — Q5 and the 27B tie at every depth (tier-ladder chapter).
-**sli** = structured-list canary, saturated at 10/10 for the champion at
-both effort tiers — regression canary only, not a discriminator (never
-run for the other rows). **zebra** = n=20 (Q5 sharp-low, 27B, Muse) or
-n=12 cells, overlapping CIs throughout (zebra chapter). Q6's AIME cell
-is the yearsplit re-cut (0.750); its fcb15/ladder/sli/zebra cells remain
-owed (fcb15 census in flight on strixy2 2026-09-23).
+**sli** = structured-list canary, saturated at 10/10 for every local row
+measured (champion at both tiers, Q6 at 64k, 27B at sharp-low) —
+regression canary only, not a discriminator. **zebra** = n=20 (Q5
+sharp-low, 27B sharp-low, Muse) or n=12 cells, overlapping CIs throughout
+(zebra chapter); Q6's zebra is unobtainable at its 64k tier (storm,
+[¹¹](#fn11)). Q6's AIME cell
+is the yearsplit re-cut (0.750); its fcb15 (0.867), ladder (all rungs,
+13/15 greedy) and sli (10/10) landed 2026-09-23. The 27B's podium row is
+sharp-low throughout (AIME 0.833 and zebra 0.65, both up from its medium
+cells); its serving arm still runs stock for speed.
 
 ## Italian (iten12)
 
@@ -905,14 +915,18 @@ speed, RAM, and context headroom.
 | Flash-Next IQ4_NL | **12/12** |
 | Flash-Next Q6_K_XL | **12/12** |
 | Muse-Glimmer Q8 | **12/12** |
-| Qwen3.8 27B Q8 | 10/12 |
+| Qwen3.8 27B Q8 | 11/12 |
 | DeepSeek V4.1 Flash Q2 (local, SSD-streamed) [⁷](#fn7) | 10/12 |
 | GLM-5.3 (cloud) [²⁴](#fn24) | **12/12** |
 | GLM-5.3-flash (cloud) [²⁴](#fn24) | 11/12 |
 | DeepSeek V4.1 Flash (cloud) [²⁴](#fn24) | **12/12** |
 
 All local cells ran the hardened **v3.1** grader (overnight re-run) — the battery is uniform across the table at last.
-Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader.
+Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader. The
+27B's row is its sharp-low census (11/12, 2026-09-23,
+`benchmarks/iten12-27b-low.jsonl`); at sharp-medium its two censuses scored
+10/12 and 11/12 (differing on one item — run sensitivity, not basis), so
+the effort dial cannot be credited for the single-item gap here.
 
 **Honest caveat:** at n=12, a one-item difference is within sampling noise
 (Fisher's exact p ≈ 0.49 for 12/12 vs 10/12). The battery is a floor
@@ -933,21 +947,26 @@ not a verdict: every interval below overlaps the champion's except where noted.
 | **Flash-Next Q5_K_XL** (champion) | sharp | **0.833** | 0.55–0.95 | 12 |
 | Flash-Next Q6_K_XL | sharp | 0.750 | 0.47–0.91 | 12 |
 | 27B BF16 anchor | sharp-medium | 0.750 | 0.47–0.91 | 12 |
+| Qwen3.8 27B Q8 | sharp **low** | **0.833** | 0.55–0.95 | 12 |
 | Qwen3.8 27B Q8 | sharp-medium | 0.500 | 0.25–0.75 | 12 |
 | Flash-Next IQ4_NL | stock | 0.417 | 0.19–0.68 | 12 |
 | Qwen3.8 27B Q8 | stock | 0.417 | 0.19–0.68 | 12 |
 | Muse-Glimmer Q8 | stock | 0.333 | 0.14–0.61 | 12 |
 
-Two structural findings: the **27B BF16 anchor (0.750) lands BELOW the
+Three structural findings: the **27B BF16 anchor (0.750) lands BELOW the
 Q5-quantized champion (0.833)** and ties the Q6 quant — the flash MoE
-architecture dominates reasoning regardless of quant tier; and the sharp
+architecture dominates reasoning regardless of quant tier; the sharp
 template lifts the 27B's reasoning too (0.417→0.500) but far less than it
-lifted its coding score (0.267→0.800).
+lifted its coding score (0.267→0.800); and **the 27B at sharp-low ties the
+champion (0.833, 2026-09-23)** — the effort dial moves its AIME by +0.33
+where the flash family measures flat, so at matched low effort the
+MoE-vs-dense reasoning gap closes entirely.
 
 **Full-bank cross-check (n=60):** LOW **0.533** [0.41–0.65] vs MEDIUM
 **0.517** [0.39–0.64], paired cross-box — a dead tie (one-item spread). AIME is
-effort-flat at the largest n measured; the effort lever is coding-specific
-(fcb15 +0.20 at low). The n=60 bank also contains harder unsolved-era items
+effort-flat **on the flash family** at the largest n measured; the dense 27B is
+the counterexample (0.500→0.833 at low), so the effort lever is
+family-specific, not coding-specific. The n=60 bank also contains harder unsolved-era items
 that both tiers miss, which is why its level sits below the yearsplit cell.
 
 **Retired — the original stratified-random cut.** Its local cells were Q5
@@ -964,7 +983,9 @@ quote. History and per-item artifacts: `grading_changelog` and
 
 First measurements (paired same-box): **10/10 at low = 10/10 at
 medium** — the battery saturates at both tiers; no effort sensitivity.
-Useful as a regression canary, not as a discriminator.
+Re-run across the fleet 2026-09-23: Q6 **10/10** [0.72–1.0] at its 64k
+tier and the 27B **10/10** [0.72–1.0] at sharp-low — it saturates
+everywhere. Useful as a fleet regression canary, not as a discriminator.
 
 ## Coding — GBench fcb15 (deterministic, unit-tested)
 
@@ -1010,14 +1031,17 @@ champion itself runs 0.267 (stock embedded) → 0.667 (sharp medium) →
 ranking with the usual discipline — overlapping CIs, 2–3-item gaps at
 n=15, and Muse runs a different family's template.
 
-**Effort is family-specific, measured on the same arms.** On the Flash-Next
-family sharp-low beats sharp-medium by 0.20 (0.867 vs 0.667); on the dense 27B
-the two are a dead tie (**0.800 both**), and that tie is not the same run twice:
-low and medium fail *different* items (5 and 11), so the dial moves which items
-break without moving the count — what a score-level tie at n=15 looks like. Under uniform
-templates the BF16-parity 27B-Q8 leads coding while the quantized
-flash arms lead reasoning — the quantization cost is battery-dependent
-(see the note below).
+**Effort is family-specific *and* battery-specific, measured on the same
+arms.** On the Flash-Next family sharp-low beats sharp-medium by 0.20 on
+coding (0.867 vs 0.667) and measures flat on AIME; on the dense 27B coding
+is a dead tie (**0.800 both**) — and that tie is not the same run twice:
+low and medium fail *different* items (5 and 11), so the dial moves which
+items break without moving the count — while its AIME jumps +0.33
+(0.500→0.833). The dial moves each family's *weak* axis: flash coding,
+dense reasoning. The coding lead itself is basis-dependent — at medium
+the BF16-parity 27B-Q8 led (0.800 vs 0.667); at the promoted low the
+flash arms reclaim it (0.867 vs 0.800) — one more reason no ranking is
+quoted without its basis.
 
 **Reproducing a cell (for agents).** Pin *both* the template file and
 the effort tier or the number is garbage — a stock-template run reads
@@ -1045,8 +1069,8 @@ family, and what remains is the honest residue: overlapping CIs and
 template by design, and fcb15 measures short, deterministic,
 unit-tested tasks — not the agentic/real-world coding the community's
 Qwen3.8-over-Muse consensus is about; that regime stays untested here.
-Q6's cell is owed (items exceeded the 900 s HTTP budget — retry in
-flight).
+Q6's cell landed 2026-09-23 (0.867 at the 64k tier, an exact tie with the
+champion — [¹¹](#fn11)), completing the uniform column.
 
 ### The tier ladder — where a model stops holding
 
@@ -1061,8 +1085,8 @@ administered as a *measurement* (`scripts/fcb15_run.py --items-file
 batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates, both
 models on the **same template** — **sharp-medium**, which is the default these
 rungs were run under (2026-09-21); the low-effort promotion came *after* them,
-so every cell in this table is medium-basis. Q6's row (added 2026-09-23) was
-re-measured on the same medium basis for exactly that reason. One box, one harness:
+so every cell in this table is medium-basis (Q6 has no medium row — its
+cells are low-basis only, in the uniform block below). One box, one harness:
 
 | model | v3 (headline) | v3 + D rung | v3 + D+E rung | + F rung | holds to |
 |---|---:|---:|---:|---:|---|
@@ -1091,6 +1115,24 @@ serving arm runs stock **on purpose** (sharp makes it +46% slower), so its
 *as-served* deep-rung ability genuinely is 2/15 — the speed decision buys
 back the depth; (3) to separate these two models at all, the ladder needs
 deeper tiers (F+) or more items per rung, which is the next GEFC step.
+
+**Uniform sharp-low +F cells (2026-09-23, the basis the podium quotes).**
+After the low-effort promotion, the deepest rung was re-administered at
+sharp-low for all three local rows — same harness, one rung, greedy with
+the bounded retry protocol:
+
+| model (+F rung, sharp-low) | greedy | with-retry |
+|---|---:|---:|
+| Flash-Next Q5_K_XL (champion) | 11/15 | 12/15 |
+| Flash-Next Q6_K_XL (64k tier) | **13/15** | 13/15 |
+| 27B Q8_K_XL + DFlash2 | 12/15 | **14/15** |
+
+All three hold every rung at the promoted default, so the tie survives the
+effort change: the champion is effort-flat on the ladder (11/15 greedy at
+both tiers), the 27B's greedy ties its medium cell (12/15) with retries
+flipping two more, and Q6 — measurable at its 64k tier after a fresh
+reload (the zebra storm does not recur on short rung items) — posts the
+best greedy cell of the table.
 
 **One more model was run through the ladder the same day** — the 27B
 **Q6_K_XL trunk + DFlash2 draft** (a combination with no arm before this;
@@ -1133,6 +1175,15 @@ wins coding outright, ties reasoning, and is strictly fastest in
 wall-clock — three batteries, cross-box, stamped evidence. **Promoted to the serving default; both boxes verified by live generation.** An earlier version of this table
 recorded the stock-template cell (0.583) as "low" — a config slip,
 corrected.
+
+**The 27B is the counterexample that closes the story.** The matrix above
+is the champion (flash family). The dense 27B, same yearsplit battery:
+sharp-medium 0.500 → sharp-low **0.833** (+0.33, four items) — overthinking
+damages its reasoning exactly the way it damaged the flash family's
+coding, while its own coding stays flat (0.800 at both tiers, different
+items failing per tier). The dial moves each family's weak axis: flash
+coding, dense reasoning. (2026-09-23 censuses:
+`benchmarks/aime-27b-low-yearsplit.jsonl`, `benchmarks/iten12-27b-low.jsonl`.)
 
 **The template is the champion's biggest single lever — measured on
 Q5 itself** (same accidental controlled run): fcb15 **0.267 → 0.667**,
@@ -1188,7 +1239,8 @@ stratified):
 | 27B BF16 (anchor, sharp) | 0.65 | 0.43–0.82 | 20 |
 | **Flash-Next Q5 (sharp-low, shipped default)** | **0.65** | 0.43–0.82 | 20 |
 | **Flash-Next Q5 (sharp-low, full bank)** | **0.57** | 0.39–0.73 | 30 |
-| Qwen3.8 27B Q8 + DFlash | 0.55 | 0.34–0.74 | 20 |
+| Qwen3.8 27B Q8 + DFlash (sharp-low) | **0.65** | 0.43–0.82 | 20 |
+| Qwen3.8 27B Q8 + DFlash (sharp-medium) | 0.55 | 0.34–0.74 | 20 |
 | Flash-Next Q5 (sharp-medium, full bank) | 0.53 | 0.36–0.70 | 30 |
 | Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
 | Flash-Next IQ4_NL | 0.42 | 0.19–0.68 | 12 |
@@ -1204,7 +1256,9 @@ axis: **sharp-low 0.567 vs sharp-medium 0.533** at n=30 both — low still leads
 but by one item, where the looser n=20-vs-n=12 pairing had suggested +0.15. An
 earlier n=12 champion cell (0.50) is no longer listed: its template basis was
 never recorded, so it is not comparable to any row above. Zebra remains
-everyone's weakest battery — the CSP ladder is where headroom lives.
+everyone's weakest battery — the CSP ladder is where headroom lives. The
+27B's sharp-low cell (2026-09-23) lands on the same 0.65 as the champion
+and the BF16 anchor — a three-way tie at the top, fully overlapping CIs.
 
 ## DeepSeek V4.1 Flash Q2 — tested, parked
 

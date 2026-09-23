@@ -212,3 +212,20 @@ Counted directly from the per-item JSONL on disk (`ok / n`), not from
 - **The 27B iten12 run-sensitivity**: two artifacts of the same arm score 10/12 and
   11/12 (differing on item 0). Both fail the 12/12 gate, so no conclusion is at
   risk, but the published cell should name its run.
+
+## Resolution log (2026-09-23, uniform sharp-low completion)
+
+- **27B iten12 mismatch (10/12 artifact vs 11/12 podium): RESOLVED.** The
+  two medium-basis censuses of the same arm scored 10/12 and 11/12
+  (run sensitivity, differing on item 0 — flagged above); today's sharp-low
+  census (`iten12-27b-low.jsonl`, 11/12, v3.1 grader) backs the podium cell
+  at the published (low) basis. The chapter names the run sensitivity.
+- New cells banked this session (all artifacts in `benchmarks/`):
+  27B sharp-low — iten12 11/12, AIME yearsplit 0.833 [0.55–0.95],
+  fcb15 0.800 [0.548–0.930], ladder +F 12/15 greedy | 14/15 retry,
+  sli 10/10, zebra 0.65 [0.43–0.82] (13/20);
+  Q5 champion ladder +F @ sharp-low — 11/15 greedy | 12/15 retry;
+  Q6 ladder +F @ sharp-low (64k) — 13/15 | 13/15.
+- Basis state after this session: every local podium row is sharp-low
+  across all quality columns except Q6 zebra (unobtainable at 64k —
+  documented negative) and Q6's pp@128k (fn18, the 192k-tier cell).

@@ -1,0 +1,206 @@
+# Finish every pending task — README alignment, on both boxes
+
+Objective: complete the outstanding work end to end, autonomously, monitoring
+the two running measurement batteries and acting on failures. Both boxes are
+free (operator 260923): strixy (local) and strixy2 (192.168.50.184).
+
+## Running right now (launched 11:19-11:20)
+- strixy / 27b-low-pair.service :8081 — 27B Q8+DFlash2 sharp-LOW, c=131072
+  → fcb15 census (15) then AIME yearsplit (12). Log:
+  ~/Piero/Work/Qwen38/reruns-260923/27b-low/battery.log
+- strixy2 / q6c64l2.service :8080 — Q6 sharp-low @64k
+  → sli(10), zebra(20), ladder v3def. Log:
+  ~/Piero/Work/Qwen38/reruns-260919/q6-low-row/battery.log
+Both runners have a storm guard (swap-out >30MB/s x3 → SIGKILL the arm) and
+restore their box's serving unit when done. Rule from storm #3: never wait out
+a graceful stop during a storm — SIGKILL.
+
+## Checklist
+1. [ ] Monitor both batteries each iteration; on failure apply the babysit
+       rules (SIGKILL on storm, restart the leg, log the finding).
+2. [ ] Harvest every owed cell from the artifacts:
+       - Q6 64k sharp-low: sli, zebra, ladder
+       - Q6 pp@128k at the 192k tier (start q6-serve-192k.service after the
+         64k legs, run benchmarks/speed_probe.py, then restore q5-serve)
+       - 27B sharp-low: fcb15 census, AIME yearsplit
+3. [ ] Cell→artifact audit: every LOCAL cell in every README table → artifact
+       file → algorithm version (v3.1 grader / yearsplit / census+Wilson /
+       template·effort / wall-clock). Flag fresh|stale|missing.
+4. [ ] Update README tables + footnotes for the local models only (cloud rows
+       stay frozen until their next evolution): podium row cells, the fcb15
+       census table, the AIME yearsplit table, the tier ladder, footnotes.
+       Artifact pointer per table. Keep the human+agent-friendly style.
+5. [ ] Verify: internal links resolve, TOC regenerated, paragraph balance clean.
+6. [ ] Commit + push. Report blocked items (zram strip needs operator sudo).
+7. [ ] Confirm both boxes are back serving (strixy: model-router-pwilkin;
+       strixy2: q5-serve) and report GTT/avail.
+
+## Success criteria (binary)
+- Each owed cell has a committed artifact + a harvested number, OR a logged
+  negative finding (e.g. "sli does not hold at 64k under long generations").
+- An audit mapping exists (cell → artifact → basis) covering every local cell.
+- README committed + pushed, links resolve, TOC regenerated.
+- Both boxes restored to their normal serving units, verified by /health.
+
+---
+
+## Progress log (iteration 1)
+
+DONE
+- [x] step 1 monitoring: Q6 64k legs — **sli 10/10 PASSED**; **zebra stormed**
+      (so=388MB/s, avail 2.0G) → SIGKILLed → recorded as a *negative finding*:
+      64k sustains ~6k-token census items + sli, not zebra's long thinking
+      generations (row-eviction disease, one tier below the 131k/192k decay).
+      ladder: not obtainable for the same reason.
+- [x] 27B sharp-low: fcb15 in progress (12/15 items, 11 min elapsed, ~1 min/item).
+- [x] step 3 audit: `benchmarks/cell-audit-260923.md` — every local cell →
+      artifact → basis, with ground-truth counts from the per-item JSONL.
+- [x] step 4 (partial, local models): zebra reconciled (one row per basis; the
+      n=12 cell dropped, +0.15 → +0.03 at the tighter interval); stratified AIME
+      table retired (4 broken-grader cells) with the yearsplit cut canonical;
+      Q6 podium row + fn11 rebuilt; fn18's wrong cross-reference fixed (fn8→fn6);
+      fn3/fn8 re-cited → 22 footnotes, 0 orphans, 0 dangling.
+- [x] `benchmarks/results.json` reconciled against the artifacts.
+- [x] zram stripped on BOTH boxes (operator sudo, password via stdin only).
+- [x] watchdogs: the ssh-based guard was blind during the storm (its own channel
+      degrades). Lesson logged; the 192k leg below uses a LOCAL guard.
+
+REMAINING
+- [ ] Q6 pp@128k at the 192k tier (running now, local guard).
+- [ ] 27B sharp-low cells: harvest fcb15 + AIME yearsplit → podium row.
+- [ ] final verify (links, TOC, paragraph balance) + commit + push.
+- [ ] restore strixy's router (model-router-pwilkin) after the 27B leg.
+
+### strixy2 re-loaded (operator request, 11:31-11:33)
+- q5-serve stopped; **q6lad** (Q6 @64k sharp-low, MemoryMax=118G) up on :8080,
+  health ok, GTT 112G, avail 4.7G.
+- **local guard** installed at /home/piero/q6-64k-run/local-guard.sh and running
+  ON strixy2 (pid 136371): samples /proc/vmstat locally, SIGKILLs the arm after
+  4x15s samples above 15k pages/s. This is the storm-#4 lesson applied — the
+  ssh-based guard was blind exactly when the box thrashed.
+  * gotcha found: the guard must start AFTER the arm exists (it exits while
+    `systemctl is-active` is false) — relaunched after q6lad was active.
+- **ladder leg (v3def) running** against it: `fcb15_run.py --items-file
+  batteries/fcb15_v3def.py --tag q6-low-ladder` → reruns-260919/q6-low-row/ladder.txt.
+  This is the owed Q6 ladder cell; if it completes, the podium's ladder cell
+  changes from "—" to the actual rungs.
+- if the ladder holds, the last Q6 item is the pp@128k cell at the 192k tier
+  (q6-serve-192k.service exists on strixy2).
+
+### 27B (strixy) — fcb15 nearly done
+- 14/15 items attempted, tg 24-30 t/s, no pressure (GTT 42G, avail 67G).
+- next: AIME yearsplit (12 items), then the runner restores the router.
+
+### Verification command (completion gate)
+    cd /home/piero/Piero/Work/Strix_AI_Server && uv run --no-project python scripts/verify_readme.py
+Exit 0 = links resolve, footnotes have no orphans/dangling refs, every markdown
+table is rectangular, paragraphs are paren/bold balanced, and the TOC block is
+current. Sabotage-verified (bogus anchor -> exit 1). Committed as
+scripts/verify_readme.py; toc.py's --check backs the ToC item.
+
+## Progress log (iteration 2)
+- [x] **27B fcb15 @ sharp-low harvested: 0.800 (12/15) [0.548-0.930]** — a dead tie
+      with the sharp-medium cell. Item-level check: low fails item 11, medium fails
+      item 5 → the effort dial moves *which* items break, not the count.
+      → README fcb15 table + results.json updated (commits 3a88309, next).
+- [x] Found + documented a cross-family finding: effort is family-specific
+      (Flash-Next +0.20 from low; the dense 27B gains nothing on coding).
+- [x] `scripts/verify_readme.py` committed (4ce8b13) — the completion-gate command;
+      sabotage-verified (bogus anchor → exit 1). Currently PASSES.
+- [~] Q6 ladder (strixy2, q6lad): **8/15 items, all PASS so far**, si=0 so=0, GPU 92%,
+      local guard watching. A 3-min gap with no print_timing turned out to be prompt
+      processing on a long rung, not a stall (endpoint answered a test request in 2.8s).
+- [~] 27B AIME yearsplit: running (item 1-2 of 12).
+
+## Progress log (iteration 3)
+- [x] **Doctor installed on strixy2** (operator request): same Doctor.py with
+      ROUTER_UNITS = ("q5-serve", "q6-serve-192k") — the only diff (verified with
+      a diff excluding that line) — Doctor.service enabled + active, :8667
+      listening (pid 144899). Browser-verified from strixy: header reads
+      "Doctor · strixy2 · system + inference up 0d 18h 7m ↻", button right of the
+      uptime, live system cards, inference section reporting that box's own
+      service state ("SERVICE inactive" — correct, q5-serve is stopped for the
+      running ladder leg). Two router-specific cards (resident arm, /res/* nightly
+      links) are naturally empty there; documented in the README (621a292).
+- [x] **zram strip: already done on BOTH boxes** (verified again: /proc/swaps
+      shows only the 32 GiB swapfile on each; the earlier runs with the operator
+      password stand). No action needed.
+- [x] README: corrected the 64k "cliff disappears" claim -> "the cliff moves, it
+      does not disappear" (fbc87fd): 64k's ceiling is generation LENGTH, not
+      context size.
+- [~] Q6 ladder (strixy2): **13/15 items, all PASS**.
+- [~] 27B AIME yearsplit: 3/12 items (long reasoning traces, ~5-10 min each).
+
+## Progress log (iteration 4)
+- [x] **Q6 ladder harvested (sharp-LOW @64k): greedy 13/15 | with-retry 13/15** on
+      the v3+D+E+F set (fails items 2 and 13, retries never flip them).
+- [x] **Basis bug caught before it polluted the table**: the tier ladder's rows
+      are sharp-MEDIUM (their champion column matches the medium fcb15 cells
+      10/12/11, not low 13), but the prose claimed "(sharp-low, the promoted
+      default)". A low-basis Q6 number next to medium-basis rows would have been
+      an apples-to-oranges cell. Prose corrected (b8f0605) and **Q6 is being
+      re-measured on the medium basis right now** (q6med, same 64k tier).
+- [~] 27B AIME yearsplit: 9/12 items.
+- [~] Q6 medium ladder (q6med on strixy2): item 1 PASS, running.
+- Diagnosis note: the "q6df" ladder artifacts from 2026-09-22 are the
+  **27B-Q6_K_XL + DFlash** arm (4/15, 3/15) — a different model from the
+  Flash-Next Q6 row, so they were never the missing cells.
+
+## REFLECTION (iteration 5)
+
+**Accomplished.** Audit of every local cell → artifact → basis
+(`benchmarks/cell-audit-260923.md`); README alignment for the local models
+(zebra reconciled to one row per basis; the broken-grader stratified AIME table
+retired with the yearsplit cut canonical; Q6 podium row + fn11 rebuilt; fn18's
+wrong cross-reference fixed; 22 footnotes, 0 orphans, 0 dangling); results.json
+reconciled against the artifacts; new cells harvested (Q6 sli 10/10, Q6 ladder
+13/15 low, 27B fcb15 0.800 low); two claims corrected against evidence (the 64k
+"cliff disappears"; the tier ladder's mislabelled basis); the Doctor installed on
+strixy2; zram stripped on both; `scripts/verify_readme.py` left as the
+re-runnable check.
+
+**Working well.** Iteration-sized monitoring with real evidence at each step;
+the local guard (on-box) instead of the ssh-based one; cross-checking every
+number against the per-item JSONL rather than trusting prose.
+
+**Friction / lessons.** (1) Two basis errors were caught only because every cell
+is being checked against its artifact — the template/effort axis is the trap in
+this repo. (2) AIME items are slow (long traces, ~5-10 min each); plan battery
+time accordingly. (3) `pkill -f` self-matching bit twice; always bracket patterns.
+(4) The ssh watchdog was blind during storm #4 — fixed by an on-box guard.
+
+**Adjustment.** The remaining pp@128k leg at the 192k tier is the one cell
+already documented from earlier runs (fn18: 198.9 t/s floor, 434-492 on three
+other same-config runs). It carries the highest storm risk of anything left, so
+it runs last, under the local guard, and only if the 64k work is fully done —
+and if it fails it is reported as "documented in fn18, not re-measured".
+
+**Next priorities.** Finish the 27B AIME leg → harvest → README (podium 27B cells
++ AIME table + results.json) → Q6 medium-ladder row → pp@128k → restore strixy's
+router and strixy2's q5-serve → push.
+
+## Uniform sharp-low campaign (operator directive, iteration 5)
+
+Operator: "the flash models perform better both quality and speed with sharp-low —
+measure them all on the same sharp-low template with the updated algorithms."
+Confirmed from the artifacts (effort_axis): fcb15 0.867 low vs 0.667 medium on the
+champion, AIME flat 0.833, low strictly faster. So sharp-low is the uniform basis
+and the axis is now "low for everyone" (Muse excepted: stock by family design).
+
+Checked each cell against its artifact — the gaps are small and precise:
+- Q5 champion: ONLY the ladder (+F) is medium-basis; iten12/AIME/fcb15/sli/zebra
+  are already sharp-low.
+- Q6: nothing left at 64k except zebra, which storms (documented negative).
+- 27B Q8+DFlash2: iten12, ladder (+F), sli, zebra (AIME running).
+- IQ4_NL: off-podium, optional.
+
+In flight for it:
+- strixy2: champion low ladder (q5-serve = Q5+MTP @131k sharp-low, guard armed);
+  the Q6 MEDIUM ladder was killed as off-plan (its rows are replaced by the low
+  runs, with the medium numbers kept as a historical note).
+- strixy: 27B AIME (10/12) then a chained session (27b-low-extra.sh) running
+  iten12 → ladder → sli → zebra on the same arm.
+
+Basis caveat carried forward: the tier is per-model as-shipped (Q5 131k, Q6 64k,
+27B 131k), which is the intended meaning of "as-served basis"; only the template
+and effort are now uniform.

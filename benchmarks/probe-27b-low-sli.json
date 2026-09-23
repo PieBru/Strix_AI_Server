@@ -1,0 +1,38 @@
+{
+ "answered": 10,
+ "artifact": "results/fcb15-probe-27b-low-sli.jsonl",
+ "budget": 10,
+ "candidate": {
+  "battery": "sli",
+  "hardware": "strixy 27b-q8-dflash2 sharp-low c=131072",
+  "model": "/home/piero/Downloads/LLM/Qwen38/qwen38-27b/Qwen3.8-27B-UD-Q8_K_XL.gguf",
+  "ts": "2026-09-23"
+ },
+ "ci95": [
+  0.7225,
+  1.0
+ ],
+ "estimate": 1.0,
+ "k": 10,
+ "method": "Wilson score interval (implemented; not the FAQ factor model)",
+ "mode": "census",
+ "n": 10,
+ "selection": {
+  "items": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "mode": "census (budget >= battery size)",
+  "rationale": "full battery",
+  "seed": 1300
+ },
+ "spent": 10
+}

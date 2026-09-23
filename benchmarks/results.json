@@ -1,789 +1,888 @@
 {
-  "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO. GBench cells (fcb15 coding, zebra CSP) added 2026-09-19; runner vendored in gbench/. Overnight re-runs 2026-09-20: iten12 v3.1 uniform across models; aime yearsplit cells; fcb15 census for 3 more models. 27B+sharp uniform cell landed.",
-  "iten12": [
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL",
-      "ok": 12,
-      "n": 12,
-      "date": "2026-09-17",
-      "battery": "v3.1 (exec fix + notkw + shape + clock)",
-      "note": "re-run 2026-09-19 under hardened grader: still 12/12; the one v3 failure was a grader bug (item 3 clock), fixed in v3.1"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next IQ4_NL",
-      "ok": 12,
-      "n": 12,
-      "date": "2026-09-20",
-      "battery": "v3.1 (overnight re-run 2026-09-20)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q6_K_XL",
-      "ok": 12,
-      "n": 12,
-      "date": "2026-09-20",
-      "battery": "v3.1 (overnight re-run 2026-09-20)"
-    },
-    {
-      "model": "Muse-Glimmer-30B Q8",
-      "ok": 12,
-      "n": 12,
-      "date": "2026-09-20",
-      "battery": "v3.1 (overnight re-run 2026-09-20)",
-      "note": "v2 scored 11/12; hardened v3.1 re-run scores 12/12"
-    },
-    {
-      "model": "Qwen3.8 27B Q8_K_XL",
-      "ok": 10,
-      "n": 12,
-      "date": "2026-09-20",
-      "battery": "v3.1 (overnight re-run 2026-09-20)"
-    },
-    {
-      "model": "DeepSeek V4.1 Flash Q2 (local, SSD-streamed)",
-      "ok": 10,
-      "n": 12,
-      "date": "2026-09-19",
-      "note": "cloud-format caveat n/a: same contract as locals",
-      "battery": "v2"
-    },
-    {
-      "model": "GLM-5.3 (cloud)",
-      "ok": 7,
-      "n": 12,
-      "date": "2026-09-16",
-      "note": "format-compliance artifact suspected — see README footnote 7",
-      "battery": "v1-unverified"
-    },
-    {
-      "model": "Qwen3.8 27B BF16 (anchor)",
-      "ok": 10,
-      "n": 12,
-      "date": "2026-09-20",
-      "battery": "v3.1",
-      "note": "anchor cell; Q8 cells 10/12(stock)/11/12(sharp) — noise tier on a saturated floor"
-    },
-    {
-      "model": "Qwen3.8 27B Q8 + DFlash2 (sharp)",
-      "n": 12,
-      "date": "2026-09-20",
-      "note": "CONS sharp-template re-run; supersedes the stale 10/12 podium cell (pre-sharp); item 7 sole failure; hardened grader. Two artifacts of this same arm exist (iten12-qwen38-27b-q8-df.jsonl 10/12, iten12-27b-sharp.jsonl 11/12) - they differ on item 0, so the arm's gate value is run-sensitive (fails the 12/12 gate either way).",
-      "ok": 11,
-      "score": 0.9167
-    }
-  ],
-  "aime": [
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL",
-      "ok": 10,
-      "n": 12,
-      "score": 0.833,
-      "date": "2026-09-17",
-      "battery": "v2 grader (exec fix) — re-run 2026-09-19: 10/12, identical to v1-grader cell"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q6_K_XL",
-      "ok": 8,
-      "n": 11,
-      "score": 0.727,
-      "note": "1 item INFRA (server died mid-battery). Graded-only: 8/11=0.727; counting the crash as a failure: 8/12=0.667 (ties IQ4_NL/27B). Both denominators reported.",
-      "date": "2026-09-17",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next IQ4_NL",
-      "ok": 8,
-      "n": 12,
-      "score": 0.667,
-      "date": "2026-09-17",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    },
-    {
-      "model": "Qwen3.8 27B Q8_K_XL",
-      "ok": 8,
-      "n": 12,
-      "score": 0.667,
-      "date": "2026-09-17",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    },
-    {
-      "model": "Muse-Glimmer-30B Q8",
-      "ok": 7,
-      "n": 12,
-      "score": 0.583,
-      "date": "2026-09-17",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    },
-    {
-      "model": "DeepSeek V4.1 Flash (cloud)",
-      "ok": 8,
-      "n": 12,
-      "score": 0.667,
-      "date": "2026-09-16",
-      "note": "60-item census: 29/60 = 0.483 (subset ran easy)",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    },
-    {
-      "model": "GLM-5.3 (cloud)",
-      "ok": 6,
-      "n": 12,
-      "score": 0.5,
-      "date": "2026-09-16",
-      "battery": "v1-grader (pre exec-namespace fix)"
-    }
-  ],
-  "selection": {
-    "aime_items": [
-      0,
-      1,
-      7,
-      18,
-      22,
-      23,
-      24,
-      25,
-      35,
-      36,
-      42,
-      49
-    ],
-    "method": "stratified-random seed 1300 (see run.py select_items)"
+ "_readme": "Our measured quality cells (the numbers in README.md tables). Protocol: greedy (temp 0.0), seed-1300 stratified selection for AIME, deterministic exec-grading. Hardware: single AMD Strix Halo 128GB, binaries as pinned in configs/. battery = the grader version the cell ran under. Dates ISO. GBench cells (fcb15 coding, zebra CSP) added 2026-09-19; runner vendored in gbench/. Overnight re-runs 2026-09-20: iten12 v3.1 uniform across models; aime yearsplit cells; fcb15 census for 3 more models. 27B+sharp uniform cell landed.",
+ "iten12": [
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL",
+   "ok": 12,
+   "n": 12,
+   "date": "2026-09-17",
+   "battery": "v3.1 (exec fix + notkw + shape + clock)",
+   "note": "re-run 2026-09-19 under hardened grader: still 12/12; the one v3 failure was a grader bug (item 3 clock), fixed in v3.1"
   },
-  "protocol": {
-    "temperature": 0.0,
-    "max_tokens": 6000,
-    "tries_per_item": 2,
-    "http_timeout_s": 900,
-    "grade": "deterministic exec of the model's last python block; assertions on stdout (no LLM judge)",
-    "errored_items": "spent, not answered — excluded from denominator, counted separately"
+  {
+   "model": "Qwen3.8 Flash-Next IQ4_NL",
+   "ok": 12,
+   "n": 12,
+   "date": "2026-09-20",
+   "battery": "v3.1 (overnight re-run 2026-09-20)"
   },
-  "aime_selection_split": {
-    "aime25_items": 8,
-    "aime26_items": 4,
-    "note": "year-stratified re-cut delivered 2026-09-20 (see aime_yearsplit)"
+  {
+   "model": "Qwen3.8 Flash-Next Q6_K_XL",
+   "ok": 12,
+   "n": 12,
+   "date": "2026-09-20",
+   "battery": "v3.1 (overnight re-run 2026-09-20)"
   },
-  "grading_changelog": {
-    "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
-    "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) — keyword salad no longer passes.",
-    "v3.1 iten12": "item 3 accepts 5:45 PM == 17:45 (natural clock, matching the v2 items-7/9 precedent)"
+  {
+   "model": "Muse-Glimmer-30B Q8",
+   "ok": 12,
+   "n": 12,
+   "date": "2026-09-20",
+   "battery": "v3.1 (overnight re-run 2026-09-20)",
+   "note": "v2 scored 11/12; hardened v3.1 re-run scores 12/12"
   },
-  "fcb15": [
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL",
-      "ok": 10,
-      "n": 15,
-      "score": 0.667,
-      "ci95": [
-        0.417,
-        0.848
-      ],
-      "mode": "census",
-      "date": "2026-09-19",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI, vendored in gbench/)",
-      "note": "upstream: PieBru/Qwen38_Strix gbench; other table models' cells owed"
-    },
-    {
-      "model": "Muse-Glimmer-30B Q8",
-      "ok": 11,
-      "n": 15,
-      "score": 0.733,
-      "ci95": [
-        0.4805,
-        0.891
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)",
-      "note": "confounds (260920 audit): one-item gap vs champion inside overlapping CIs; stock template vs champion's sharp; Q8-dense vs Q5-MoE quant tiers; fcb15 = short deterministic tasks, not the agentic coding regime the community Qwen>Muse consensus addresses"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next IQ4_NL",
-      "ok": 5,
-      "n": 15,
-      "score": 0.333,
-      "ci95": [
-        0.1518,
-        0.5829
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)"
-    },
-    {
-      "model": "Qwen3.8 27B Q8_K_XL",
-      "ok": 4,
-      "n": 15,
-      "score": 0.267,
-      "ci95": [
-        0.109,
-        0.5195
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q6_K_XL",
-      "note": "64k sustained tier, sharp-LOW, idle strixy2 - landed 2026-09-23, superseding the 'owed' placeholder; exact tie with the champion's shipped cell",
-      "ok": 13,
-      "n": 15,
-      "score": 0.8667,
-      "ci95": [
-        0.6212,
-        0.9626
-      ],
-      "mode": "census",
-      "date": "2026-09-23",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next IQ4_NL + sharp(medium)",
-      "ok": 10,
-      "n": 15,
-      "score": 0.667,
-      "ci95": [
-        0.4171,
-        0.8482
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe",
-      "note": "TEMPLATE DISENTANGLER: same quant/protocol as the overnight stock-template cell (0.333) — the sharp template DOUBLED the score. Overnight Qwen cells were template-inconsistent; uniform-template re-cut owed for 27B"
-    },
-    {
-      "model": "Qwen3.8 27B Q8_K_XL + DFlash + sharp(medium)",
-      "ok": 12,
-      "n": 15,
-      "score": 0.8,
-      "ci95": [
-        0.5481,
-        0.9295
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe",
-      "note": "uniform-template cell on strixy2 (box-control exact): template effect 3x on this arm (0.267 stock -> 0.800 sharp). iten12+sharp 11/12 (was 10/12 stock)"
-    },
-    {
-      "model": "Qwen3.8 27B BF16 (anchor)",
-      "ok": 10,
-      "n": 15,
-      "score": 0.667,
-      "ci95": [
-        0.4171,
-        0.8482
-      ],
-      "mode": "census",
-      "date": "2026-09-20",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe",
-      "note": "UNQUANTIZED ANCHOR (sha256-gated BF16, GTT 64G residency verified). vs Q8+sharp 12/15: 13/15 items agree, 2 flips, Fisher p=0.11 — indistinguishable; CONFIRMS Q8~BF16 parity on this battery. flash-Q5's CI equals this anchor's exactly."
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q6_K_XL + sharp(medium)",
-      "ok": 10,
-      "n": 15,
-      "score": 0.6667,
-      "ci95": [
-        0.4171,
-        0.8482
-      ],
-      "mode": "census",
-      "date": "2026-09-23",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)",
-      "note": "64k sustained tier, sharp-MEDIUM - the effort half of the same pass"
-    },
-    {
-      "model": "Qwen3.8 27B Q8_K_XL + DFlash + sharp(low)",
-      "ok": 12,
-      "n": 15,
-      "score": 0.8,
-      "ci95": [
-        0.5481,
-        0.9295
-      ],
-      "mode": "census",
-      "date": "2026-09-23",
-      "battery": "fcb15 v3",
-      "runner": "GBench probe (Wilson CI)",
-      "note": "sharp-LOW half of the 27B effort A/B, measured on strixy (c=131072). Dead tie with the sharp-medium cell (0.800, 12/15) but NOT the same item set: low fails item 11, medium fails item 5 - the dial moves which items break, not the count."
-    }
-  ],
-  "zebra": [
-    {
-      "model": "Qwen3.8 27B Q8_K_XL + DFlash",
-      "score": 0.55,
-      "ci95": [
-        0.342,
-        0.742
-      ],
-      "n": 20,
-      "date": "2026-09-16",
-      "battery": "zebra v1"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL",
-      "score": 0.5,
-      "ci95": [
-        0.254,
-        0.746
-      ],
-      "n": 12,
-      "date": "2026-09-17",
-      "battery": "zebra v1"
-    },
-    {
-      "model": "Muse-Glimmer-30B Q8",
-      "score": 0.45,
-      "ci95": [
-        0.258,
-        0.658
-      ],
-      "n": 20,
-      "date": "2026-09-16",
-      "battery": "zebra v1"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next IQ4_NL",
-      "score": 0.4167,
-      "ci95": [
-        0.193,
-        0.681
-      ],
-      "n": 12,
-      "date": "2026-09-17",
-      "battery": "zebra v1"
-    },
-    {
-      "model": "DeepSeek V4.1 Flash (cloud)",
-      "score": 0.4167,
-      "ci95": [
-        0.193,
-        0.681
-      ],
-      "n": 12,
-      "date": "2026-09-16",
-      "battery": "zebra v1",
-      "note": "cloud cell ran the same probe contract as locals"
-    },
-    {
-      "model": "GLM-5.3 (cloud)",
-      "score": 0.25,
-      "ci95": [
-        0.089,
-        0.532
-      ],
-      "n": 12,
-      "date": "2026-09-16",
-      "battery": "zebra v1",
-      "note": "cloud cell — format-artifact caveat as ever"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q6_K_XL",
-      "score": null,
-      "n": null,
-      "date": null,
-      "note": "probe incomplete upstream - owed; re-run in flight 2026-09-23 (strixy2 q6c64l2)"
-    },
-    {
-      "model": "Qwen3.8 27B BF16 (anchor)",
-      "score": 0.65,
-      "ci95": [
-        0.4329,
-        0.8188
-      ],
-      "n": 20,
-      "date": "2026-09-20",
-      "battery": "zebra v2 re-run (morning cell died connection-refused)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-LOW)",
-      "score": 0.5667,
-      "ci95": [
-        0.392,
-        0.7262
-      ],
-      "n": 30,
-      "date": "2026-09-20",
-      "battery": "zebra v1 full-30",
-      "note": "full-30 re-score: low 0.567 vs medium 0.533 at n=30 both — the earlier n=20 low point (0.65) regressed to mean; low>=medium holds but the gap narrows to +0.03 at full n"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-MEDIUM, full 30)",
-      "score": 0.5333,
-      "ci95": [
-        0.3614,
-        0.6977
-      ],
-      "n": 30,
-      "date": "2026-09-20",
-      "battery": "zebra v1 full-30",
-      "note": "paired overnight run vs sharp-low; tightens the medium CI; low 0.65@n20 still leads (direction consistent at n=30)"
-    },
-    {
-      "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-LOW)",
-      "score": 0.65,
-      "ci95": [
-        0.4329,
-        0.8188
-      ],
-      "n": 20,
-      "date": "2026-09-20",
-      "battery": "zebra v1",
-      "note": "the podium's shipped-default cell (zebra-q5low.jsonl, 13/20); the n=30 re-score below is the same arm at larger n"
-    }
-  ],
-  "aime_yearsplit": {
-    "method": "run.py --selection yearsplit: 6xAIME2025 + 6xAIME2026, seed 1300 (the contamination-owed re-cut)",
-    "cells": [
-      {
-        "model": "Qwen3.8 Flash-Next IQ4_NL",
-        "ok": 5,
-        "n": 12,
-        "date": "2026-09-20",
-        "score": 0.4167,
-        "template": "stock",
-        "ci95": [
-          0.1933,
-          0.6805
-        ]
-      },
-      {
-        "model": "Qwen3.8 27B Q8_K_XL",
-        "ok": 6,
-        "n": 12,
-        "date": "2026-09-20",
-        "note": "sharp-medium re-cut: 6/12 (was 0.417 stock) — template matters on reasoning too, less than on coding",
-        "score": 0.5,
-        "template": "sharp-medium",
-        "ci95": [
-          0.2538,
-          0.7462
-        ]
-      },
-      {
-        "model": "Muse-Glimmer-30B Q8",
-        "ok": 4,
-        "n": 12,
-        "date": "2026-09-20",
-        "score": 0.3333,
-        "template": "stock",
-        "ci95": [
-          0.1381,
-          0.6094
-        ]
-      },
-      {
-        "model": "Qwen3.8 Flash-Next Q6_K_XL",
-        "ok": 9,
-        "n": 12,
-        "date": "2026-09-20",
-        "note": "completed via resume; one wedged-slot incident mid-run (items errored then resolved)",
-        "score": 0.75,
-        "template": "sharp",
-        "ci95": [
-          0.4677,
-          0.9111
-        ]
-      },
-      {
-        "model": "Qwen3.8 Flash-Next Q5_K_XL",
-        "note": "measured on strixy2 (lab box) — box-controls exact vs strixy",
-        "ok": 10,
-        "n": 12,
-        "date": "2026-09-20",
-        "score": 0.8333,
-        "template": "sharp",
-        "ci95": [
-          0.552,
-          0.953
-        ]
-      },
-      {
-        "model": "Qwen3.8 27B BF16 (anchor)",
-        "ok": 9,
-        "n": 12,
-        "date": "2026-09-20",
-        "note": "UNQUANTIZED anchor at sharp-medium: 9/12 = 0.750 — vs Q8+sharp 6/12 (overlapping CIs at n=12, 3-item gap). The BF16 anchor scores BELOW Q5-quantized (10/12): flash MoE architecture dominates, not quant",
-        "score": 0.75,
-        "template": "sharp",
-        "ci95": [
-          0.4677,
-          0.9111
-        ]
-      },
-      {
-        "model": "Qwen3.8 27B Q8_K_XL",
-        "ok": 5,
-        "n": 12,
-        "score": 0.4167,
-        "ci95": [
-          0.1933,
-          0.6805
-        ],
-        "template": "stock",
-        "date": "2026-09-20",
-        "note": "the stock-template half of the 27B's template A/B on this battery (sharp-medium = 0.500)"
-      }
-    ]
+  {
+   "model": "Qwen3.8 27B Q8_K_XL",
+   "ok": 10,
+   "n": 12,
+   "date": "2026-09-20",
+   "battery": "v3.1 (overnight re-run 2026-09-20)"
   },
-  "cross_box_control": {
-    "finding": "strixy and strixy2 are measured-identical: iten12 12/12 = 12/12; fcb15 0.6667 [0.4171,0.8482] = 0.667 [0.417,0.848] to the digit; AIME yearsplit 0.833 matches published stratified",
-    "date": "2026-09-20",
-    "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)",
-    "qwen38-27b-q6-df_260921": {
-      "model": "Qwen3.8 27B Q6_K_XL + DFlash2 (IQ4_XS draft, n-max 6)",
-      "note": "same weights, same probe, second box (strixy2) — the podium is strixy-measured, so this cell pair says how much of a speed number is the machine. This runs with the NEW combination that had no arm before this date.",
-      "strixy2": {
-        "pp4k": 348,
-        "pp32k": 297,
-        "pp128k": "n/a (served c=131072 < the ~160k-token window)",
-        "tg128": 25.1,
-        "tg2048": 16.2
-      },
-      "probe": "benchmarks/speed_probe.py",
-      "strixy2_full": {
-        "pp4k": 348,
-        "pp32k": 297,
-        "pp128k": 197,
-        "tg128": 25.1,
-        "tg2048": 16.1,
-        "note": "full sweep at c=200000 (needs >=160k for the pp128k cell: it sent 159,750 real tokens in 810s)"
-      }
-    }
+  {
+   "model": "DeepSeek V4.1 Flash Q2 (local, SSD-streamed)",
+   "ok": 10,
+   "n": 12,
+   "date": "2026-09-19",
+   "note": "cloud-format caveat n/a: same contract as locals",
+   "battery": "v2"
   },
-  "effort_axis": {
-    "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp template, greedy, census)",
-    "cells": [
-      {
-        "effort": "medium",
-        "fcb15": 0.667,
-        "ci95": [
-          0.4171,
-          0.8482
-        ],
-        "iten12": "12/12",
-        "aime_yearsplit": "0.833"
-      },
-      {
-        "effort": "low",
-        "fcb15": 0.8667,
-        "ci95": [
-          0.6212,
-          0.9626
-        ],
-        "iten12": "12/12",
-        "aime_yearsplit": "10/12 (0.833)"
-      },
-      {
-        "effort": "none(nothink)",
-        "fcb15": 0.6667,
-        "ci95": [
-          0.4171,
-          0.8482
-        ],
-        "iten12": "12/12",
-        "aime_yearsplit": "11/12 (0.917)"
-      },
-      {
-        "effort": "xhigh",
-        "fcb15": 0.2667,
-        "ci95": [
-          0.0708,
-          0.5586
-        ],
-        "iten12": "—",
-        "aime_yearsplit": "8/12 (0.667)"
-      }
-    ],
-    "note": "COMPLETE 260920 (cross-box): fcb15 inverted-U (xhigh 0.267 < medium/none 0.667 < low 0.867); AIME: xhigh 0.667 < medium/low 0.833 < none 0.917 (single-item spreads). LOW = unambiguous winner (best coding, tied-best reasoning, fastest). xhigh harms BOTH axes (overthinking). Promotion of low-to-default = operator seal pending"
+  {
+   "model": "GLM-5.3 (cloud)",
+   "ok": 7,
+   "n": 12,
+   "date": "2026-09-16",
+   "note": "format-compliance artifact suspected — see README footnote 7",
+   "battery": "v1-unverified"
   },
-  "template_axis_q5": {
-    "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",
-    "cells": [
-      {
-        "battery": "fcb15",
-        "stock": 0.2667,
-        "sharp": 0.667
-      },
-      {
-        "battery": "AIME yearsplit",
-        "stock": "7/12 (0.583)",
-        "sharp": "10/12 (0.833)"
-      }
-    ],
-    "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself — the template disentangler result generalizes from IQ4/27B to Q5"
+  {
+   "model": "Qwen3.8 27B BF16 (anchor)",
+   "ok": 10,
+   "n": 12,
+   "date": "2026-09-20",
+   "battery": "v3.1",
+   "note": "anchor cell; Q8 cells 10/12(stock)/11/12(sharp) — noise tier on a saturated floor"
   },
-  "seals": [
-    {
-      "date": "2026-09-20",
-      "sealed_by": "operator",
-      "decision": "CHAMPION PROMOTION: Qwen3.8 Flash-Next UD-Q5_K_XL + sharp template (sharp-medium effort) is the declared daily driver on both boxes",
-      "evidence_base": "bb3f748 — podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
-      "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
-    },
-    {
-      "date": "2026-09-21",
-      "sealed_by": "operator (todos 2/3/4 directive)",
-      "decision": "LOW EFFORT PROMOTED TO DEFAULT + Phase-1 rollout: router default arm + strixy2 mirror now serve sharp-low (verified by generation: brief thinking, correct answers); old-gen services confirmed already-disabled; scaffolding units removed; pi lan provider deleted",
-      "evidence": "fcb15 +0.20 at low (0.867); AIME-60 n=60 dead tie (0.533/0.517); zebra-30 tie; sli tie — coding-specific gain, zero measured downside, strictly faster",
-      "ops": "restart-limit drop-ins (RestartSec=45, 4/10min burst) close doctor-F1's storm class; doctor F2 fixed (live GTT column + down-service alert, self-tested)"
-    }
-  ],
-  "sli_battery": {
-    "note": "first measurements 260920 night (strixy, paired same-box): sli saturates at both effort tiers",
-    "cells": [
-      {
-        "effort": "low",
-        "score": 1.0,
-        "n": 10
-      },
-      {
-        "effort": "medium",
-        "score": 1.0,
-        "n": 10
-      }
-    ]
-  },
-  "aime60_full": {
-    "note": "full AIME-60 paired night: LOW 0.533 [0.41-0.65] vs MEDIUM 0.517 [0.39-0.64] — dead tie at n=60 (1-item spread); the yearsplit-12 pattern (0.833/0.833) generalizes: AIME is effort-flat on the champion; the effort lever lives on coding batteries",
-    "cells": [
-      {
-        "model": "Q5+sharp-LOW",
-        "score": 0.5333,
-        "ci95": [
-          0.4089,
-          0.6537
-        ],
-        "n": 60,
-        "date": "2026-09-21"
-      },
-      {
-        "model": "Q5+sharp-MEDIUM",
-        "score": 0.5167,
-        "ci95": [
-          0.3931,
-          0.6382
-        ],
-        "n": 60,
-        "date": "2026-09-21"
-      }
-    ]
-  },
-  "q6_64k_gate": {
-    "verdict": "PASS",
-    "effective_tps": 27.4,
-    "tokens": 18000,
-    "window_s": 658,
-    "config": "c=65536, ctk/ctv f16, loader none+on-direct, MTP-only, single-client essay generation",
-    "decay": "none (26.7@2k -> 27.4@18k)"
-  },
-  "threshold_ladder_260921": {
-    "what": "GEFC L1 tier ladder — greedy pass rates, template-UNIFORM (both models on sharp-low, the promoted default), one box, one harness",
-    "uniform_sharp_low": {
-      "qwen38-flash-q5": {
-        "v3+D": "10/15",
-        "v3+D+E": "12/15",
-        "v3+D+E+F": "11/15"
-      },
-      "qwen38-27b-q8-df": {
-        "v3+D": "12/15",
-        "v3+D+E": "12/15",
-        "v3+D+E+F": "12/15"
-      }
-    },
-    "template_effect_at_depth": {
-      "note": "same model, same rung, only the template differs — the stock arm's deep-rung collapse is a template artifact",
-      "qwen38-27b-q8-df_v3+D": {
-        "stock": "3/15",
-        "sharp-low": "12/15"
-      },
-      "qwen38-27b-q8-df_v3+D+E": {
-        "stock": "2/15",
-        "sharp-low": "12/15"
-      }
-    },
-    "headline_v3_context": {
-      "q5": "10/15 (0.667)",
-      "27b-q8-df": "12/15 (0.800, sharp-medium)"
-    },
-    "conclusion": "Even the F rung does not separate them (q5 11/15 vs 27B 12/15; both solved the F items). The two production models are statistically tied across every deeper rung on this bank; separating them needs a bigger difficulty jump or different families. Also: greedy temp-0 flips of +/-1 item were observed between rungs on unchanged items (q5 item 2) — the per-rung CI is wider than n=15 suggests.",
-    "artifacts": "gbench/results/fcb15-{q5,q8df}-v3{d,dem}*.jsonl (stock) and *-slow-260921.jsonl (sharp-low)"
-  },
-  "qwen38_27b_q6_df_260921": {
-    "what": "the chapter's step-by-step verification model: 27B Q6_K_XL trunk + DFlash2 draft (a combination with no arm before today). ALL cells stock-template (the chapter-verification arm carried no template; labeled as such).",
-    "cells": {
-      "iten12": "10/12 (CI 0.55-0.95) — fails the 12/12 gate",
-      "fcb15_v3_census": "0.333 (CI 0.15-0.58)",
-      "ladder": "v3+D 4/15, v3+D+E 3/15 (stock)",
-      "zebra": "0.55 (CI 0.34-0.74)",
-      "aime": "0.30 (n=30, CI 0.17-0.48)",
-      "speed_strixy2": {
-        "pp4k": 348,
-        "pp32k": 297,
-        "pp128k": 197,
-        "tg128": 25.1,
-        "tg2048": 16.1
-      }
-    },
-    "verdict": "tested, parked: fails the Italian gate, bottom-tier coding/math on stock, and the Q8 trunk dominates it at every depth. Revisit only with the sharp template if ever."
-  },
-  "knob_transfers_260922": {
-    "what": "knob wins measured on OTHER setups, re-tested here (strixllama takeaways)",
-    "nm3_ngram_off": {
-      "here": "tg128 35.8 / tg2048 26.4",
-      "production_nm5_ngram_mod": "36.0 / 25.7 (c=131072, sharp-low)",
-      "verdict": "TIE — strixllama's +62% does not transfer to this fork/model"
-    },
-    "ctx_slope": {
-      "ms_per_token": [
-        [
-          2000,
-          29.9
-        ],
-        [
-          32000,
-          37.5
-        ],
-        [
-          64000,
-          39.5
-        ],
-        [
-          96000,
-          39.8
-        ]
-      ],
-      "slope_2k_96k": "~0.105 ms/token per 1k ctx (non-linear: steep to 32k, flat after)",
-      "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 — we are NOT in the broken-dense state",
-      "method": "/tmp/ctx_slope.py pattern: fill corpus window, stream 256 tokens, ms/token at fill"
-    },
-    "therock_sdk": {
-      "what": "same-source compiler A/B (pwilkin b0f31f58, Q5 champion, c=131072, strixy2, system ROCm runtime): TheRock Clang 23 + ROCWMMA nightly wheels vs the production GNU 16.2.1 build",
-      "therock": {
-        "pp4k": 688,
-        "pp32k": 676,
-        "tg128": 32.1,
-        "tg2048": 25.8
-      },
-      "production": {
-        "pp4k": 686,
-        "pp32k": 661,
-        "tg128": 34.0,
-        "tg2048": 26.0
-      },
-      "verdict": "TIE within noise (pp32k +2.3%, tg slightly down) — strixllama's +60% (Windows, ROCm 7.1->10.1) does not transfer to Linux on this toolchain",
-      "notes": [
-        "TheRock 7.14 nightly runtime core-dumps on this fork; the Clang-23-built binary runs fine on the system runtime",
-        "true production source located at .local/share/qwen3.8-strix-halo/src/llama.cpp (pwilkin b0f31f58) — the fn-src dev clone is a different lineage and lacks lazy-mode"
-      ]
-    }
+  {
+   "model": "Qwen3.8 27B Q8 + DFlash2 (sharp)",
+   "n": 12,
+   "date": "2026-09-20",
+   "note": "CONS sharp-template re-run; supersedes the stale 10/12 podium cell (pre-sharp); item 7 sole failure; hardened grader. Two artifacts of this same arm exist (iten12-qwen38-27b-q8-df.jsonl 10/12, iten12-27b-sharp.jsonl 11/12) - they differ on item 0, so the arm's gate value is run-sensitive (fails the 12/12 gate either way).",
+   "ok": 11,
+   "score": 0.9167
   }
+ ],
+ "aime": [
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL",
+   "ok": 10,
+   "n": 12,
+   "score": 0.833,
+   "date": "2026-09-17",
+   "battery": "v2 grader (exec fix) — re-run 2026-09-19: 10/12, identical to v1-grader cell"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q6_K_XL",
+   "ok": 8,
+   "n": 11,
+   "score": 0.727,
+   "note": "1 item INFRA (server died mid-battery). Graded-only: 8/11=0.727; counting the crash as a failure: 8/12=0.667 (ties IQ4_NL/27B). Both denominators reported.",
+   "date": "2026-09-17",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next IQ4_NL",
+   "ok": 8,
+   "n": 12,
+   "score": 0.667,
+   "date": "2026-09-17",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  },
+  {
+   "model": "Qwen3.8 27B Q8_K_XL",
+   "ok": 8,
+   "n": 12,
+   "score": 0.667,
+   "date": "2026-09-17",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  },
+  {
+   "model": "Muse-Glimmer-30B Q8",
+   "ok": 7,
+   "n": 12,
+   "score": 0.583,
+   "date": "2026-09-17",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  },
+  {
+   "model": "DeepSeek V4.1 Flash (cloud)",
+   "ok": 8,
+   "n": 12,
+   "score": 0.667,
+   "date": "2026-09-16",
+   "note": "60-item census: 29/60 = 0.483 (subset ran easy)",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  },
+  {
+   "model": "GLM-5.3 (cloud)",
+   "ok": 6,
+   "n": 12,
+   "score": 0.5,
+   "date": "2026-09-16",
+   "battery": "v1-grader (pre exec-namespace fix)"
+  }
+ ],
+ "selection": {
+  "aime_items": [
+   0,
+   1,
+   7,
+   18,
+   22,
+   23,
+   24,
+   25,
+   35,
+   36,
+   42,
+   49
+  ],
+  "method": "stratified-random seed 1300 (see run.py select_items)"
+ },
+ "protocol": {
+  "temperature": 0.0,
+  "max_tokens": 6000,
+  "tries_per_item": 2,
+  "http_timeout_s": 900,
+  "grade": "deterministic exec of the model's last python block; assertions on stdout (no LLM judge)",
+  "errored_items": "spent, not answered — excluded from denominator, counted separately"
+ },
+ "aime_selection_split": {
+  "aime25_items": 8,
+  "aime26_items": 4,
+  "note": "year-stratified re-cut delivered 2026-09-20 (see aime_yearsplit)"
+ },
+ "grading_changelog": {
+  "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
+  "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) — keyword salad no longer passes.",
+  "v3.1 iten12": "item 3 accepts 5:45 PM == 17:45 (natural clock, matching the v2 items-7/9 precedent)"
+ },
+ "fcb15": [
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL",
+   "ok": 10,
+   "n": 15,
+   "score": 0.667,
+   "ci95": [
+    0.417,
+    0.848
+   ],
+   "mode": "census",
+   "date": "2026-09-19",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI, vendored in gbench/)",
+   "note": "upstream: PieBru/Qwen38_Strix gbench; other table models' cells owed"
+  },
+  {
+   "model": "Muse-Glimmer-30B Q8",
+   "ok": 11,
+   "n": 15,
+   "score": 0.733,
+   "ci95": [
+    0.4805,
+    0.891
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)",
+   "note": "confounds (260920 audit): one-item gap vs champion inside overlapping CIs; stock template vs champion's sharp; Q8-dense vs Q5-MoE quant tiers; fcb15 = short deterministic tasks, not the agentic coding regime the community Qwen>Muse consensus addresses"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next IQ4_NL",
+   "ok": 5,
+   "n": 15,
+   "score": 0.333,
+   "ci95": [
+    0.1518,
+    0.5829
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)"
+  },
+  {
+   "model": "Qwen3.8 27B Q8_K_XL",
+   "ok": 4,
+   "n": 15,
+   "score": 0.267,
+   "ci95": [
+    0.109,
+    0.5195
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q6_K_XL",
+   "note": "64k sustained tier, sharp-LOW, idle strixy2 - landed 2026-09-23, superseding the 'owed' placeholder; exact tie with the champion's shipped cell",
+   "ok": 13,
+   "n": 15,
+   "score": 0.8667,
+   "ci95": [
+    0.6212,
+    0.9626
+   ],
+   "mode": "census",
+   "date": "2026-09-23",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next IQ4_NL + sharp(medium)",
+   "ok": 10,
+   "n": 15,
+   "score": 0.667,
+   "ci95": [
+    0.4171,
+    0.8482
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe",
+   "note": "TEMPLATE DISENTANGLER: same quant/protocol as the overnight stock-template cell (0.333) — the sharp template DOUBLED the score. Overnight Qwen cells were template-inconsistent; uniform-template re-cut owed for 27B"
+  },
+  {
+   "model": "Qwen3.8 27B Q8_K_XL + DFlash + sharp(medium)",
+   "ok": 12,
+   "n": 15,
+   "score": 0.8,
+   "ci95": [
+    0.5481,
+    0.9295
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe",
+   "note": "uniform-template cell on strixy2 (box-control exact): template effect 3x on this arm (0.267 stock -> 0.800 sharp). iten12+sharp 11/12 (was 10/12 stock)"
+  },
+  {
+   "model": "Qwen3.8 27B BF16 (anchor)",
+   "ok": 10,
+   "n": 15,
+   "score": 0.667,
+   "ci95": [
+    0.4171,
+    0.8482
+   ],
+   "mode": "census",
+   "date": "2026-09-20",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe",
+   "note": "UNQUANTIZED ANCHOR (sha256-gated BF16, GTT 64G residency verified). vs Q8+sharp 12/15: 13/15 items agree, 2 flips, Fisher p=0.11 — indistinguishable; CONFIRMS Q8~BF16 parity on this battery. flash-Q5's CI equals this anchor's exactly."
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q6_K_XL + sharp(medium)",
+   "ok": 10,
+   "n": 15,
+   "score": 0.6667,
+   "ci95": [
+    0.4171,
+    0.8482
+   ],
+   "mode": "census",
+   "date": "2026-09-23",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)",
+   "note": "64k sustained tier, sharp-MEDIUM - the effort half of the same pass"
+  },
+  {
+   "model": "Qwen3.8 27B Q8_K_XL + DFlash + sharp(low)",
+   "ok": 12,
+   "n": 15,
+   "score": 0.8,
+   "ci95": [
+    0.5481,
+    0.9295
+   ],
+   "mode": "census",
+   "date": "2026-09-23",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)",
+   "note": "sharp-LOW half of the 27B effort A/B, measured on strixy (c=131072). Dead tie with the sharp-medium cell (0.800, 12/15) but NOT the same item set: low fails item 11, medium fails item 5 - the dial moves which items break, not the count."
+  }
+ ],
+ "zebra": [
+  {
+   "model": "Qwen3.8 27B Q8_K_XL + DFlash",
+   "score": 0.55,
+   "ci95": [
+    0.342,
+    0.742
+   ],
+   "n": 20,
+   "date": "2026-09-16",
+   "battery": "zebra v1"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL",
+   "score": 0.5,
+   "ci95": [
+    0.254,
+    0.746
+   ],
+   "n": 12,
+   "date": "2026-09-17",
+   "battery": "zebra v1"
+  },
+  {
+   "model": "Muse-Glimmer-30B Q8",
+   "score": 0.45,
+   "ci95": [
+    0.258,
+    0.658
+   ],
+   "n": 20,
+   "date": "2026-09-16",
+   "battery": "zebra v1"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next IQ4_NL",
+   "score": 0.4167,
+   "ci95": [
+    0.193,
+    0.681
+   ],
+   "n": 12,
+   "date": "2026-09-17",
+   "battery": "zebra v1"
+  },
+  {
+   "model": "DeepSeek V4.1 Flash (cloud)",
+   "score": 0.4167,
+   "ci95": [
+    0.193,
+    0.681
+   ],
+   "n": 12,
+   "date": "2026-09-16",
+   "battery": "zebra v1",
+   "note": "cloud cell ran the same probe contract as locals"
+  },
+  {
+   "model": "GLM-5.3 (cloud)",
+   "score": 0.25,
+   "ci95": [
+    0.089,
+    0.532
+   ],
+   "n": 12,
+   "date": "2026-09-16",
+   "battery": "zebra v1",
+   "note": "cloud cell — format-artifact caveat as ever"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q6_K_XL",
+   "score": null,
+   "n": null,
+   "date": null,
+   "note": "probe incomplete upstream - owed; re-run in flight 2026-09-23 (strixy2 q6c64l2)"
+  },
+  {
+   "model": "Qwen3.8 27B BF16 (anchor)",
+   "score": 0.65,
+   "ci95": [
+    0.4329,
+    0.8188
+   ],
+   "n": 20,
+   "date": "2026-09-20",
+   "battery": "zebra v2 re-run (morning cell died connection-refused)"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-LOW)",
+   "score": 0.5667,
+   "ci95": [
+    0.392,
+    0.7262
+   ],
+   "n": 30,
+   "date": "2026-09-20",
+   "battery": "zebra v1 full-30",
+   "note": "full-30 re-score: low 0.567 vs medium 0.533 at n=30 both — the earlier n=20 low point (0.65) regressed to mean; low>=medium holds but the gap narrows to +0.03 at full n"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-MEDIUM, full 30)",
+   "score": 0.5333,
+   "ci95": [
+    0.3614,
+    0.6977
+   ],
+   "n": 30,
+   "date": "2026-09-20",
+   "battery": "zebra v1 full-30",
+   "note": "paired overnight run vs sharp-low; tightens the medium CI; low 0.65@n20 still leads (direction consistent at n=30)"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-LOW)",
+   "score": 0.65,
+   "ci95": [
+    0.4329,
+    0.8188
+   ],
+   "n": 20,
+   "date": "2026-09-20",
+   "battery": "zebra v1",
+   "note": "the podium's shipped-default cell (zebra-q5low.jsonl, 13/20); the n=30 re-score below is the same arm at larger n"
+  }
+ ],
+ "aime_yearsplit": {
+  "method": "run.py --selection yearsplit: 6xAIME2025 + 6xAIME2026, seed 1300 (the contamination-owed re-cut)",
+  "cells": [
+   {
+    "model": "Qwen3.8 Flash-Next IQ4_NL",
+    "ok": 5,
+    "n": 12,
+    "date": "2026-09-20",
+    "score": 0.4167,
+    "template": "stock",
+    "ci95": [
+     0.1933,
+     0.6805
+    ]
+   },
+   {
+    "model": "Qwen3.8 27B Q8_K_XL",
+    "ok": 6,
+    "n": 12,
+    "date": "2026-09-20",
+    "note": "sharp-medium re-cut: 6/12 (was 0.417 stock) — template matters on reasoning too, less than on coding",
+    "score": 0.5,
+    "template": "sharp-medium",
+    "ci95": [
+     0.2538,
+     0.7462
+    ]
+   },
+   {
+    "model": "Muse-Glimmer-30B Q8",
+    "ok": 4,
+    "n": 12,
+    "date": "2026-09-20",
+    "score": 0.3333,
+    "template": "stock",
+    "ci95": [
+     0.1381,
+     0.6094
+    ]
+   },
+   {
+    "model": "Qwen3.8 Flash-Next Q6_K_XL",
+    "ok": 9,
+    "n": 12,
+    "date": "2026-09-20",
+    "note": "completed via resume; one wedged-slot incident mid-run (items errored then resolved)",
+    "score": 0.75,
+    "template": "sharp",
+    "ci95": [
+     0.4677,
+     0.9111
+    ]
+   },
+   {
+    "model": "Qwen3.8 Flash-Next Q5_K_XL",
+    "note": "measured on strixy2 (lab box) — box-controls exact vs strixy",
+    "ok": 10,
+    "n": 12,
+    "date": "2026-09-20",
+    "score": 0.8333,
+    "template": "sharp",
+    "ci95": [
+     0.552,
+     0.953
+    ]
+   },
+   {
+    "model": "Qwen3.8 27B BF16 (anchor)",
+    "ok": 9,
+    "n": 12,
+    "date": "2026-09-20",
+    "note": "UNQUANTIZED anchor at sharp-medium: 9/12 = 0.750 — vs Q8+sharp 6/12 (overlapping CIs at n=12, 3-item gap). The BF16 anchor scores BELOW Q5-quantized (10/12): flash MoE architecture dominates, not quant",
+    "score": 0.75,
+    "template": "sharp",
+    "ci95": [
+     0.4677,
+     0.9111
+    ]
+   },
+   {
+    "model": "Qwen3.8 27B Q8_K_XL",
+    "ok": 5,
+    "n": 12,
+    "score": 0.4167,
+    "ci95": [
+     0.1933,
+     0.6805
+    ],
+    "template": "stock",
+    "date": "2026-09-20",
+    "note": "the stock-template half of the 27B's template A/B on this battery (sharp-medium = 0.500)"
+   },
+   {
+    "model": "Qwen3.8 27B Q8 + DFlash2",
+    "template": "sharp low",
+    "score": "10/12 (0.833)",
+    "ci95": [
+     0.55,
+     0.95
+    ],
+    "date": "2026-09-23",
+    "artifact": "benchmarks/aime-27b-low-yearsplit.jsonl"
+   }
+  ],
+  "notes": [
+   "27B sharp-low 2026-09-23: +0.33 over its medium cell - ties the champion; the effort lever is family-specific, not coding-specific"
+  ]
+ },
+ "cross_box_control": {
+  "finding": "strixy and strixy2 are measured-identical: iten12 12/12 = 12/12; fcb15 0.6667 [0.4171,0.8482] = 0.667 [0.417,0.848] to the digit; AIME yearsplit 0.833 matches published stratified",
+  "date": "2026-09-20",
+  "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)",
+  "qwen38-27b-q6-df_260921": {
+   "model": "Qwen3.8 27B Q6_K_XL + DFlash2 (IQ4_XS draft, n-max 6)",
+   "note": "same weights, same probe, second box (strixy2) — the podium is strixy-measured, so this cell pair says how much of a speed number is the machine. This runs with the NEW combination that had no arm before this date.",
+   "strixy2": {
+    "pp4k": 348,
+    "pp32k": 297,
+    "pp128k": "n/a (served c=131072 < the ~160k-token window)",
+    "tg128": 25.1,
+    "tg2048": 16.2
+   },
+   "probe": "benchmarks/speed_probe.py",
+   "strixy2_full": {
+    "pp4k": 348,
+    "pp32k": 297,
+    "pp128k": 197,
+    "tg128": 25.1,
+    "tg2048": 16.1,
+    "note": "full sweep at c=200000 (needs >=160k for the pp128k cell: it sent 159,750 real tokens in 810s)"
+   }
+  }
+ },
+ "effort_axis": {
+  "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp template, greedy, census)",
+  "cells": [
+   {
+    "effort": "medium",
+    "fcb15": 0.667,
+    "ci95": [
+     0.4171,
+     0.8482
+    ],
+    "iten12": "12/12",
+    "aime_yearsplit": "0.833"
+   },
+   {
+    "effort": "low",
+    "fcb15": 0.8667,
+    "ci95": [
+     0.6212,
+     0.9626
+    ],
+    "iten12": "12/12",
+    "aime_yearsplit": "10/12 (0.833)"
+   },
+   {
+    "effort": "none(nothink)",
+    "fcb15": 0.6667,
+    "ci95": [
+     0.4171,
+     0.8482
+    ],
+    "iten12": "12/12",
+    "aime_yearsplit": "11/12 (0.917)"
+   },
+   {
+    "effort": "xhigh",
+    "fcb15": 0.2667,
+    "ci95": [
+     0.0708,
+     0.5586
+    ],
+    "iten12": "—",
+    "aime_yearsplit": "8/12 (0.667)"
+   }
+  ],
+  "note": "COMPLETE 260920 (cross-box): fcb15 inverted-U (xhigh 0.267 < medium/none 0.667 < low 0.867); AIME: xhigh 0.667 < medium/low 0.833 < none 0.917 (single-item spreads). LOW = unambiguous winner (best coding, tied-best reasoning, fastest). xhigh harms BOTH axes (overthinking). Promotion of low-to-default = operator seal pending",
+  "note_260923": "27B counterexample: its AIME yearsplit moves 0.500 (medium) -> 0.833 (low, +0.33) while its fcb15 stays 0.800 both tiers - the dial moves each family's weak axis (flash coding, dense reasoning). Artifacts: benchmarks/aime-27b-low-yearsplit.jsonl, benchmarks/iten12-27b-low.jsonl"
+ },
+ "template_axis_q5": {
+  "note": "accidental controlled measurement 260920 (strixy2, sed no-op left embedded template): Q5 stock vs sharp",
+  "cells": [
+   {
+    "battery": "fcb15",
+    "stock": 0.2667,
+    "sharp": 0.667
+   },
+   {
+    "battery": "AIME yearsplit",
+    "stock": "7/12 (0.583)",
+    "sharp": "10/12 (0.833)"
+   }
+  ],
+  "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself — the template disentangler result generalizes from IQ4/27B to Q5"
+ },
+ "seals": [
+  {
+   "date": "2026-09-20",
+   "sealed_by": "operator",
+   "decision": "CHAMPION PROMOTION: Qwen3.8 Flash-Next UD-Q5_K_XL + sharp template (sharp-medium effort) is the declared daily driver on both boxes",
+   "evidence_base": "bb3f748 — podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
+   "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
+  },
+  {
+   "date": "2026-09-21",
+   "sealed_by": "operator (todos 2/3/4 directive)",
+   "decision": "LOW EFFORT PROMOTED TO DEFAULT + Phase-1 rollout: router default arm + strixy2 mirror now serve sharp-low (verified by generation: brief thinking, correct answers); old-gen services confirmed already-disabled; scaffolding units removed; pi lan provider deleted",
+   "evidence": "fcb15 +0.20 at low (0.867); AIME-60 n=60 dead tie (0.533/0.517); zebra-30 tie; sli tie — coding-specific gain, zero measured downside, strictly faster",
+   "ops": "restart-limit drop-ins (RestartSec=45, 4/10min burst) close doctor-F1's storm class; doctor F2 fixed (live GTT column + down-service alert, self-tested)"
+  }
+ ],
+ "sli_battery": {
+  "note": "first measurements 260920 night (strixy, paired same-box): sli saturates at both effort tiers",
+  "cells": [
+   {
+    "effort": "low",
+    "score": 1.0,
+    "n": 10
+   },
+   {
+    "effort": "medium",
+    "score": 1.0,
+    "n": 10
+   }
+  ],
+  "fleet_260923": {
+   "q6_64k": "10/10 [0.72-1.0]",
+   "27b_low": "10/10 [0.72-1.0]",
+   "note": "saturates on every local row measured - fleet regression canary only"
+  }
+ },
+ "aime60_full": {
+  "note": "full AIME-60 paired night: LOW 0.533 [0.41-0.65] vs MEDIUM 0.517 [0.39-0.64] — dead tie at n=60 (1-item spread); the yearsplit-12 pattern (0.833/0.833) generalizes: AIME is effort-flat on the champion; the effort lever lives on coding batteries",
+  "cells": [
+   {
+    "model": "Q5+sharp-LOW",
+    "score": 0.5333,
+    "ci95": [
+     0.4089,
+     0.6537
+    ],
+    "n": 60,
+    "date": "2026-09-21"
+   },
+   {
+    "model": "Q5+sharp-MEDIUM",
+    "score": 0.5167,
+    "ci95": [
+     0.3931,
+     0.6382
+    ],
+    "n": 60,
+    "date": "2026-09-21"
+   }
+  ]
+ },
+ "q6_64k_gate": {
+  "verdict": "PASS",
+  "effective_tps": 27.4,
+  "tokens": 18000,
+  "window_s": 658,
+  "config": "c=65536, ctk/ctv f16, loader none+on-direct, MTP-only, single-client essay generation",
+  "decay": "none (26.7@2k -> 27.4@18k)"
+ },
+ "threshold_ladder_260921": {
+  "what": "GEFC L1 tier ladder — greedy pass rates, template-UNIFORM (both models on sharp-low, the promoted default), one box, one harness",
+  "uniform_sharp_low": {
+   "qwen38-flash-q5": {
+    "v3+D": "10/15",
+    "v3+D+E": "12/15",
+    "v3+D+E+F": "11/15"
+   },
+   "qwen38-27b-q8-df": {
+    "v3+D": "12/15",
+    "v3+D+E": "12/15",
+    "v3+D+E+F": "12/15"
+   }
+  },
+  "template_effect_at_depth": {
+   "note": "same model, same rung, only the template differs — the stock arm's deep-rung collapse is a template artifact",
+   "qwen38-27b-q8-df_v3+D": {
+    "stock": "3/15",
+    "sharp-low": "12/15"
+   },
+   "qwen38-27b-q8-df_v3+D+E": {
+    "stock": "2/15",
+    "sharp-low": "12/15"
+   }
+  },
+  "headline_v3_context": {
+   "q5": "10/15 (0.667)",
+   "27b-q8-df": "12/15 (0.800, sharp-medium)"
+  },
+  "conclusion": "Even the F rung does not separate them (q5 11/15 vs 27B 12/15; both solved the F items). The two production models are statistically tied across every deeper rung on this bank; separating them needs a bigger difficulty jump or different families. Also: greedy temp-0 flips of +/-1 item were observed between rungs on unchanged items (q5 item 2) — the per-rung CI is wider than n=15 suggests.",
+  "artifacts": "gbench/results/fcb15-{q5,q8df}-v3{d,dem}*.jsonl (stock) and *-slow-260921.jsonl (sharp-low)",
+  "uniform_low_260923": {
+   "note": "deepest rung (v3+D+E+F) re-administered at sharp-low after the low-effort promotion; the basis the podium quotes",
+   "cells": [
+    {
+     "model": "Flash-Next Q5_K_XL + MTP",
+     "tier": 131072,
+     "greedy": "11/15",
+     "with_retry": "12/15",
+     "artifact": "benchmarks/fcb15-q5-low-ladder.jsonl",
+     "note": "greedy identical to its medium cell - flash family effort-flat on the ladder"
+    },
+    {
+     "model": "Flash-Next Q6_K_XL + MTP",
+     "tier": 65536,
+     "greedy": "13/15",
+     "with_retry": "13/15",
+     "artifact": "benchmarks/fcb15-q6-low-ladder.jsonl",
+     "note": "fails items 2 and 13; retries never flip them; best greedy cell of the three"
+    },
+    {
+     "model": "Qwen3.8 27B Q8_K_XL + DFlash2",
+     "tier": 131072,
+     "greedy": "12/15",
+     "with_retry": "14/15",
+     "artifact": "benchmarks/fcb15-27b-low-ladder.jsonl",
+     "note": "greedy ties its medium cell; retries flip two more"
+    }
+   ],
+   "conclusion": "all three rows hold every rung at the promoted default - the medium-basis tie survives the effort change"
+  }
+ },
+ "qwen38_27b_q6_df_260921": {
+  "what": "the chapter's step-by-step verification model: 27B Q6_K_XL trunk + DFlash2 draft (a combination with no arm before today). ALL cells stock-template (the chapter-verification arm carried no template; labeled as such).",
+  "cells": {
+   "iten12": "10/12 (CI 0.55-0.95) — fails the 12/12 gate",
+   "fcb15_v3_census": "0.333 (CI 0.15-0.58)",
+   "ladder": "v3+D 4/15, v3+D+E 3/15 (stock)",
+   "zebra": "0.55 (CI 0.34-0.74)",
+   "aime": "0.30 (n=30, CI 0.17-0.48)",
+   "speed_strixy2": {
+    "pp4k": 348,
+    "pp32k": 297,
+    "pp128k": 197,
+    "tg128": 25.1,
+    "tg2048": 16.1
+   }
+  },
+  "verdict": "tested, parked: fails the Italian gate, bottom-tier coding/math on stock, and the Q8 trunk dominates it at every depth. Revisit only with the sharp template if ever."
+ },
+ "knob_transfers_260922": {
+  "what": "knob wins measured on OTHER setups, re-tested here (strixllama takeaways)",
+  "nm3_ngram_off": {
+   "here": "tg128 35.8 / tg2048 26.4",
+   "production_nm5_ngram_mod": "36.0 / 25.7 (c=131072, sharp-low)",
+   "verdict": "TIE — strixllama's +62% does not transfer to this fork/model"
+  },
+  "ctx_slope": {
+   "ms_per_token": [
+    [
+     2000,
+     29.9
+    ],
+    [
+     32000,
+     37.5
+    ],
+    [
+     64000,
+     39.5
+    ],
+    [
+     96000,
+     39.8
+    ]
+   ],
+   "slope_2k_96k": "~0.105 ms/token per 1k ctx (non-linear: steep to 32k, flat after)",
+   "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 — we are NOT in the broken-dense state",
+   "method": "/tmp/ctx_slope.py pattern: fill corpus window, stream 256 tokens, ms/token at fill"
+  },
+  "therock_sdk": {
+   "what": "same-source compiler A/B (pwilkin b0f31f58, Q5 champion, c=131072, strixy2, system ROCm runtime): TheRock Clang 23 + ROCWMMA nightly wheels vs the production GNU 16.2.1 build",
+   "therock": {
+    "pp4k": 688,
+    "pp32k": 676,
+    "tg128": 32.1,
+    "tg2048": 25.8
+   },
+   "production": {
+    "pp4k": 686,
+    "pp32k": 661,
+    "tg128": 34.0,
+    "tg2048": 26.0
+   },
+   "verdict": "TIE within noise (pp32k +2.3%, tg slightly down) — strixllama's +60% (Windows, ROCm 7.1->10.1) does not transfer to Linux on this toolchain",
+   "notes": [
+    "TheRock 7.14 nightly runtime core-dumps on this fork; the Clang-23-built binary runs fine on the system runtime",
+    "true production source located at .local/share/qwen3.8-strix-halo/src/llama.cpp (pwilkin b0f31f58) — the fn-src dev clone is a different lineage and lacks lazy-mode"
+   ]
+  }
+ },
+ "q27b_low_260923": {
+  "note": "27B Q8_K_XL + DFlash2 sharp-LOW sweep (c=131072, strixy, DFlash2 nm6) completing the uniform low basis for the podium row",
+  "cells": {
+   "iten12": {
+    "score": "11/12",
+    "artifact": "benchmarks/iten12-27b-low.jsonl",
+    "note": "v3.1 grader; medium census was 10/12 - one item moves with the dial"
+   },
+   "aime_yearsplit": {
+    "score": "10/12 (0.833)",
+    "ci95": [
+     0.55,
+     0.95
+    ],
+    "artifact": "benchmarks/aime-27b-low-yearsplit.jsonl"
+   },
+   "fcb15": {
+    "score": "0.800 (12/15)",
+    "ci95": [
+     0.548,
+     0.93
+    ],
+    "artifact": "benchmarks/fcb15-probe-27b-low-fcb15.jsonl",
+    "note": "score-level tie with medium; fails a different item (11 vs 5)"
+   },
+   "ladder": {
+    "greedy": "12/15",
+    "with_retry": "14/15",
+    "artifact": "benchmarks/fcb15-27b-low-ladder.jsonl"
+   },
+   "sli": {
+    "score": "10/10",
+    "ci95": [
+     0.7225,
+     1.0
+    ],
+    "artifact": "benchmarks/probe-27b-low-sli.jsonl"
+   },
+   "zebra": {
+    "score": "0.65 (13/20)",
+    "ci95": [
+     0.4329,
+     0.8188
+    ],
+    "artifact": "benchmarks/probe-27b-low-zebra.jsonl",
+    "note": "medium cell was 0.55; three-way tie at the top with Q5 and the BF16 anchor"
+   }
+  }
+ }
 }
