@@ -362,3 +362,40 @@ question; morning = both boxes on production units + everything pushed.
   active+enabled+healthy (verified). 7+ ssh drops, all at load windows.
 - Morning queue: manager-churn forensics; standalone MTP draft sourcing;
   vanilla suite rerun draft-less if the churn is fixed; pp@128k@>=160k owed.
+
+## Iteration 11 (night) — Blocker 1 fix sourced: standalone MTP draft
+- Researched the community MTP drafts. Compatibility warning (jlkivey's
+  card): the heads target MUTUALLY INCOMPATIBLE loader patches —
+  dzannotti/quimmedes need their own patch sets; our vanilla fee39dd92
+  (past PR #29057) contains PR #27836's --spec-type draft-mtp layout.
+- Chose **drluoto/Qwen3.8-Flash-Next-MTP-GGUF Q8_0** (PR #27836 export +
+  the output_hc mixer whitelist fix; 37 tensors incl. shared embeddings =
+  self-contained; ROCm-measured default). Downloading to strixy2
+  (~/Downloads/LLM/Qwen38/mtp-drafts/drluoto/, ~4 GB).
+- Morning: swap -md in q5-vanilla-192k to this file, retest the load —
+  if it loads, Blocker 1 is closed and the vanilla suite can rerun
+  (pending Blocker 2's churn diagnosis).
+- Leak sampler first interval: strixy router arm Private_Dirty flat
+  (+152 kB/30 min = noise) — the leak hypothesis weakens for that
+  process; strixy2 q5-serve needs its own series (soak).
+
+## Iteration 12 (night) — churn forensics: the chain resolved to its links
+- **fleet-guard found and cleared**: a benign system unit (every 2 min) that
+  only restarts user@1000 IF DEAD + logs peer Doctor failures. Not the killer
+  — but it is the RESURRECTOR once the manager dies (enabled units return).
+- **Manager restart CONFIRMED with timestamp**: user@1000 ActiveEnter
+  22:10:40 = exactly when the draftless vanilla load died. Manager pids
+  tonight: 931→922→923→924 (4 instances). So: vanilla's ~100G load kills the
+  user manager (mechanism TBD - kernel OOM victim selection under slice
+  pressure? accounting diff between fork/vanilla GTT paths?) → sessions die
+  (ssh drops) → fleet-guard revives manager in ≤2 min → q5-serve (enabled)
+  returns and takes :8080 (the "impostor"). The fork's loads never trip it.
+- **pi-dream is in a fail-retry loop** since re-enable (~22:15): "offline
+  memory distillation (report mode)" fails to start every ~3 min, 236M per
+  attempt. Harmless tonight (fails fast; q5-serve is serving so any
+  safe_apply restore is a no-op) but needs its endpoint config fixed in the
+  morning (likely pointed at a port our experiments repurposed).
+- oomd: inactive (ruled out). Kernel-OOM kmsg grep: empty so far — morning
+  forensics needs journalctl -k around 22:10:40 + user@1000.slice limits +
+  the fork-vs-vanilla GTT accounting diff.
+- Boxes: both healthy serving; draft staged; leak sampler running.
