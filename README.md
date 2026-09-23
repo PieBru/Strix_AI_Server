@@ -66,11 +66,13 @@ tables, so they are worth one screen.
 |---|---|
 | **pp / tg** | prefill (prompt processing) and token generation, in tokens/s — the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns |
 | **GTT** | the GPU-visible memory window over the unified RAM pool (amdgpu's graphics translation table). On a UMA box this is where the model actually lives |
+| **UMA** | unified memory architecture — one RAM pool shared by CPU and GPU, which is what lets a 128 GB box serve a 100+ GB model |
 | **PLE** | per-layer embeddings — the part of this model family llama.cpp can stream from SSD instead of holding in RAM |
 | **MTP / DFlash2** | the two speculative-decoding drafts we use: the model's own multi-token-prediction head (MTP) and the fork's DFlash2 draft |
+| **nm** | n-max: how many draft tokens one speculation step proposes (`nm6` = 6) |
 | **KV cache** | the attention key/value store the context lives in; grows with context length and quantisation (f16 here) |
 | **arm** | one model instance in the router (`models.ini`); one arm is resident at a time |
-| **tier** | a serving configuration's context size (`c=65536`, `c=131072`, …) — "the 64k tier" |
+| **tier** | a serving configuration's context size (`c=65536`, `c=131072`, …) — "the 64k tier". *Effort tiers* (low/medium) and *quant levels* are different axes |
 | **UD- / Q5_K_XL / IQ4_NL / Q8** | quantisation levels; `UD-` is the unsloth dynamic quant |
 | **template · effort** | the chat template and reasoning-effort level a cell was measured at — `sharp-low` = sharp template, low effort |
 | **census / rung / ladder** | battery shapes: a *census* runs the whole item bank; the *ladder* adds harder *rungs* until a model stops solving them |
@@ -265,7 +267,7 @@ besides the model server itself.
  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
 3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
  comes from enterprise-level experience and community expert consensus
- on MoE quantization robustness, not from a 12-item battery alone.
+ on MoE (mixture-of-experts) quantization robustness, not from a 12-item battery alone.
  Our battery *confirms* Q5 meets the quality gate; the floor itself is
  practitioner judgment. See below,
  [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
@@ -623,11 +625,13 @@ decode *degrades* even at 131k. With ngram speculation off (MTP-only,
 to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
 headroom (on strixy: after ~20–25k tokens of diverse generation; the
 overnight "items run long" and the never-completing fcb15 census were
-this same disease, unmeasured). ngram OFF delays it, cures nothing. GPU sits at
-~13% while it crawls — disk-bound row eviction, not compute. **Q6 quality
+this same disease, unmeasured). Turning n-gram speculation off delays
+this decay but does not cure it. The GPU sits at ~13% while it crawls:
+the bottleneck is row eviction from disk, not compute. **Q6 quality
 cells collected so far** (MTP-only): iten12 12/12, fcb15 0.50 [0.19–0.81]
 at n=6, AIME partial (paused at ~2 t/s). **Both speed-cure arms ran and failed:** `--load-mode mmap --lazy-mode on`
-= kernel reclaim war (tg flat 2.59 from token one — file-backed weights
+turned into a kernel reclaim war (tg flat at 2.59 from the first token —
+file-backed weights
 and HIP unified memory fight over the same physical pages); `c=32768 +
 KV q8_0` = loads but wedges on first real generation (GPU 0%, zero
 timing prints, requests hang — a fork lazy-path bug). The cure is
@@ -693,6 +697,7 @@ untested as a serving configuration.
 
 ## Footnotes
 
+
 <a id="fn1"></a>¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
 bidirectional translation items, graded deterministically by a Python
 harness that asserts on content keywords AND false-friend discriminators
@@ -716,7 +721,7 @@ variance at temperature 1.0. Both models are in the same quality tier.
 
 <a id="fn5"></a>⁵ Q6's prefill cells are now measured at its shipped `c=65536` (pp4k/pp32k
 below) and its decode-at-depth gate held **27.4 t/s flat** over 18k tokens;
-`c=131072` still degrades (fork-owed).
+`c=131072` still decays (the fix is owed at fork level).
 
 <a id="fn6"></a>⁶ Server-reported decode from the scored iten12 items (n=1 each; a 245-tok
 and a ~9.3k-tok generation), not the wall-clock probe used for Q5's cells.
@@ -725,6 +730,18 @@ the journal of that window shows generations up to ~11.9k, so the cell ran
 with a looser cap than the protocol states. Treat as indicative: same decode
 tier as Q5, ±10%; the overnight v3.1 re-run under the fixed cap replaces
 these cells.
+
+<a id="fn7"></a>⁷ Cloud and streamed-local models must follow the same strict format
+contract (ONE python code block printing the answer). A frontier cloud
+model scoring 7/12 is more likely a format-compliance artifact of the
+battery than a capability signal — treat cloud cells as format checks,
+not quality verdicts. The DeepSeek local Q2's 10/12 is genuine (it runs
+the same contract as the locals).
+
+<a id="fn8"></a>⁸ The DeepSeek cloud cell was also run as a full 60-item census:
+29/60 = 0.483. The 12-item seed-1300 subset scored 8/12 = 0.667 — the
+subset ran easy for it. The census is the more reliable cloud number;
+both are reported, none hidden.
 
 <a id="fn10"></a>¹⁰ fcb15 cells are census scores under battery v3, uniform-template
 (sharp) for the Qwen family, stock for Muse by family design — the
@@ -741,15 +758,6 @@ Overlapping CIs throughout: no ranking claims.
  delegated): podium shows as-shipped tiers, the chapter holds the uniform
  medium view.
 
-<a id="fn18"></a>¹⁸ No longer n/a: the Q6 arm was raised to a **192k tier** on
-2026-09-22 (`c=196608, ub=1024`, see *Why not Q6*), so the pp@128k cell is now
-measured — a 127,066-token prompt prefilled at **198.9 t/s**. Treat it as
-the floor, not the mean: three other same-config runs the same day
-measured 434.8 / 472.8 / 491.9 t/s (150k-class prompts), so deep prefill
-at this tier is streaming-variance-heavy — the row-eviction disease the
-Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
-22.3) remain at the 64k-era basis from [⁸](#fn8).
-
 <a id="fn11"></a>¹¹ Q6's fcb15 (both effort tiers, measured 2026-09-23 at the 64k sustained tier on idle strixy2): **low 0.867 [0.62–0.96] (13/15) — an exact tie with the champion's shipped cell** — and medium 0.667 [0.42–0.85] (10/15), identical to the champion's medium cell; ~11 min per census, decode sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm serves sharp-low), per [¹⁰](#fn10)'s rule. Measurement was blocked for a week by the decay disease, now understood as **tier-bound, not box-bound**: the same census aimed at the 192k tier on the SAME idle box 15 minutes earlier decayed to **1.5 t/s on the first item** (cross-box replication of the 2026-09-22 strixy decay 13→7→3 t/s; 0 faults — a speed disease, not a crash). Q5 at 131k completes the census in 8 min; Q6 at 64k completes it; Q6 at 192k decays on both boxes (and on strixy the 131k-era census attempts decayed under contention — idle-box 131k probe in flight 2026-09-23). The cure remains fork-level (row residency); until it lands, the Q6 fcb15 cells read from the 64k tier. The MTP-only budget-6 probe cell (0.50 [0.19–0.81]) stands superseded. And the 192k tier itself proved to be a
 **zero-headroom specialist** the same night: a nightly soak held 0.917
 iten12 and 198.9 t/s prefill in its quiet window, but a single
@@ -759,22 +767,6 @@ co-resident 107 G file copy tipped the box into a zram thrash storm
 flags, `q6-serve-192k.service`, switch runbook embedded in the unit)
 validated at 521 t/s @ 78k-token prefill. — which also replicates the champion's own fcb15-low
 cell cross-box (0.867 [0.62–0.96], overlapping CIs).
-
-<a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
-probe (real-text corpus, request-sent→complete; tg streamed
-first→last incl. reasoning deltas; pp@128k cells ran at 159.9k real
-tokens — code-dense corpus — and are mutually comparable at equal n).
-n-max A/B for the 27B's DFlash2 draft at sustained decode: nm6 28.0 >
-nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the grid's nm7 pick doesn't
-generalize past short benches; nm6 stands.
-
-<a id="fn16"></a>¹⁶ Muse's training context is **131072** tokens — the server caps the slot
-(`n_ctx_seq 262144 > n_ctx_train 131072`), so a 128k-token prefill is out of
-range by construction. Not a speed result; the cell is n/a.
-
-<a id="fn17"></a>¹⁷ Muse's DFlash2 draft at n-max 7 gives tg2048 15.2 (tg128 34.5). The nm6
-A/B that lifted the 27B (28.0 vs 15.8 [¹⁴](#fn14)) does **not** transfer: Muse at nm6
-measured 14.4, so nm7 stays.
 
 <a id="fn12"></a>¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
@@ -786,6 +778,31 @@ also *share decode* (N clients ≈ 1/N the t/s each); KV-q8_0 would
 halve slot cost but the fork refuses it outright — `qwen4exp.cpp:1365`
 asserts `k/v == GGML_TYPE_F16`, so a q8_0 KV aborts the load (it also
 wedged at 32k [⁵](#fn5); measured 2026-09-22, *Why not Q6*).
+
+<a id="fn14"></a>¹⁴ Speed cells re-measured with one identical wall-clock
+probe (real-text corpus, request-sent→complete; tg streamed
+first→last incl. reasoning deltas; pp@128k cells ran at 159.9k real
+tokens — code-dense corpus — and are mutually comparable at equal n).
+n-max A/B for the 27B's DFlash2 draft at sustained decode (nm = draft
+tokens per step): nm6 28.0 > nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the
+grid's nm7 pick does not generalize past short benches, so nm6 stays.
+
+<a id="fn16"></a>¹⁶ Muse's training context is **131072** tokens — the server caps the slot
+(`n_ctx_seq 262144 > n_ctx_train 131072`), so a 128k-token prefill is out of
+range by construction. Not a speed result; the cell is n/a.
+
+<a id="fn17"></a>¹⁷ Muse's DFlash2 draft at n-max 7 gives tg2048 15.2 (tg128 34.5). The nm6
+A/B that lifted the 27B (28.0 vs 15.8 [¹⁴](#fn14)) does **not** transfer: Muse at nm6
+measured 14.4 t/s, so nm7 stays.
+
+<a id="fn18"></a>¹⁸ No longer n/a: the Q6 arm was raised to a **192k tier** on
+2026-09-22 (`c=196608, ub=1024`, see *Why not Q6*), so the pp@128k cell is now
+measured — a 127,066-token prompt prefilled at **198.9 t/s**. Treat it as
+the floor, not the mean: three other same-config runs the same day
+measured 434.8 / 472.8 / 491.9 t/s (150k-class prompts), so deep prefill
+at this tier is streaming-variance-heavy — the row-eviction disease the
+Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
+22.3) remain at the 64k-era basis from [⁸](#fn8).
 
 <a id="fn19"></a>¹⁹ The GLM-5.3 gate/AIME/zebra cells and the DeepSeek V4.1 Flash
 gate cell were **redone 2026-09-22** with artifacts on disk
@@ -877,13 +894,6 @@ check, not a top-tier discriminator. Coding is now covered separately
 [zebra](#zebra--csp-logic-ladder-gbench)); long-context retrieval is
 still planned.
 
-<a id="fn7"></a>⁷ Cloud and streamed-local models must follow the same strict format
-contract (ONE python code block printing the answer). A frontier cloud
-model scoring 7/12 is more likely a format-compliance artifact of the
-battery than a capability signal — treat cloud cells as format checks,
-not quality verdicts. The DeepSeek local Q2's 10/12 is genuine (it runs
-the same contract as the locals).
-
 ## AIME-12 (reasoning)
 
 | model | score | n |
@@ -897,7 +907,7 @@ the same contract as the locals).
 | GLM-5.3 (cloud) [²⁴](#fn24) † | 0.583 | 12 |
 | GLM-5.3-flash (cloud) [²⁴](#fn24) † | 0.333 | 12 |
 
-Q6's lower score is 1–2 items at n=11 — same tier, see [⁴](#fn4).
+Q6's 0.727 is 1–2 items below the champion's 0.833 at n=11 — the same tier, see [⁴](#fn4).
 
 **Full AIME-60 battery night (probe harness — distinct from the yearsplit-12 selection above):** LOW **0.533** [0.41–0.65] vs
 MEDIUM **0.517** [0.39–0.64], n=60 both, paired cross-box — a dead
@@ -906,12 +916,6 @@ the effort lever is coding-specific (fcb15 +0.20 at low). The 0.833
 yearsplit cell remains the headline reasoning number for the champion
 (stratified 12-item selection; the full-60 bank includes harder
 unsolved-era items both tiers miss).
-
-## sli — structured-list integrity (GBench)
-
-First measurements (paired same-box): **10/10 at low = 10/10 at
-medium** — the battery saturates at both tiers; no effort sensitivity.
-Useful as a regression canary, not as a discriminator.
 
 **Year-stratified re-cut** — the contamination-owed fix,
 6×AIME2025 + 6×AIME2026, seed 1300, same graders:
@@ -941,23 +945,24 @@ cells skew low. Only Q5's AIME cell has been re-run under the fixed
 grader; the remaining re-runs are owed (see `grading_changelog` in
 [results.json](benchmarks/results.json)).
 
-**Contamination:** 8 of the 12 seed-1300 items come from AIME 2025 —
-solutions public ~18 months at test time, so local-model cells are
-contamination-likely; 4 come from AIME 2026. A year-stratified re-cut
-is owed (see `aime_selection_split` in
+**Contamination:** in the original seed-1300 selection, 8 of the 12
+items came from AIME 2025 — solutions public ~18 months at test time,
+so local-model cells were contamination-likely; only 4 came from AIME 2026. The year-stratified
+re-cut above (6+6) is the fix (see `aime_selection_split` in
 [results.json](benchmarks/results.json)).
 
-<a id="fn8"></a>⁸ The DeepSeek cloud cell was also run as a full 60-item census:
-29/60 = 0.483. The 12-item seed-1300 subset scored 8/12 = 0.667 — the
-subset ran easy for it. The census is the more reliable cloud number;
-both are reported, none hidden.
+## sli — structured-list integrity (GBench)
+
+First measurements (paired same-box): **10/10 at low = 10/10 at
+medium** — the battery saturates at both tiers; no effort sensitivity.
+Useful as a regression canary, not as a discriminator.
 
 ## Coding — GBench fcb15 (deterministic, unit-tested)
 
 The iten12/AIME pair can't see coding ability, and both saturate by
 design — they are pass/fail gates. **fcb15** is different on both counts:
 15 short, deterministic, unit-tested coding tasks from the GBench battery
-corpus of **[Good-Enough-For-Coding](https://github.com/PieBru/Good-Enough-For-Coding)**
+corpus of **[Good-Enough-For-Coding](https://github.com/PieBru/Good-Enough-For-Coding)** (GEFC)
 (working copy in [PieBru/Qwen38_Strix](https://github.com/PieBru/Qwen38_Strix/tree/main/gbench);
 minimal runner vendored in [gbench/](gbench/)). Grading is outcome-based —
 behavioral unit tests written at grade time, no LLM judge, no gold-diff —
@@ -1020,7 +1025,7 @@ copies live in `benchmarks/`.
 IQ4-with-sharp doubled (0.333 → 0.667) and 27B-with-sharp tripled
 (0.267 → 0.800), so the table above is uniform-template for the Qwen
 family, and what remains is the honest residue: overlapping CIs and
-2–3-item gaps at n=15 (no crowning), Muse runs its own family's
+2–3-item gaps at n=15 (no model is crowned by this), Muse runs its own family's
 template by design, and fcb15 measures short, deterministic,
 unit-tested tasks — not the agentic/real-world coding the community's
 Qwen3.8-over-Muse consensus is about; that regime stays untested here.
@@ -1209,7 +1214,7 @@ web app (htmx, 2 s poll) — and its user unit
  header, latest morning report, spec-sweep results, harvest stats, and
  `/res/doctor` — the latest nightly report
 - **Read-only by design** — no ini writes, no arm swaps, no privileged
- calls; ~25 MB RSS flat, sub-1% of one core
+ calls; ~25 MB RSS (resident memory) flat, sub-1% of one core
 
 Install — `ROUTER_UNITS` at the top of `Doctor.py` names the units it
 watches (defaults are the reference box's `model-router-pwilkin`/
