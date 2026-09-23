@@ -112,7 +112,7 @@ its stock template by family design).
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | — [¹¹](#fn11) | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
@@ -572,7 +572,12 @@ Everything is in the repo:
 **The standing decision:** the champion is
 **Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, with the
 promoted default effort tier **low** (sharp-low) — both boxes' serving
-configs updated and verified. The evidence base: the podium
+configs updated and verified. **Reaffirmed 2026-09-23 (operator):**
+Q5+MTP stays the default **until Q6 is servable stable enough to
+guarantee multi-day workloads without crashes or storms** — the Q6
+zebra cell now exists (0.65, no-MTP basis, [¹¹](#fn11)), but one clean
+census on the ridge is not a multi-day stability proof; promotion
+requires a soak test under the Doctor first. The evidence base: the podium
 above, the template axis measured on Q5 itself (+0.40 coding / +0.25
 reasoning vs stock), BF16-anchor parity across three batteries, the
 effort matrix (low = better coding, flat elsewhere, strictly faster),
@@ -782,21 +787,21 @@ Overlapping CIs throughout: no ranking claims.
   sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm
   serves sharp-low), per [¹⁰](#fn10)'s rule.
 - **sli:** 10/10 [0.72–1.0] — the canary saturates here too.
-- **zebra is not obtainable at ANY tier of this arm; the ladder is.** The 20 long-CSP items
+- **zebra is not obtainable at any tier WITH the MTP draft resident; no-MTP it is.** The 20 long-CSP items
   stormed the box at 64k (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
   prints for 4+ min) and had to be SIGKILLed. An operator-requested retry at the
   **192k tier** (2026-09-23) stormed the same way within minutes — Doctor-observed
   continuous swap storm, RAM at 100%, manual SIGKILL; the ad-hoc local guard died
   silently mid-storm (its log stops at "started"; ad-hoc `setsid` scripts are not
-  watchdogs — the next guard is a systemd unit with `Restart=always`). 131k sits
-  between two documented failures and was not attempted: **the cell closes as a
-  tier-independent negative** — long CSP generations exceed the arm's activated-row
-  budget at every context size. An 86k attempt (2026-09-23, `ub=1024`, the
-  validated 192k unit's buffers) sat on the ridge — RAM 100%, avail ~0.6 G — for
-  ~8 minutes with `so=0`, then tipped the same way; the squeeze levers measured
-  that day (PageTables 20 MB with THP already `always`, non-model services ~40 MB,
-  mmproj already absent on this fork) total well under 1 GiB, and the storm
-  proves ±1 GiB is noise against this deficit. The ladder, re-run later the same
+  watchdogs — the next guard is a systemd unit with `Restart=always`). An 86k attempt
+  (`ub=1024`) sat on the ridge ~8 min then tipped. **Dropping the MTP draft (+2.8 GiB
+  weights + draft KV/buffers) is what finally fits**: the no-MTP arm at 86k
+  (`b=1024 ub=512`) rode the ridge to 87 M avail and completed the census clean —
+  **zebra 0.65 (13/20) [0.43–0.82]**, a three-way tie with the champion and the 27B.
+  The draft is speed-only (greedy spec-decode is output-preserving), so this is a
+  legitimate Q6-row cell at a no-draft basis; decode measured 20.2 (tg128) /
+  19.1 t/s (tg2048) — at the 27B's serving speed, the project's usable floor.
+  The ladder, re-run later the same
   day on a fresh reload, completed clean: **13/15 greedy | 13/15 with-retry**
   (fails items 2 and 13; retries never flip them) — every rung held at 64k,
   the best greedy ladder cell of the three local rows. So 64k sustains
@@ -1265,6 +1270,7 @@ stratified):
 |---|---:|---|---:|
 | 27B BF16 (anchor, sharp) | 0.65 | 0.43–0.82 | 20 |
 | **Flash-Next Q5 (sharp-low, shipped default)** | **0.65** | 0.43–0.82 | 20 |
+| Flash-Next Q6 (sharp-low, **no MTP**, 86k tier [¹¹](#fn11)) | **0.65** | 0.43–0.82 | 20 |
 | **Flash-Next Q5 (sharp-low, full bank)** | **0.57** | 0.39–0.73 | 30 |
 | Qwen3.8 27B Q8 + DFlash (sharp-low) | **0.65** | 0.43–0.82 | 20 |
 | Qwen3.8 27B Q8 + DFlash (sharp-medium) | 0.55 | 0.34–0.74 | 20 |

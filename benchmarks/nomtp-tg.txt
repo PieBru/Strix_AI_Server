@@ -1,0 +1,2 @@
+q6-nomtp-tg-tg128: 128 tokens, first 1.3s, span 6.3s -> 20.2 t/s
+q6-nomtp-tg-tg2048: 2046 tokens, first 0.1s, span 107.4s -> 19.1 t/s

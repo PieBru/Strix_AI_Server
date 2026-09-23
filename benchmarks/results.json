@@ -938,6 +938,27 @@
    "finding": "-ctk q8_0 -ctv q8_0 crashes the fork's qwen4exp loader during load_model (qwen4exp.cpp, ~24s in, restart counter 6 by 17:58). The KV-quant RAM lever does not exist on this binary for flash-next.",
    "attempt": "unit q6-zebra86k-q8: c=88064, b=1024, ub=512, KV q8_0, MTP, MemoryMax=120G",
    "note": "secondary bug fixed: the leg script's abort path restored q5-serve onto :8080 without stopping the experiment unit -> port-theft crash loop (HTTP bind error at 0.03s). Abort now stops the unit first."
+  },
+  "no_mtp_zebra_260923": {
+   "config": "unsloth UD-Q6_K_XL, NO MTP draft, c=88064, b=1024 ub=512, f16 KV, sharp-low, strixy2",
+   "zebra": {
+    "score": "0.65 (13/20)",
+    "ci95": [
+     0.4329,
+     0.8188
+    ],
+    "artifact": "benchmarks/fcb15-probe-q6-nomtp-zebra.jsonl",
+    "note": "FIRST Q6 zebra cell. Rode the ridge to 87M avail, all 20 items, clean restore. Three-way tie with Q5 (0.65) and 27B (0.65)."
+   },
+   "speed": {
+    "tg128": "20.2 t/s",
+    "tg2048": "19.1 t/s",
+    "artifact": "benchmarks/nomtp-tg.txt",
+    "vs_mtp": "with MTP: tg128 34.3 (podium @64k) / 37-43 (live @86k); tg2048 22.3. No-MTP sits at the 27B's serving floor (20.5) - usable."
+   },
+   "mechanism": "the MTP draft's residency (2.8G weights + draft KV/buffers) was the storm margin; dropping it fits the activated-row budget at 86k",
+   "basis": "draft is speed-only (greedy spec-decode output-preserving) so the no-draft census is a legitimate Q6-row cell",
+   "policy": "operator 260923: Q5+MTP stays default until Q6 proves multi-day stability (Doctor soak test required before any promotion)"
   }
  }
 }
