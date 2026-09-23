@@ -4,7 +4,6 @@
 
 <!-- toc -->
 
-- [Policy](#policy)
 - [In a hurry? Look at these 2 tables](#in-a-hurry-look-at-these-2-tables)
 - [Hardware](#hardware)
 - [Podium](#podium)
@@ -12,18 +11,22 @@
 - [Arch Linux minimal server — the base install](#arch-linux-minimal-server--the-base-install)
   - [Swap: answer **No** to zram — and why](#swap-answer-no-to-zram--and-why)
   - [After the install](#after-the-install)
-- [Podium — the details](#podium--the-details)
-  - [Why Q5 wins](#why-q5-wins)
-  - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
-  - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
-  - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
-  - [Footnotes](#footnotes)
+- [Policy](#policy)
+- [The "sharp" chat template](#the-sharp-chat-template)
+- [RAM accounting](#ram-accounting)
+- [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
 - [Got a new model? Test it, then compare it to the podium](#got-a-new-model-test-it-then-compare-it-to-the-podium)
   - [1. Serve it](#1-serve-it)
   - [2. Quality — the batteries, with a confidence interval](#2-quality--the-batteries-with-a-confidence-interval)
   - [3. Speed — wall-clock, on this box](#3-speed--wall-clock-on-this-box)
   - [4. Compare](#4-compare)
-- [RAM accounting](#ram-accounting)
+- [Reproduce our tests](#reproduce-our-tests)
+- [Podium — the details](#podium--the-details)
+  - [Why Q5 wins](#why-q5-wins)
+  - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
+  - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
+  - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
+- [Footnotes](#footnotes)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
 - [sli — structured-list integrity (GBench)](#sli--structured-list-integrity-gbench)
@@ -32,10 +35,7 @@
   - [Reasoning effort — measured](#reasoning-effort--measured)
   - [Quantization and coding/agentic quality — the honest note](#quantization-and-codingagentic-quality--the-honest-note)
 - [Zebra — CSP logic ladder (GBench)](#zebra--csp-logic-ladder-gbench)
-- [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
 - [DeepSeek V4.1 Flash Q2 — tested, parked](#deepseek-v41-flash-q2--tested-parked)
-- [Reproduce our tests](#reproduce-our-tests)
-- [The "sharp" chat template](#the-sharp-chat-template)
 - [The Doctor — 24/7 monitoring and the nightly auto-improve loop](#the-doctor--247-monitoring-and-the-nightly-auto-improve-loop)
   - [The WebUI (:8667)](#the-webui-8667)
   - [The nightly job (03:00, unattended, read-only)](#the-nightly-job-0300-unattended-read-only)
@@ -45,37 +45,6 @@
 - [License](#license)
 
 <!-- /toc -->
-
-## Policy
-
-1. **Quality first** — within acceptable speed
-2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
- generation, then we measure wall-clock, not server-reported. See below,
- [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
-3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
- comes from enterprise-level experience and community expert consensus
- on MoE quantization robustness, not from a 12-item battery alone.
- Our battery *confirms* Q5 meets the quality gate; the floor itself is
- practitioner judgment. See below,
- [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
-4. **llama.cpp first** — preferably the vanilla build (upstream master,
- easy updates); the tuned HIP fork is used where prefill speed demands.
- *Measured exception:* for this model family the fork is
- load-bearing — the MTP draft GGUF is fork-format (upstream rejects
- it), and an eager-load vanilla census hard-crashed the lab box
- (no lazy-PLE path). Vanilla stays preferred for models it can host;
- see the engine-axis note in `configs/q5-flash-next-winner.md`.
-5. **Open source only** — closed engines are evaluated for reference,
- never adopted
-6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
-7. **Single model vs co-residency** — for the best quality at a
- good-enough speed, the primary goal is to serve a single
- all-purpose model on a single Strix-Halo, optionally routed by a
- fast classifier service (e.g. Laya, from any LAN node). At the cost
- of a service restart, one Halo node can be configured to serve
- multiple models via `models.ini` — either by swapping the single
- big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
- Qwen Image 2.1).
 
 ## In a hurry? Look at these 2 tables
 
@@ -265,6 +234,303 @@ Vulkan/ROCm build of llama.cpp — [the tooling chapter](#reproduce-our-tests)
 has the exact commands. Cockpit, if enabled, is the box's only web surface
 besides the model server itself.
 
+## Policy
+
+1. **Quality first** — within acceptable speed
+2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
+ generation, then we measure wall-clock, not server-reported. See below,
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
+3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
+ comes from enterprise-level experience and community expert consensus
+ on MoE quantization robustness, not from a 12-item battery alone.
+ Our battery *confirms* Q5 meets the quality gate; the floor itself is
+ practitioner judgment. See below,
+ [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
+4. **llama.cpp first** — preferably the vanilla build (upstream master,
+ easy updates); the tuned HIP fork is used where prefill speed demands.
+ *Measured exception:* for this model family the fork is
+ load-bearing — the MTP draft GGUF is fork-format (upstream rejects
+ it), and an eager-load vanilla census hard-crashed the lab box
+ (no lazy-PLE path). Vanilla stays preferred for models it can host;
+ see the engine-axis note in `configs/q5-flash-next-winner.md`.
+5. **Open source only** — closed engines are evaluated for reference,
+ never adopted
+6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+7. **Single model vs co-residency** — for the best quality at a
+ good-enough speed, the primary goal is to serve a single
+ all-purpose model on a single Strix-Halo, optionally routed by a
+ fast classifier service (e.g. Laya, from any LAN node). At the cost
+ of a service restart, one Halo node can be configured to serve
+ multiple models via `models.ini` — either by swapping the single
+ big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
+ Qwen Image 2.1).
+
+## The "sharp" chat template
+
+The serve recipe doesn't use the stock Qwen3.8 template. It runs
+[configs/templates/sharp-v22.5.0.jinja](configs/templates/sharp-v22.5.0.jinja)
+(`qwen3.8-froggeric-v22.5.0`, from
+[froggeric/Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates)
+on Hugging Face — attributed to its author and subject to their terms)
+because it is the control surface for thinking:
+
+- `enable_thinking` — default **true**: reasoning streams before the
+ answer, which is why the champion runs as a thinking model in our cells
+- `reasoning_effort` — `none`/`off` disables thinking outright;
+ `low`/`medium`/`xhigh` pick a tier (default `medium`)
+- `auto_disable_thinking_with_tools`, `preserve_reasoning` across turns,
+ an XML tool-call format, and vision plumbing
+
+Two honesty notes: every measured quality and speed cell ran through
+this template — the numbers are template-specific, we have not run a
+stock-vs-sharp battery A/B, and none of the published cells ran with
+thinking off. `sha256 cdff39fb26b60dc90faa292e726655c6b21f62db497846e02e4c4bbab942a84a`.
+The stock template is a drop-in swap of the `chat-template-file` line if
+you prefer upstream-default behavior.
+
+## RAM accounting
+
+One method, applied to every candidate. All figures GiB.
+
+The @262k columns are the *arithmetic* at the native ceiling — the
+champion actually serves 200k (the measured-stable value; see *Why Q5
+wins*), and Q6 ships at 64k (its sustained gate).
+
+| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k |
+|---|---:|---:|---:|---:|
+| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 |
+| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 |
+| MTP draft | 2.8 | 2.8 | 2.8 | 2.8 |
+| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 |
+| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
+| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
+| **total** | **114.2** | **124.7** | **121.7** | **83.7** |
+| box limit | 124 | 124 | 124 | 124 |
+| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** |
+
+**Observed in practice:** with the full 262k KV pool allocated and the
+server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
+page cache and streaming working sets consume most of the theoretical
+margin. The `MemoryMax=118G` systemd cap sits between: enough room for
+the ~114 GiB footprint, tight enough that an OOM kill (which is what
+killed the Q6 bench chain) is the failure mode, not silent swap.
+
+Where the numbers come from:
+- **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
+ (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
+ The model is **hybrid-attention** (GGUF metadata: 48 layers,
+ `full_attention_interval = 4` — only every 4th layer retains full KV;
+ the rest are sparse/indexed with a bounded window), which is why the
+ KV is so light for a 262k context.
+- **PLE row-reader** is bounded by `-ub 4096`; larger micro-batches scale
+ it linearly, and without the bound, 32k+ prefills amplify row reads past
+ the RAM ceiling.
+- **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
+ versions used a looser estimate — this table is the corrected one).
+
+## Speed at depth — how much wall-time you actually wait
+
+Real-text prompts actually filled (no synthetic filler). These are the
+seconds from "send" to "reply complete."
+
+**Why seconds, not tokens/second:** most speed talk quotes pp/tg —
+tokens/second while filling or draining the context. Fine as kernel
+diagnostics, but they say next to nothing about what you actually wait:
+the wall-clock time to complete a task **successfully** — prefill at
+real depth, retries, and re-generating artifacts that failed QA all
+included. (An independent DeepSeek run posted healthy-looking completion
+rates across 83 minutes of model wall time and delivered zero accepted
+artifacts — the t/s looked fine, the task failed.) Reasoning models
+sharpen the point further: our champion thinks before it answers, so a
+task's token count is reasoning + answer, and decode t/s alone can't
+tell you how many tokens you'll wait through. This table is in seconds
+for that reason.
+
+| prompt size | Q5 | Halogen | who wins |
+|---|---:|---:|---|
+| 4k | 6.4 s | 5.5 s | Halogen, slightly |
+| 32k | **40.6 s** | 9.1 min | **Q5, 13.5×** |
+| 128k | **3.3 min** | 29.5 min | **Q5, 8.9×** |
+
+For context: a 32k prompt is roughly "a medium codebase plus your task."
+A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
+the deciding axis for coding.
+
+**Credit where due:** Halogen wins decode at depth (27.3/25.6 t/s at
+2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
+short decode (**34.8 t/s** tg128 now edges its 32.4. For
+short-prompt chat it remains the faster engine; the collapse at depth
+is what kills it for our workload. Its 128k cell completed at 1770s —
+30s under our client timeout — real but with a thin margin; the
+non-monotonic throughput
+(60 → 71 t/s) is unexplained — the 32k cell matches nominal-size
+arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
+74, not 71; the probe's raw token counts will settle it.
+
+**Evidence note:** the wall-clock probe behind this table — and the
+pp/tg podium cells — is committed as
+[benchmarks/speed_probe.py](benchmarks/speed_probe.py), and quality cells
+reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
+per-cell console logs behind the individual podium numbers.
+
+## Got a new model? Test it, then compare it to the podium
+
+Everything the podium rows are made of is reproducible from this repo with
+two committed tools. A full row takes about an hour of unattended GPU time
+on this box; a first read on a new model takes ten minutes.
+
+### 1. Serve it
+
+Any OpenAI-compatible chat endpoint works, and all the commands below take
+`--host`. Three common shapes:
+
+```bash
+# (a) add it as an arm to the router (one arm resident at a time)
+#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
+#     model/model-draft paths, set load-on-startup = false, reload the service
+# (b) a one-off server on the lab box
+llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
+    -c 65536 -ctk f16 -ctv f16 --jinja -fa on -ngl all
+# (c) a remote or vendor endpoint
+#     uv run python3 scripts/probe.py --host https://api.example.com --model <vendor-id>
+#     (needs GEFC_API_KEY in the env; refuses before sending a byte without it)
+```
+
+Ask the endpoint what it is actually serving — never infer it from the
+config you edited: `curl -s localhost:8080/v1/models`.
+
+**Two settings decide whether the numbers mean anything**
+
+- **Chat template.** The measured template effect on this family is 2–3×
+  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
+  template run is a valid measurement *of the stock template*, and is not
+  comparable to the podium's sharp-family rows. State which one you ran.
+- **Context.** Serve the context you intend to claim. Some models are
+  trained short (Muse-Glimmer: 131072) and the server silently caps the
+  slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
+  would be a fiction.
+
+### 2. Quality — the batteries, with a confidence interval
+
+```bash
+cd ~/Piero/Work/Qwen38/gbench
+
+# the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
+uv run python3 scripts/probe.py --battery iten12 --budget 12 \
+    --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
+
+# coding: the 15-item deterministically-graded bank (census for a podium row)
+uv run python3 scripts/probe.py --battery fcb15 --budget 15 \
+    --tag mymodel-fcb15 --model <arm> --host 127.0.0.1:8080
+
+# the pre-registered harder rungs — the threshold layer, where a saturating
+# model stops being measurable (see docs/FCB15-CALIBRATION.md in GEFC)
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3d --model <arm> \
+    --items-file batteries/fcb15_v3d.py
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
+    --items-file batteries/fcb15_v3de.py
+uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
+
+# reasoning tiers
+uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
+uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
+```
+
+Grading is deterministic and machine-only — a Python harness per item, no
+LLM judge, no rubric prose. A wrong answer fails on an `assert`, so a
+sabotaged grader shows up as a wrong number, not a loud bug.
+
+Read the **CI**, not the point estimate. `--budget` below the battery size
+spends exactly that many items and gives a Wilson 95% interval; a census is
+labelled as such. Two rows whose intervals overlap are **not** ranked by
+this suite — that is the whole reason the podium reports intervals.
+
+### 3. Speed — wall-clock, on this box
+
+```bash
+uv run python3 benchmarks/speed_probe.py --model <arm>          # all five cells
+uv run python3 benchmarks/speed_probe.py --model <arm> --tg-only # decode only
+```
+
+This is the probe the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns
+come from, and it measures the clock, not the server's own counters:
+
+- **prefill** — one request per window, timed send → complete, distinct
+  corpus offsets so no prompt cache flatters a cell
+- **decode** — streamed, timed first content delta → last, so prompt
+  processing is excluded; reasoning deltas count as output
+
+Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
+same offsets, temperature 0, **one client**. A cell measured while another
+job shares the GPU is not a cell — rerun it.
+
+Two traps that cost us a whole measurement pass, both worth knowing before
+you trust a number:
+
+- **Serve the context the cell needs, or read the refusal honestly.** A
+  pp@128k request sends a ~160k-token window on code-dense text, so an arm
+  served at `c=131072` refuses it with HTTP 400 — the probe prints
+  `n/a`, which is the correct cell, not a zero. The probe prints the
+  realised token count; that is the number to quote.
+- **Keep the box quiet, including its disk.** The champion's serving
+  config leaves ~1 GiB of host headroom, so any large file I/O evicts the
+  model's cached weights and decode collapses: a 26 GiB transfer running
+  beside one battery item took the arm from **34 t/s to 0.93 t/s** and
+  produced a 291 s "failure" that was pure page-cache thrash. We threw
+  that run away and re-ran it. Copy files *between* measurement passes,
+  never during one.
+
+### 4. Compare
+
+| what | where |
+|---|---|
+| the podium table | [above](#podium) — the row format to match |
+| the raw rows behind every cell | [benchmarks/results.json](benchmarks/results.json) |
+| the per-item runs (resume-safe JSONL) | `gbench/results/fcb15-<tag>.jsonl` |
+| how a claim gets promoted or retired | [Policy](#policy) |
+
+A model earns a podium row when it clears: the Italian gate (12/12), a
+fcb15 census, a real speed sweep, and a RAM figure — **all at the same
+template and context you are claiming**. Until then it belongs in the
+prose of the chapter it is challenging, with its CI, not in the table.
+
+Before trusting any number — yours or ours — read
+[benchmarks/measuring.md](benchmarks/measuring.md): the ways this project
+measured itself wrong (template confounds, the quiet-box rule, noise
+floors, and the tooling that lies). Two honest outcomes worth writing
+down when you do this:
+
+- **Saturation is a result too.** If a model caps the battery, that rung
+  has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
+  says nothing the previous model's row didn't.
+- **A negative A/B is a result.** This suite's most reused findings are
+  negative: the draft-length setting that lifted the 27B did **not** lift
+  Muse (14.4 vs 15.0 t/s), and a Strix-Halo neighbour project's best MTP
+  tuning (3 draft tokens, n-gram off, +62% on their box) **tied** our
+  production config here (35.8/26.4 vs 36.0/25.7). A knob win does not
+  transfer between trunks or setups until it is measured on yours.
+
+## Reproduce our tests
+
+Everything is in the repo:
+
+- [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
+ tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
+ results (`results.json`). Three commands reproduce a score — see
+ [benchmarks/README.md](benchmarks/README.md)
+- [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
+ batteries, Wilson-CI runner) behind the
+ [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
+ [zebra](#zebra--csp-logic-ladder-gbench) tables
+- [configs/](configs/) — exact serve commands, binary provenance (commits,
+ digests, build recipes), full sha256 checksums, flag-by-flag explanations
+- [models.ini](models.ini) — the single source of truth for all serving
+ options
+- [systemd/](systemd/) — the two unit files (HIP fast-prefill and Vulkan
+ vanilla), switchable with one command
+- [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
+ the nightly auto-improve loop (see the chapter below)
+
 ## Podium — the details
 
 ### Why Q5 wins
@@ -404,7 +670,7 @@ unit — this is a component-level comparison. The pair's theoretical
 advantage (62 GiB total weights, more room for context) is real but
 untested as a serving configuration.
 
-### Footnotes
+## Footnotes
 
 <a id="fn1"></a>¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
 bidirectional translation items, graded deterministically by a Python
@@ -561,183 +827,6 @@ run for the other rows). **zebra** = n=20 (Q5 sharp-low, 27B, Muse) or
 n=12 cells, overlapping CIs throughout (zebra chapter). Q6's AIME cell
 is the yearsplit re-cut (0.750); its fcb15/ladder/sli/zebra cells remain
 owed (fcb15 census in flight on strixy2 260923).
-
-## Got a new model? Test it, then compare it to the podium
-
-Everything the podium rows are made of is reproducible from this repo with
-two committed tools. A full row takes about an hour of unattended GPU time
-on this box; a first read on a new model takes ten minutes.
-
-### 1. Serve it
-
-Any OpenAI-compatible chat endpoint works, and all the commands below take
-`--host`. Three common shapes:
-
-```bash
-# (a) add it as an arm to the router (one arm resident at a time)
-#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
-#     model/model-draft paths, set load-on-startup = false, reload the service
-# (b) a one-off server on the lab box
-llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
-    -c 65536 -ctk f16 -ctv f16 --jinja -fa on -ngl all
-# (c) a remote or vendor endpoint
-#     uv run python3 scripts/probe.py --host https://api.example.com --model <vendor-id>
-#     (needs GEFC_API_KEY in the env; refuses before sending a byte without it)
-```
-
-Ask the endpoint what it is actually serving — never infer it from the
-config you edited: `curl -s localhost:8080/v1/models`.
-
-**Two settings decide whether the numbers mean anything**
-
-- **Chat template.** The measured template effect on this family is 2–3×
-  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
-  template run is a valid measurement *of the stock template*, and is not
-  comparable to the podium's sharp-family rows. State which one you ran.
-- **Context.** Serve the context you intend to claim. Some models are
-  trained short (Muse-Glimmer: 131072) and the server silently caps the
-  slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
-  would be a fiction.
-
-### 2. Quality — the batteries, with a confidence interval
-
-```bash
-cd ~/Piero/Work/Qwen38/gbench
-
-# the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
-uv run python3 scripts/probe.py --battery iten12 --budget 12 \
-    --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
-
-# coding: the 15-item deterministically-graded bank (census for a podium row)
-uv run python3 scripts/probe.py --battery fcb15 --budget 15 \
-    --tag mymodel-fcb15 --model <arm> --host 127.0.0.1:8080
-
-# the pre-registered harder rungs — the threshold layer, where a saturating
-# model stops being measurable (see docs/FCB15-CALIBRATION.md in GEFC)
-uv run python3 scripts/fcb15_run.py --tag mymodel-v3d --model <arm> \
-    --items-file batteries/fcb15_v3d.py
-uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
-    --items-file batteries/fcb15_v3de.py
-uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
-
-# reasoning tiers
-uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
-uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
-```
-
-Grading is deterministic and machine-only — a Python harness per item, no
-LLM judge, no rubric prose. A wrong answer fails on an `assert`, so a
-sabotaged grader shows up as a wrong number, not a loud bug.
-
-Read the **CI**, not the point estimate. `--budget` below the battery size
-spends exactly that many items and gives a Wilson 95% interval; a census is
-labelled as such. Two rows whose intervals overlap are **not** ranked by
-this suite — that is the whole reason the podium reports intervals.
-
-### 3. Speed — wall-clock, on this box
-
-```bash
-uv run python3 benchmarks/speed_probe.py --model <arm>          # all five cells
-uv run python3 benchmarks/speed_probe.py --model <arm> --tg-only # decode only
-```
-
-This is the probe the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns
-come from, and it measures the clock, not the server's own counters:
-
-- **prefill** — one request per window, timed send → complete, distinct
-  corpus offsets so no prompt cache flatters a cell
-- **decode** — streamed, timed first content delta → last, so prompt
-  processing is excluded; reasoning deltas count as output
-
-Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
-same offsets, temperature 0, **one client**. A cell measured while another
-job shares the GPU is not a cell — rerun it.
-
-Two traps that cost us a whole measurement pass, both worth knowing before
-you trust a number:
-
-- **Serve the context the cell needs, or read the refusal honestly.** A
-  pp@128k request sends a ~160k-token window on code-dense text, so an arm
-  served at `c=131072` refuses it with HTTP 400 — the probe prints
-  `n/a`, which is the correct cell, not a zero. The probe prints the
-  realised token count; that is the number to quote.
-- **Keep the box quiet, including its disk.** The champion's serving
-  config leaves ~1 GiB of host headroom, so any large file I/O evicts the
-  model's cached weights and decode collapses: a 26 GiB transfer running
-  beside one battery item took the arm from **34 t/s to 0.93 t/s** and
-  produced a 291 s "failure" that was pure page-cache thrash. We threw
-  that run away and re-ran it. Copy files *between* measurement passes,
-  never during one.
-
-### 4. Compare
-
-| what | where |
-|---|---|
-| the podium table | [above](#podium) — the row format to match |
-| the raw rows behind every cell | [benchmarks/results.json](benchmarks/results.json) |
-| the per-item runs (resume-safe JSONL) | `gbench/results/fcb15-<tag>.jsonl` |
-| how a claim gets promoted or retired | [Policy](#policy) |
-
-A model earns a podium row when it clears: the Italian gate (12/12), a
-fcb15 census, a real speed sweep, and a RAM figure — **all at the same
-template and context you are claiming**. Until then it belongs in the
-prose of the chapter it is challenging, with its CI, not in the table.
-
-Before trusting any number — yours or ours — read
-[benchmarks/measuring.md](benchmarks/measuring.md): the ways this project
-measured itself wrong (template confounds, the quiet-box rule, noise
-floors, and the tooling that lies). Two honest outcomes worth writing
-down when you do this:
-
-- **Saturation is a result too.** If a model caps the battery, that rung
-  has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
-  says nothing the previous model's row didn't.
-- **A negative A/B is a result.** This suite's most reused findings are
-  negative: the draft-length setting that lifted the 27B did **not** lift
-  Muse (14.4 vs 15.0 t/s), and a Strix-Halo neighbour project's best MTP
-  tuning (3 draft tokens, n-gram off, +62% on their box) **tied** our
-  production config here (35.8/26.4 vs 36.0/25.7). A knob win does not
-  transfer between trunks or setups until it is measured on yours.
-
-## RAM accounting
-
-One method, applied to every candidate. All figures GiB.
-
-The @262k columns are the *arithmetic* at the native ceiling — the
-champion actually serves 200k (the measured-stable value; see *Why Q5
-wins*), and Q6 ships at 64k (its sustained gate).
-
-| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k |
-|---|---:|---:|---:|---:|
-| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 |
-| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 |
-| MTP draft | 2.8 | 2.8 | 2.8 | 2.8 |
-| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 |
-| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
-| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
-| **total** | **114.2** | **124.7** | **121.7** | **83.7** |
-| box limit | 124 | 124 | 124 | 124 |
-| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** |
-
-**Observed in practice:** with the full 262k KV pool allocated and the
-server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
-page cache and streaming working sets consume most of the theoretical
-margin. The `MemoryMax=118G` systemd cap sits between: enough room for
-the ~114 GiB footprint, tight enough that an OOM kill (which is what
-killed the Q6 bench chain) is the failure mode, not silent swap.
-
-Where the numbers come from:
-- **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
- (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
- The model is **hybrid-attention** (GGUF metadata: 48 layers,
- `full_attention_interval = 4` — only every 4th layer retains full KV;
- the rest are sparse/indexed with a bounded window), which is why the
- KV is so light for a 262k context.
-- **PLE row-reader** is bounded by `-ub 4096`; larger micro-batches scale
- it linearly, and without the bound, 32k+ prefills amplify row reads past
- the RAM ceiling.
-- **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
- versions used a looser estimate — this table is the corrected one).
 
 ## Italian (iten12)
 
@@ -1073,51 +1162,6 @@ The low-effort promotion gate passed here too: +0.15 over Q5-medium's
 0.50. Zebra remains everyone's weakest battery — the CSP ladder is
 where headroom lives.
 
-## Speed at depth — how much wall-time you actually wait
-
-Real-text prompts actually filled (no synthetic filler). These are the
-seconds from "send" to "reply complete."
-
-**Why seconds, not tokens/second:** most speed talk quotes pp/tg —
-tokens/second while filling or draining the context. Fine as kernel
-diagnostics, but they say next to nothing about what you actually wait:
-the wall-clock time to complete a task **successfully** — prefill at
-real depth, retries, and re-generating artifacts that failed QA all
-included. (An independent DeepSeek run posted healthy-looking completion
-rates across 83 minutes of model wall time and delivered zero accepted
-artifacts — the t/s looked fine, the task failed.) Reasoning models
-sharpen the point further: our champion thinks before it answers, so a
-task's token count is reasoning + answer, and decode t/s alone can't
-tell you how many tokens you'll wait through. This table is in seconds
-for that reason.
-
-| prompt size | Q5 | Halogen | who wins |
-|---|---:|---:|---|
-| 4k | 6.4 s | 5.5 s | Halogen, slightly |
-| 32k | **40.6 s** | 9.1 min | **Q5, 13.5×** |
-| 128k | **3.3 min** | 29.5 min | **Q5, 8.9×** |
-
-For context: a 32k prompt is roughly "a medium codebase plus your task."
-A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
-the deciding axis for coding.
-
-**Credit where due:** Halogen wins decode at depth (27.3/25.6 t/s at
-2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
-short decode (**34.8 t/s** tg128 now edges its 32.4. For
-short-prompt chat it remains the faster engine; the collapse at depth
-is what kills it for our workload. Its 128k cell completed at 1770s —
-30s under our client timeout — real but with a thin margin; the
-non-monotonic throughput
-(60 → 71 t/s) is unexplained — the 32k cell matches nominal-size
-arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
-74, not 71; the probe's raw token counts will settle it.
-
-**Evidence note:** the wall-clock probe behind this table — and the
-pp/tg podium cells — is committed as
-[benchmarks/speed_probe.py](benchmarks/speed_probe.py), and quality cells
-reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
-per-cell console logs behind the individual podium numbers.
-
 ## DeepSeek V4.1 Flash Q2 — tested, parked
 
 A 340.6 GiB MoE that streams experts from SSD: 4.4–4.9 t/s decode.
@@ -1126,50 +1170,6 @@ replicated with the same verdict — parked
 ([tomasreminek/strix-halo](https://github.com/tomasreminek/strix-halo);
 see the replication note in the recipe). Full recipe in
 [configs/deepseek-v41-parked.md](configs/deepseek-v41-parked.md).
-
-## Reproduce our tests
-
-Everything is in the repo:
-
-- [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
- tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
- results (`results.json`). Three commands reproduce a score — see
- [benchmarks/README.md](benchmarks/README.md)
-- [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
- batteries, Wilson-CI runner) behind the
- [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
- [zebra](#zebra--csp-logic-ladder-gbench) tables
-- [configs/](configs/) — exact serve commands, binary provenance (commits,
- digests, build recipes), full sha256 checksums, flag-by-flag explanations
-- [models.ini](models.ini) — the single source of truth for all serving
- options
-- [systemd/](systemd/) — the two unit files (HIP fast-prefill and Vulkan
- vanilla), switchable with one command
-- [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
- the nightly auto-improve loop (see the chapter below)
-
-## The "sharp" chat template
-
-The serve recipe doesn't use the stock Qwen3.8 template. It runs
-[configs/templates/sharp-v22.5.0.jinja](configs/templates/sharp-v22.5.0.jinja)
-(`qwen3.8-froggeric-v22.5.0`, from
-[froggeric/Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates)
-on Hugging Face — attributed to its author and subject to their terms)
-because it is the control surface for thinking:
-
-- `enable_thinking` — default **true**: reasoning streams before the
- answer, which is why the champion runs as a thinking model in our cells
-- `reasoning_effort` — `none`/`off` disables thinking outright;
- `low`/`medium`/`xhigh` pick a tier (default `medium`)
-- `auto_disable_thinking_with_tools`, `preserve_reasoning` across turns,
- an XML tool-call format, and vision plumbing
-
-Two honesty notes: every measured quality and speed cell ran through
-this template — the numbers are template-specific, we have not run a
-stock-vs-sharp battery A/B, and none of the published cells ran with
-thinking off. `sha256 cdff39fb26b60dc90faa292e726655c6b21f62db497846e02e4c4bbab942a84a`.
-The stock template is a drop-in swap of the `chat-template-file` line if
-you prefer upstream-default behavior.
 
 ## The Doctor — 24/7 monitoring and the nightly auto-improve loop
 
