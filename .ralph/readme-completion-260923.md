@@ -438,3 +438,9 @@ question; morning = both boxes on production units + everything pushed.
 4. No adjustment — the watchdog stance is correct until dawn.
 5. Next: hand the operator the morning queue (already written in
    results.json + this log); final sweeps only.
+
+## REFLECTION (iteration 21 — night unchanged)
+Steady state continues: boxes serving, sampler flat, all blockers documented
+with the morning queue in results.json. Nothing new to act on; the loop's
+remaining value tonight is passive availability. Reflection content is
+unchanged from iteration 16's — see that entry.
