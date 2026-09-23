@@ -409,3 +409,20 @@ question; morning = both boxes on production units + everything pushed.
   self-match rule extends to split-string patterns: filter out $$ or match
   by exact pid).
 - Nothing actionable; watchdog continues.
+
+## Iteration 14 (night) — ROOT CAUSE FINAL: the box REBOOTS on vanilla loads
+- journalctl --list-boots: SIX reboots tonight (21:38, 21:48, 21:57, 22:00,
+  22:05, 22:10) — each within minutes of a vanilla unit start, each death
+  leaves NO panic/OOM trace (instant kernel-level death; last lines innocuous).
+- What I called "manager churn" all night = full crash-reboot cycles; the
+  ssh drops, unit deaths, and q5-serve resurrections were all boot artifacts.
+- The one surviving vanilla load (21:05, the q8-KV probe that measured
+  36.6/32.0) ran CACHE-WARM — a different, safe path. Every COLD full-model
+  load via vanilla (mass amdgpu userptr/GTT pinning) hard-crashes the box.
+  The fork's loads never trip it.
+- RULE (effective immediately): NO unattended vanilla loads on strixy2. Any
+  further vanilla load test is a supervised, operator-present daytime task
+  (watch dmesg -w live, capture amdgpu messages at the crash, consider
+  amdgpu.gpu_recovery, report upstream).
+- The vanilla suite rerun decision belongs to the operator with this
+  evidence; the staged drluoto draft stays staged.

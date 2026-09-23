@@ -1010,6 +1010,7 @@
   },
   "blocked": {
    "vanilla_battery_suite": [
+    "BLOCKER 0 (root, supersedes the churn story): SIX full-box crash-reboots tonight (21:38/21:48/21:57/22:00/22:05/22:10), each within minutes of a vanilla unit start, no panic/OOM trace - vanilla b11147's COLD full-model GTT load hard-crashes the machine. The 21:05 q8-KV probe survived on a cache-warm load (different path; its 36.6/32.0 numbers stand). No further unattended vanilla loads; supervised daytime repro + dmesg capture + upstream report required.",
     "BLOCKER 1 (solid): the fork's shared-MTP draft GGUF fails to load on upstream - 'check_tensor_dims: token_embd.weight not found' at 0.6s, deterministic, every -c. The shared draft (no own token_embd, borrows the main model's) is fork-format; upstream expects a self-contained draft. Vanilla must run draft-less until a standalone MTP GGUF is sourced (z-lab/dzannotti repos are candidates).",
     "BLOCKER 2 (unrooted): even draft-less, the full ~100G vanilla load dies silently on strixy2 (no process, no kernel OOM, no journal exit line - consistent with the user-manager churn that killed units all night at load windows). Small loads (-c 2048) listen fine; the fork binary loads the same model fine. Needs daytime forensics with the box quiet.",
     "Also: c=196608 AND c=163840 never got a clean test (blocked behind blocker 1/2) - the pp@128k@>=160k cell remains owed on vanilla."
