@@ -110,7 +110,7 @@ caveats live in [²⁵](#fn25), [¹⁰](#fn10) and each battery's chapter.
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | 0.667 [¹¹](#fn11) | — | — | — | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — | — | — | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
@@ -310,7 +310,7 @@ at this tier is streaming-variance-heavy — the row-eviction disease the
 Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
 22.3) remain at the 64k-era basis from [⁸](#fn8).
 
-<a id="fn11"></a>¹¹ Q6's fcb15 (medium, sharp): **measured at last 260923 — at the 64k sustained tier, on idle strixy2: 0.667 [0.42–0.85] n=15 (10/15), ~11 min, decode sustained ~32 t/s** — identical to the champion's medium cell. The measurement was blocked for a week by the decay disease, now understood as **tier-bound, not box-bound**: the same census aimed at the 192k tier on the SAME idle box 15 minutes earlier decayed to **1.5 t/s on the first item** (cross-box replication of the 260922 strixy decay 13→7→3 t/s; 0 faults — a speed disease, not a crash). Q5 at 131k completes the census in 8 min; Q6 at 64k completes it; Q6 at 131k/192k decays on both boxes. The cure remains fork-level (row residency); until it lands, the Q6 fcb15 cell reads from the 64k tier. The MTP-only budget-6 probe cell (0.50 [0.19–0.81]) stands superseded. And the 192k tier itself proved to be a
+<a id="fn11"></a>¹¹ Q6's fcb15 (both effort tiers, measured 260923 at the 64k sustained tier on idle strixy2): **low 0.867 [0.62–0.96] (13/15) — an exact tie with the champion's shipped cell** — and medium 0.667 [0.42–0.85] (10/15), identical to the champion's medium cell; ~11 min per census, decode sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm serves sharp-low), per [¹⁰](#fn10)'s rule. Measurement was blocked for a week by the decay disease, now understood as **tier-bound, not box-bound**: the same census aimed at the 192k tier on the SAME idle box 15 minutes earlier decayed to **1.5 t/s on the first item** (cross-box replication of the 260922 strixy decay 13→7→3 t/s; 0 faults — a speed disease, not a crash). Q5 at 131k completes the census in 8 min; Q6 at 64k completes it; Q6 at 192k decays on both boxes (and on strixy the 131k-era census attempts decayed under contention — idle-box 131k probe in flight 260923). The cure remains fork-level (row residency); until it lands, the Q6 fcb15 cells read from the 64k tier. The MTP-only budget-6 probe cell (0.50 [0.19–0.81]) stands superseded. And the 192k tier itself proved to be a
 **zero-headroom specialist** the same night: a nightly soak held 0.917
 iten12 and 198.9 t/s prefill in its quiet window, but a single
 co-resident 107 G file copy tipped the box into a zram thrash storm
@@ -723,6 +723,7 @@ Uniform-template fcb15 column — sharp family, effort noted per cell
 | Muse-Glimmer Q8 | stock (family design) | 0.733 (11/15, census) | 0.48–0.89 |
 | Flash-Next Q5_K_XL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
 | Flash-Next IQ4_NL | sharp medium | 0.667 (10/15, census) | 0.42–0.85 |
+| Flash-Next Q6_K_XL | sharp **low** (64k tier [¹¹](#fn11)) | **0.867** (13/15, census) | 0.62–0.96 |
 | Flash-Next Q6_K_XL | sharp medium (64k tier [¹¹](#fn11)) | 0.667 (10/15, census) | 0.42–0.85 |
 
 The template is not cosmetics: measured on three arms it **doubled**
