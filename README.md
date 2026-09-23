@@ -72,6 +72,7 @@ tables, so they are worth one screen.
 | **nm** | n-max: how many draft tokens one speculation step proposes (`nm6` = 6) |
 | **KV cache** | the attention key/value store the context lives in; grows with context length and quantisation (f16 here) |
 | **arm** | one model instance in the router (`models.ini`); one arm is resident at a time |
+| **row / cell** | a *row* is one model in a table; a *cell* is one measured number in it — a row holds one cell per battery |
 | **tier** | a serving configuration's context size (`c=65536`, `c=131072`, …) — "the 64k tier". *Effort tiers* (low/medium) and *quant levels* are different axes |
 | **UD- / Q5_K_XL / IQ4_NL / Q8** | quantisation levels; `UD-` is the unsloth dynamic quant |
 | **template · effort** | the chat template and reasoning-effort level a cell was measured at — `sharp-low` = sharp template, low effort |
@@ -620,7 +621,7 @@ the same measured reason (see *Why Q5 wins*); Q6 at 131k is a
 demonstrated fallback tier, not a hope.
 
 **But there is a second, slower disease — measured:** sustained
-decode *degrades* even at 131k. With ngram speculation off (MTP-only,
+decode *degrades* even at 131k. With n-gram speculation off (MTP-only,
 `spec-type = draft-mtp`), fresh-load Q6 bursts at **35 t/s** — then decays
 to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
 headroom (on strixy: after ~20–25k tokens of diverse generation; the
