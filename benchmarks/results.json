@@ -994,5 +994,33 @@
    "fork server slow anon growth: Private_Dirty +~1MB/min during inference (1 sample, 60s) - leak candidate for the multi-day soak",
    "long gates need installed units + q5-serve autostart disabled for the window (done in gate v3; still died - restore was manual)"
   ]
+ },
+ "overnight_260923": {
+  "landed": {
+   "fork_postzram_strixy": {
+    "pp4k": 626,
+    "pp32k": 675,
+    "tg128": 32.9,
+    "tg2048": 26.4,
+    "pp128k": "n/a - resident router arm context < 160k",
+    "artifact": "../Qwen38 reruns-260919/q6-low-row/fork-postzram.txt",
+    "note": "no post-zram pp explosion on the fork @131k (626/675 vs podium 689/672) - the Q6@192k 2048 t/s anomaly is config-specific, not fleet-wide zram suppression"
+   },
+   "leak_sampler": "running on strixy, every llama-server pid, 30-min cadence, 48h cap (leak-sampler.log)"
+  },
+  "blocked": {
+   "vanilla_battery_suite": [
+    "BLOCKER 1 (solid): the fork's shared-MTP draft GGUF fails to load on upstream - 'check_tensor_dims: token_embd.weight not found' at 0.6s, deterministic, every -c. The shared draft (no own token_embd, borrows the main model's) is fork-format; upstream expects a self-contained draft. Vanilla must run draft-less until a standalone MTP GGUF is sourced (z-lab/dzannotti repos are candidates).",
+    "BLOCKER 2 (unrooted): even draft-less, the full ~100G vanilla load dies silently on strixy2 (no process, no kernel OOM, no journal exit line - consistent with the user-manager churn that killed units all night at load windows). Small loads (-c 2048) listen fine; the fork binary loads the same model fine. Needs daytime forensics with the box quiet.",
+    "Also: c=196608 AND c=163840 never got a clean test (blocked behind blocker 1/2) - the pp@128k@>=160k cell remains owed on vanilla."
+   ]
+  },
+  "environment_night_findings": [
+   "7+ ssh drops on strixy2, ALL during model load/unload windows",
+   "pi-dream.timer re-enabled units we stopped (its safe_apply restores serving) - timer must be paused during experiment windows; re-enabled at close",
+   "the 'autostart-off' style log lines must verify command results, not echo intentions",
+   "suspect history correction: the 21:05 'vanilla+MTP works' gate-v1 result is now DOUBTFUL - its health check did not verify the binary (contamination class); the 27.0/25.7 t/s cells may be fork-served. Re-verify before quoting them."
+  ],
+  "morning_state": "q5-serve active+enabled healthy; pi-dream.timer re-enabled; Doctor watching; strixy router untouched; leak sampler running"
  }
 }

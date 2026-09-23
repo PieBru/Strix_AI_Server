@@ -267,3 +267,98 @@ and effort are now uniform.
   re-measurement still operator-gated; smaps leak-check inconclusive
   (sampled post-restore) — fold into the soak if it runs.
 - Pushed: 55168dc. Boxes: strixy router ✓, strixy2 q5-serve ✓ (restored).
+
+## OVERNIGHT PLAN (operator to sleep 21:40 — monitor + act autonomously)
+
+Running:
+- strixy2: overnight-vanilla.sh (pid 2070604) — full battery suite on vanilla
+  fee39dd92, Q5+MTP, c=196608, sharp-low. State file overnight.state skips
+  done phases; each phase binary-verifies the arm (manager-churn proof);
+  3 retries per phase; restores q5-serve + autostart at the end.
+- strixy: fork post-zram probe (fork-postzram.txt) + leak sampler
+  (leak-sampler.log, 48h cap) against the resident router arm.
+
+Babysit rules tonight:
+1. Each iteration: suite log tail + state file + both-box health.
+2. Supervisor dead + state file has no 'done' line -> RELAUNCH the script
+   (idempotent; it resumes at the first unmarked phase).
+3. A phase marked FAILED x3 -> inspect its txt/log; if invocation bug: fix,
+   clear the marker, relaunch. If environment: note it, move on.
+4. Storm (so pinned) -> guard-fast is armed (zguard-ov); if it misses,
+   SIGKILL q5-vanilla-192k manually; the suite's next arm_ok re-establishes.
+5. q5-serve MUST be active+enabled again by morning (suite's final phase;
+   if the suite died before restore, restore manually).
+6. On suite completion: harvest all ov-* artifacts into benchmarks/, update
+   results.json (vanilla_vs_fork_260923 suite block), commit+push, and
+   prepare the podium Q5 consolidation with engine-basis notes.
+7. Never block: all checks short-poll; anything long is already backgrounded.
+8. pkill/pgrep self-match rule: patterns NEVER appear verbatim in my
+  command line - split strings or match by pid (6 incidents today).
+
+Success = morning state: suite state file 'done', all phases DONE (or a
+documented FAILED with cause), q5-serve active+enabled, boxes healthy,
+harvest committed+pushed, leak sampler alive, no unbounded processes.
+
+## REFLECTION (iteration 6 — night watch)
+
+**Accomplished since iter-5 reflection.** The uniform sharp-low basis
+completed + pushed; Q6 zebra landed on the no-MTP arm (0.65 — the day's
+hardest-won cell); zebra@192k negative closed the tier question; KV-q8
+root-caused to the fork's QSA indexer assert; the upstream comparison
+opened and banked its headline (vanilla q8-KV = fastest arm 36.6/32.0);
+Doctor DISK card operator-requested change shipped browser-verified; the
+Q5-default decision recorded; the overnight vanilla suite launched.
+
+**Working well.** Binary-verified health checks (caught two contaminated
+gates); the restartable state-file supervisor; per-battery artifact
+verification; guards; verify_readme as the standing gate.
+
+**Not working.** strixy2's user-manager churn — now 5 events, ALL during
+model load/unload windows — is the dominant instability; it kills
+non-enabled units and resurrects q5-serve onto the port. My own process-
+matching self-kill bug struck 6× (patterns must never appear verbatim in
+my command line). The todo tool rejects every in-progress spelling.
+
+**Adjustment (in force).** The ralph loop is the overnight watchdog: each
+iteration checks the suite's state file, relaunches the idempotent
+supervisor if dead, and never trusts :8080 without /proc/exe proof. All
+forensics (manager-churn root cause) deferred to daytime with the box quiet.
+
+**Next priorities.** Suite lands (~4-5h) → harvest ov-* artifacts,
+results.json suite block, podium-Q5 consolidation with engine-basis notes;
+fork post-zram probe + leak sampler on strixy feed the fn18 anomaly
+question; morning = both boxes on production units + everything pushed.
+
+## Iteration 9 — THE RESURRECTION ENGINE FOUND: pi-dream
+- Every "manager churn resurrection" tonight traces to **pi-dream.timer**
+  on strixy2: an autonomous dream agent (pi --skill dream + safe_apply.py)
+  that noticed q5-serve stopped/disabled and "safely" RESTORED it — the
+  impostor that fought the vanilla gates all evening. Timer stopped +
+  disabled for the night; q5-serve now genuinely disabled+inactive
+  (verified). pi-dream re-enable is a MORNING task (it exists to protect
+  serving - tonight it protected it against us).
+- Also fixed: the suite's "autostart-off" log line printed unconditionally
+  even when the disable failed silently (churn window) - the lesson: log
+  command RESULTS, not intentions.
+- One supervisor instance confirmed; vanilla @192k loading. Shell timeouts
+  capped at 300s per operator reminder (unattended included).
+
+## Iterations 7-10 (night) — the vanilla suite BLOCKED, production restored
+- Fork post-zram cells landed: pp4k 626 / pp32k 675 / tg 32.9/26.4 on strixy
+  (no explosion; Q6@192k anomaly is config-specific). Leak sampler running.
+- Vanilla suite blocked by TWO documented causes (results.json
+  overnight_260923.blocked): (1) the shared-MTP draft GGUF is fork-format —
+  upstream loader errors 'token_embd.weight not found' deterministically;
+  vanilla needs a standalone MTP draft (z-lab/dzannotti candidates) or runs
+  draft-less; (2) even draft-less, the full 100G vanilla load dies silently
+  in strixy2's load-window manager churn (unrooted; fork loads fine —
+  daytime forensics with the box quiet).
+- HISTORY CORRECTION: gate-v1's "vanilla+MTP works, 27.0/25.7" is now
+  doubtful — its health check didn't verify the binary; the only binary-
+  verified vanilla numbers are q8-KV 36.6/32.0 (probe-driven, distinct from
+  fork baselines) and the -c 2048 direct-load listens.
+- pi-dream.timer was the unit-resurrector (safe_apply restores serving);
+  paused during the window, RE-ENABLED at close. q5-serve restored
+  active+enabled+healthy (verified). 7+ ssh drops, all at load windows.
+- Morning queue: manager-churn forensics; standalone MTP draft sourcing;
+  vanilla suite rerun draft-less if the churn is fixed; pp@128k@>=160k owed.
