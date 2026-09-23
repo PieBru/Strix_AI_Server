@@ -112,7 +112,7 @@ its stock template by family design).
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — | — | — | 107 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — [¹¹](#fn11) | 10/10 [¹¹](#fn11) | — [¹¹](#fn11) | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
@@ -759,15 +759,36 @@ Overlapping CIs throughout: no ranking claims.
  delegated): podium shows as-shipped tiers, the chapter holds the uniform
  medium view.
 
-<a id="fn11"></a>¹¹ Q6's fcb15 (both effort tiers, measured 2026-09-23 at the 64k sustained tier on idle strixy2): **low 0.867 [0.62–0.96] (13/15) — an exact tie with the champion's shipped cell** — and medium 0.667 [0.42–0.85] (10/15), identical to the champion's medium cell; ~11 min per census, decode sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm serves sharp-low), per [¹⁰](#fn10)'s rule. Measurement was blocked for a week by the decay disease, now understood as **tier-bound, not box-bound**: the same census aimed at the 192k tier on the SAME idle box 15 minutes earlier decayed to **1.5 t/s on the first item** (cross-box replication of the 2026-09-22 strixy decay 13→7→3 t/s; 0 faults — a speed disease, not a crash). Q5 at 131k completes the census in 8 min; Q6 at 64k completes it; Q6 at 192k decays on both boxes (and on strixy the 131k-era census attempts decayed under contention — idle-box 131k probe in flight 2026-09-23). The cure remains fork-level (row residency); until it lands, the Q6 fcb15 cells read from the 64k tier. The MTP-only budget-6 probe cell (0.50 [0.19–0.81]) stands superseded. And the 192k tier itself proved to be a
-**zero-headroom specialist** the same night: a nightly soak held 0.917
-iten12 and 198.9 t/s prefill in its quiet window, but a single
-co-resident 107 G file copy tipped the box into a zram thrash storm
-(prefill collapsed to 44.7 t/s). 192k serves alone or not at all — the
-128k q5 arm stays the daily driver. The mirrored arm on strixy2 (same
-flags, `q6-serve-192k.service`, switch runbook embedded in the unit)
-validated at 521 t/s @ 78k-token prefill. — which also replicates the champion's own fcb15-low
-cell cross-box (0.867 [0.62–0.96], overlapping CIs).
+<a id="fn11"></a>¹¹ **Q6 at the 64k sustained tier, measured 2026-09-23 on idle strixy2.**
+
+- **fcb15, both effort tiers:** sharp-low **0.867 [0.62–0.96] (13/15) — an exact
+  tie with the champion's shipped cell** — and sharp-medium 0.667 [0.42–0.85]
+  (10/15), identical to the champion's medium cell. ~11 min per census, decode
+  sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm
+  serves sharp-low), per [¹⁰](#fn10)'s rule.
+- **sli:** 10/10 [0.72–1.0] — the canary saturates here too.
+- **zebra and the ladder are not obtainable at this tier.** The 20 long-CSP items
+  stormed the box (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
+  prints for 4+ min) and had to be SIGKILLed. So 64k sustains ~6k-token census
+  items and the sli canary, but not zebra's long thinking generations: cumulative
+  activated expert rows cross the ~14 GB GTT headroom and trigger the row-eviction
+  storm. Same disease as the 131k/192k decay, one tier lower — the 10-minute
+  18k-token gate sat on the right side of the threshold, zebra on the wrong side.
+- **Where the decay disease stands: tier-bound, not box-bound.** The same census
+  aimed at the 192k tier on the same idle box 15 minutes earlier decayed to
+  **1.5 t/s on the first item** (replicating the 2026-09-22 strixy decay
+  13→7→3 t/s; 0 faults, so a speed disease rather than a crash). Q5 at 131k
+  completes the census in 8 min; Q6 at 64k completes it; Q6 at 192k decays on
+  both boxes. The cure remains fork-level (row residency).
+- The earlier MTP-only budget-6 probe cell (0.50 [0.19–0.81]) is superseded.
+
+**The 192k tier is a zero-headroom specialist** (measured the same night): a
+nightly soak held 0.917 iten12 and 198.9 t/s prefill in its quiet window, but a
+single co-resident 107 GB file copy tipped the box into a zram thrash storm
+(prefill collapsed to 44.7 t/s). 192k serves alone or not at all — the 128k Q5
+arm stays the daily driver. The mirrored arm on strixy2 (`q6-serve-192k.service`)
+validated at 521 t/s @ 78k-token prefill, which also replicates the champion's
+fcb15-low cell cross-box (0.867 [0.62–0.96], overlapping CIs).
 
 <a id="fn12"></a>¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
