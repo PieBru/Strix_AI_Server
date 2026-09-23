@@ -64,6 +64,14 @@
 5. **Open source only** — closed engines are evaluated for reference,
  never adopted
 6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+7. **Single model vs co-residency** — for the best quality at a
+ good-enough speed, the primary goal is to serve a single
+ all-purpose model on a single Strix-Halo, optionally routed by a
+ fast classifier service (e.g. Laya, from any LAN node). At the cost
+ of a service restart, one Halo node can be configured to serve
+ multiple models via `models.ini` — either by swapping the single
+ big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
+ Qwen Image 2.1).
 
 ## In a hurry? Look at these 2 tables
 
