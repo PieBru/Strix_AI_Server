@@ -95,14 +95,16 @@ is counted in the [RAM accounting](#ram-accounting) table.
 ## Podium
 
 All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
-pass/fail at 12 — not an overall quality verdict.
+pass/fail at 12 — not an overall quality verdict. The quality columns
+(AIME / fcb15 / ladder / sli / zebra) are pointers: bases, CIs and
+caveats live in [²⁵](#fn25), [¹⁰](#fn10) and each battery's chapter.
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | fcb15 [¹⁰](#fn10) | RAM (weights) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.867** [¹⁰](#fn10) | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | — [¹¹](#fn11) | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.800 [¹⁰](#fn10) | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.733 [¹⁰](#fn10) | 32 GiB |
+| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | — [¹¹](#fn11) | — | — | — | 107 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
 ### Why Q5 wins
 
@@ -395,6 +397,20 @@ nominally.
 (7/12) and zebra cell (0.25) were superseded — they left no artifacts and
 the redo measured materially higher (12/12, 0.50); keeping the old cells
 anywhere would contradict the artifact-backed ones.
+
+<a id="fn25"></a>²⁵ Podium quality columns (260923): **AIME** = yearsplit-12 seed-1300
+re-cut (sharp cells; Muse stock by family design; the 27B's stock cell
+0.417 lives in the AIME chapter — its podium cell is the sharp basis,
+consistent with its fcb15 cell). Pre-grader-fix † cells and contamination
+caveats live in the AIME chapter. **ladder** = deepest fcb15 tier rung
+held under greedy (`v3+D+E+F`); "all rungs" means the model holds every
+rung drafted — Q5 and the 27B tie at every depth (tier-ladder chapter).
+**sli** = structured-list canary, saturated at 10/10 for the champion at
+both effort tiers — regression canary only, not a discriminator (never
+run for the other rows). **zebra** = n=20 (Q5 sharp-low, 27B, Muse) or
+n=12 cells, overlapping CIs throughout (zebra chapter). Q6's AIME cell
+is the yearsplit re-cut (0.750); its fcb15/ladder/sli/zebra cells remain
+owed (fcb15 census in flight on strixy2 260923).
 
 ## Got a new model? Test it, then compare it to the podium
 
