@@ -399,3 +399,13 @@ question; morning = both boxes on production units + everything pushed.
   forensics needs journalctl -k around 22:10:40 + user@1000.slice limits +
   the fork-vs-vanilla GTT accounting diff.
 - Boxes: both healthy serving; draft staged; leak sampler running.
+
+## Iteration 13 (night) — quiet sweep
+- Both boxes verified healthy (q5-serve + Doctor active/ok; router active/ok).
+- pi-dream: only 4 failed starts today total — not a tight loop; leave as-is
+  (operator infra; the 03:00 run is its real purpose; endpoint fix = morning).
+- Leak sampler on 30-min cadence (next sample ~22:41); router arm flat so far.
+- No stray experiment processes (the one pgrep hit was my own command — the
+  self-match rule extends to split-string patterns: filter out $$ or match
+  by exact pid).
+- Nothing actionable; watchdog continues.
