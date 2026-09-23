@@ -248,3 +248,22 @@ and effort are now uniform.
   in 4d63990. Lesson: grep-verify every edit before its commit message.
 - Pushed: 626b311, 4d63990. Both boxes verified serving. Todo: 8/9
   (9th = optional fleet pp re-measurement, operator-gated).
+
+## Iteration 8 — the Q6 zebra cell LANDS (operator decision recorded)
+- **Q6 zebra: 0.65 (13/20) [0.43–0.82], no-MTP @86k (b1024 ub512, f16 KV).**
+  Rode the ridge to 87M avail, 20/20 items, clean 9s restore. Three-way tie
+  with Q5 and 27B. Four storming attempts explained: the MTP draft's
+  residency (2.8G + draft KV/buffers) was exactly the storm margin.
+- Speed measured no-MTP: tg128 20.2 / tg2048 19.1 (vs 34.3/22.3 with MTP) —
+  the 27B's serving floor, usable.
+- q8 KV root-caused: GGML_ASSERT(qwen4exp.cpp:1365) — the QSA indexer cache
+  receives -ctk/-ctv and hard-requires f16; fixable by a fork patch (indexer
+  forced f16) if we ever want the +1G.
+- **Operator decision recorded (README 'Why Q5 wins' + results.json):**
+  Q5+MTP stays the default until Q6 proves multi-day stability. Promotion
+  bar = a Doctor soak test of the no-MTP arm, not one clean census.
+- Loose ends: batiai downloads (Q6_K+Q4_K_M) continue, chain PAUSED — now
+  optional (cell landed; would only serve as artifact comparison); pp fleet
+  re-measurement still operator-gated; smaps leak-check inconclusive
+  (sampled post-restore) — fold into the soak if it runs.
+- Pushed: 55168dc. Boxes: strixy router ✓, strixy2 q5-serve ✓ (restored).

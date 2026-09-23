@@ -960,5 +960,39 @@
    "basis": "draft is speed-only (greedy spec-decode output-preserving) so the no-draft census is a legitimate Q6-row cell",
    "policy": "operator 260923: Q5+MTP stays default until Q6 proves multi-day stability (Doctor soak test required before any promotion)"
   }
+ },
+ "vanilla_vs_fork_260923": {
+  "upstream": "b11147 fee39dd92, HIP Clang 24 / gfx1151, built on strixy2",
+  "config": "champion Q5 + shared MTP via --spec-type draft-mtp, c=131072, sharp-low, same flags as fork minus --load-mode/--lazy-mode",
+  "same_box_tg": {
+   "fork_f16": {
+    "tg128": 33.2,
+    "tg2048": 28.2
+   },
+   "vanilla_f16": {
+    "tg128": 27.0,
+    "tg2048": 25.7,
+    "note": "-19%/-9% vs fork; MTP confirmed working upstream (27 vs ~20 no-draft)"
+   },
+   "vanilla_q8_kv": {
+    "tg128": 36.6,
+    "tg2048": 32.0,
+    "note": "THE HEADLINE: the -ctk q8_0 -ctv q8_0 config that GGML_ASSERT-crashes the fork (qwen4exp.cpp:1365) loads and serves on upstream AND is the fastest arm measured on this box (+10%/+13% over fork f16; KV-byte halving on the bandwidth-shared iGPU). Preliminary: one tg probe, no quality gate yet."
+   }
+  },
+  "vanilla_pp": {
+   "pp4k": 619,
+   "pp32k": 654,
+   "pp128k": "n/a - window exceeds c=131072; needs a >=160k run"
+  },
+  "not_measured": [
+   "iten12 on vanilla (contaminated twice by unit churn, gate died once)",
+   "no-MTP ridge/zebra on vanilla"
+  ],
+  "environment_findings": [
+   "strixy2 user manager churned 3x during model load/unload windows, killing transient/non-enabled units; enabled q5-serve resurrects and steals :8080 - health checks MUST verify the serving binary (/proc/pid/exe)",
+   "fork server slow anon growth: Private_Dirty +~1MB/min during inference (1 sample, 60s) - leak candidate for the multi-day soak",
+   "long gates need installed units + q5-serve autostart disabled for the window (done in gate v3; still died - restore was manual)"
+  ]
  }
 }
