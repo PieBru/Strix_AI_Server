@@ -867,8 +867,7 @@ speed, RAM, and context headroom.
 | GLM-5.3-flash (cloud) [²⁴](#fn24) | 11/12 |
 | DeepSeek V4.1 Flash (cloud) [²⁴](#fn24) | **12/12** |
 
-All local cells ran the hardened **v3.1** grader (overnight re-run,
- — the battery is uniform across the table at last.
+All local cells ran the hardened **v3.1** grader (overnight re-run) — the battery is uniform across the table at last.
 Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader.
 
 **Honest caveat:** at n=12, a one-item difference is within sampling noise
@@ -976,7 +975,7 @@ Even so, a scoring cell discriminates wherever the gate saturates — which
 is why fcb15 earns a podium column.
 
 Uniform-template fcb15 column — sharp family, effort noted per cell
-(**low is the promoted default**:
+(**low is the promoted default**).
 
 | model | template / effort | fcb15 | CI95 |
 |---|---|---:|---|
@@ -1001,7 +1000,8 @@ flash arms lead reasoning — the quantization cost is battery-dependent
 
 **Reproducing a cell (for agents).** Pin *both* the template file and
 the effort tier or the number is garbage — a stock-template run reads
-as a different model (that exact mislabel happened here:
+as a different model (that exact mislabel happened here: a stock-template
+cell was recorded as `low` — corrected in the effort table below).
 
 ```bash
 cd gbench && uv run python3 scripts/probe.py --battery fcb15 \
