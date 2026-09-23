@@ -106,13 +106,16 @@ All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
 pass/fail at 12 — not an overall quality verdict. The quality columns
 (AIME / fcb15 / ladder / sli / zebra) are pointers: bases, CIs and
 caveats live in [²⁵](#fn25), [¹⁰](#fn10) and each battery's chapter.
+Each model cell names the **template · effort** its quality cells were
+produced with (the as-served arm's basis, per [¹⁰](#fn10); Muse runs
+its stock template by family design).
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — | — | — | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — | — | — | 107 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
 ### Why Q5 wins
 
