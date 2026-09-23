@@ -897,60 +897,42 @@ still planned.
 
 ## AIME-12 (reasoning)
 
-| model | score | n |
-|---|---:|---:|
-| **Flash-Next Q5_K_XL** | **0.833** | 12 |
-| Flash-Next Q6_K_XL † | 0.727 | 11 [⁴](#fn4) |
-| Flash-Next IQ4_NL † | 0.667 | 12 |
-| Qwen3.8 27B Q8 † | 0.667 | 12 |
-| Muse-Glimmer Q8 † | 0.583 | 12 |
-| DeepSeek V4.1 Flash (cloud) [⁷](#fn7) [⁸](#fn8) † | 0.667 | 12 |
-| GLM-5.3 (cloud) [²⁴](#fn24) † | 0.583 | 12 |
-| GLM-5.3-flash (cloud) [²⁴](#fn24) † | 0.333 | 12 |
+The AIME surface is now a single **year-stratified 12-item selection**
+(6×AIME 2025 + 6×AIME 2026, seed 1300, same graders) — the contamination-correct
+cut that replaced the original stratified-random one. At n=12 it is a pointer,
+not a verdict: every interval below overlaps the champion's except where noted.
 
-Q6's 0.727 is 1–2 items below the champion's 0.833 at n=11 — the same tier, see [⁴](#fn4).
+| model | template basis | yearsplit | CI95 | n |
+|---|---|---:|---|---:|
+| **Flash-Next Q5_K_XL** (champion) | sharp | **0.833** | 0.55–0.95 | 12 |
+| Flash-Next Q6_K_XL | sharp | 0.750 | 0.47–0.91 | 12 |
+| 27B BF16 anchor | sharp-medium | 0.750 | 0.47–0.91 | 12 |
+| Qwen3.8 27B Q8 | sharp-medium | 0.500 | 0.25–0.75 | 12 |
+| Flash-Next IQ4_NL | stock | 0.417 | 0.19–0.68 | 12 |
+| Qwen3.8 27B Q8 | stock | 0.417 | 0.19–0.68 | 12 |
+| Muse-Glimmer Q8 | stock | 0.333 | 0.14–0.61 | 12 |
 
-**Full AIME-60 battery night (probe harness — distinct from the yearsplit-12 selection above):** LOW **0.533** [0.41–0.65] vs
-MEDIUM **0.517** [0.39–0.64], n=60 both, paired cross-box — a dead
-tie (one-item spread). AIME is effort-flat at the largest n measured;
-the effort lever is coding-specific (fcb15 +0.20 at low). The 0.833
-yearsplit cell remains the headline reasoning number for the champion
-(stratified 12-item selection; the full-60 bank includes harder
-unsolved-era items both tiers miss).
+Two structural findings: the **27B BF16 anchor (0.750) lands BELOW the
+Q5-quantized champion (0.833)** and ties the Q6 quant — the flash MoE
+architecture dominates reasoning regardless of quant tier; and the sharp
+template lifts the 27B's reasoning too (0.417→0.500) but far less than it
+lifted its coding score (0.267→0.800).
 
-**Year-stratified re-cut** — the contamination-owed fix,
-6×AIME2025 + 6×AIME2026, seed 1300, same graders:
+**Full-bank cross-check (n=60):** LOW **0.533** [0.41–0.65] vs MEDIUM
+**0.517** [0.39–0.64], paired cross-box — a dead tie (one-item spread). AIME is
+effort-flat at the largest n measured; the effort lever is coding-specific
+(fcb15 +0.20 at low). The n=60 bank also contains harder unsolved-era items
+that both tiers miss, which is why its level sits below the yearsplit cell.
 
-| model | yearsplit | n |
-|---|---:|---:|
-| **Flash-Next Q5_K_XL** (sharp) | **0.833** | 12 |
-| Flash-Next Q6_K_XL (sharp) | 0.750 | 12 |
-| 27B BF16 anchor (sharp) | 0.750 | 12 |
-| Flash-Next IQ4_NL (stock) | 0.417 | 12 |
-| Qwen3.8 27B Q8 (stock) | 0.417 | 12 |
-| Qwen3.8 27B Q8 (sharp) | 0.500 | 12 |
-| Muse-Glimmer Q8 (stock) | 0.333 | 12 |
-
-Cells run sharp-medium (template noted per cell); the stock cells are
-pre-re-cut. Two structural findings: the **27B BF16 anchor (0.750)
-lands BELOW the Q5-quantized champion (0.833)** and ties the Q6
-quant — the flash MoE architecture dominates reasoning regardless of
-quant tier; and the sharp template lifts the 27B's reasoning too
-(0.417→0.500) but far less than it lifted its coding score
-(0.267→0.800). Year-mix caveat: 2025 items remain contamination-suspect
-for locals.
-
-**†** scored under the pre-v3.1 grader (exec-namespace bug:
-structured solutions crashed the grader and were scored FAIL) — these
-cells skew low. Only Q5's AIME cell has been re-run under the fixed
-grader; the remaining re-runs are owed (see `grading_changelog` in
-[results.json](benchmarks/results.json)).
-
-**Contamination:** in the original seed-1300 selection, 8 of the 12
-items came from AIME 2025 — solutions public ~18 months at test time,
-so local-model cells were contamination-likely; only 4 came from AIME 2026. The year-stratified
-re-cut above (6+6) is the fix (see `aime_selection_split` in
-[results.json](benchmarks/results.json)).
+**Retired — the original stratified-random cut.** Its local cells were Q5
+0.833, Q6 0.727, IQ4_NL 0.667, 27B-Q8 0.667 and Muse 0.583. They are no longer
+tabulated, for two measured reasons: four of the five ran under the **v1
+grader** (exec-namespace bug — structured solutions raised `NameError` inside
+the checker and were scored FAIL, so they skew low), and 8 of its 12 items came
+from AIME 2025 (~18 months public at test time, contamination-likely for
+locals). The year-stratified cut above fixes both, so that is the number to
+quote. History and per-item artifacts: `grading_changelog` and
+`aime_selection_split` in [results.json](benchmarks/results.json).
 
 ## sli — structured-list integrity (GBench)
 
@@ -1169,9 +1151,10 @@ stratified):
 | model | zebra | CI95 | n |
 |---|---:|---|---:|
 | 27B BF16 (anchor, sharp) | 0.65 | 0.43–0.82 | 20 |
-| **Flash-Next Q5 (sharp-low)** | **0.65** | 0.43–0.82 | 20 |
+| **Flash-Next Q5 (sharp-low, shipped default)** | **0.65** | 0.43–0.82 | 20 |
+| **Flash-Next Q5 (sharp-low, full bank)** | **0.57** | 0.39–0.73 | 30 |
 | Qwen3.8 27B Q8 + DFlash | 0.55 | 0.34–0.74 | 20 |
-| **Flash-Next Q5_K_XL** | **0.50** | 0.25–0.75 | 12 |
+| Flash-Next Q5 (sharp-medium, full bank) | 0.53 | 0.36–0.70 | 30 |
 | Muse-Glimmer Q8 | 0.45 | 0.26–0.66 | 20 |
 | Flash-Next IQ4_NL | 0.42 | 0.19–0.68 | 12 |
 | DeepSeek V4.1 Flash (cloud) [⁷](#fn7) | 0.42 | 0.19–0.68 | 12 |
@@ -1179,12 +1162,14 @@ stratified):
 | GLM-5.3-flash (cloud) [²⁴](#fn24) | 0.42 | 0.19–0.68 | 12 |
 
 **Zebra re-cut:** the BF16 anchor row landed (0.65 — the morning cell had died
-silently on a port transition, re-run clean), and the Q5 row at
-sharp-low matches it exactly — the champion at low effort closes the
-one battery where the 27B pair edged it (overlapping CIs throughout).
-The low-effort promotion gate passed here too: +0.15 over Q5-medium's
-0.50. Zebra remains everyone's weakest battery — the CSP ladder is
-where headroom lives.
+silently on a port transition, re-run clean), and the champion's shipped-default
+cell matches it exactly (0.65 at n=20, overlapping CIs throughout). The full-bank
+re-score is the tighter measurement and the honest one to quote for the effort
+axis: **sharp-low 0.567 vs sharp-medium 0.533** at n=30 both — low still leads,
+but by one item, where the looser n=20-vs-n=12 pairing had suggested +0.15. An
+earlier n=12 champion cell (0.50) is no longer listed: its template basis was
+never recorded, so it is not comparable to any row above. Zebra remains
+everyone's weakest battery — the CSP ladder is where headroom lives.
 
 ## DeepSeek V4.1 Flash Q2 — tested, parked
 
