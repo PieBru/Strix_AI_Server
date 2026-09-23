@@ -1059,8 +1059,10 @@ constraint-stacked variants (tiers B, C, D, E — drafted and selfchecked
 when >=2 models saturate the current rung; until then the deeper rungs are
 administered as a *measurement* (`scripts/fcb15_run.py --items-file
 batteries/fcb15_v3d.py`), never as an activation. Greedy pass rates, both
-models on the **same template** (sharp-low, the promoted default), one
-box, one harness:
+models on the **same template** — **sharp-medium**, which is the default these
+rungs were run under (2026-09-21); the low-effort promotion came *after* them,
+so every cell in this table is medium-basis. Q6's row (added 2026-09-23) was
+re-measured on the same medium basis for exactly that reason. One box, one harness:
 
 | model | v3 (headline) | v3 + D rung | v3 + D+E rung | + F rung | holds to |
 |---|---:|---:|---:|---:|---|
