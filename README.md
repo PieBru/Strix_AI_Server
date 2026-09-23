@@ -341,6 +341,14 @@ margin. The `MemoryMax=118G` systemd cap sits between: enough room for
 the ~114 GiB footprint, tight enough that an OOM kill (which is what
 killed the Q6 bench chain) is the failure mode, not silent swap.
 
+This accounting assumes the
+[no-zram swap layout](#swap-answer-no-to-zram--and-why) both nodes run:
+a plain 32 GiB swapfile, `vm.swappiness = 10`, and no compressed RAM
+device competing for the pool. zram0 was stripped from both boxes
+(2026-09-23, verified after: `/proc/swaps` lists only the swapfile on
+each) — with zram present, up to 16–32 GiB of "swapped" pages were
+still RAM-resident, silently shrinking the headroom this table grants.
+
 Where the numbers come from:
 - **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
  (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
