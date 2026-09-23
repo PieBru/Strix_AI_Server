@@ -117,6 +117,80 @@ its stock template by family design).
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
+## Arch Linux minimal server — the base install
+
+Everything in this file runs on a plain Arch install with **no desktop
+environment**; the [hardware section](#hardware) already priced that choice
+(~5 GiB of RAM a desktop session would hold, counted in the [RAM
+accounting](#ram-accounting) table). This chapter is the reproducible
+recipe, driven by [archinstall](https://github.com/archlinux/archinstall) in
+its **guided ("human") mode** — the option names below are the labels the
+installer puts in front of you, so the table can be followed in the menu.
+
+| guided prompt | our answer | why |
+|---|---|---|
+| **Profile** → `Minimal`, or `Server` → `sshd` | Minimal (+ `sshd`) | headless; the Server profile adds nothing we want beyond `openssh` + `sshd.service` |
+| **Kernels** | `linux` | the AMD/ROCm stack tracks current kernels — no LTS fallback to keep in sync |
+| **Bootloader** | `Systemd-boot` | one EFI partition, no GRUB config to maintain |
+| **Disk configuration** → best-effort default layout | single `ext4` root on the NVMe | one 1.9 TB disk with one job; snapshots buy nothing here |
+| **Would you like to use swap on zram?** | **No** | measured — see below |
+| **Network configuration** → copy the ISO configuration | `systemd-networkd` | no desktop, so no NetworkManager; `/etc/systemd/network/*.network` is a few lines per NIC |
+| **Audio** | none | no `pipewire`/`wireplumber`/`alsa-firmware` on either box |
+| **Additional packages** | `openssh`, `cockpit` | Cockpit (optional) is the browser dashboard for an otherwise GUI-less box |
+| **Time zone / locale / keymap** | `Europe/Rome`, `en_US.UTF-8`, `it` | |
+| **NTP** | enabled | `systemd-timesyncd` — the Doctor's timeline is only as good as the clock |
+
+The same decisions as config JSON, for an `archinstall --config` run:
+`"profile_config": {"profile": {"main": "Minimal"}}`,
+`"bootloader_config": {"bootloader": "Systemd-boot"}`,
+`"kernels": ["linux"]`, `"audio_config": {"audio": "none"}`,
+`"swap": {"enabled": false}`, `"disk_config": {"config_type": "default_layout"}`.
+
+### Swap: answer **No** to zram (measured, not taste)
+
+archinstall asks *"Would you like to use swap on zram?"* and its sample
+config ships `"swap": {"enabled": true}` — both nodes came up with `zram0`
+(zstd, priority `100`) from install day. On an inference server that default
+is a trap, and we measured the bill before switching it off:
+
+| | zram, as the installer ships it | plain 32 GiB swapfile, what we run |
+|---|---:|---:|
+| compression on the pages that actually got swapped | **1.09×** (4.5 GiB → 4.1 GiB of RAM still held) | n/a |
+| RAM freed per page swapped out | **≈9 %** | 100 % |
+| price of a fault-in | zstd decompress, then the amdgpu userptr restore stall | one SSD read |
+| behaviour under sustained pressure | 250 MB/s treadmill, decode 37 → 1.7 t/s | makes progress, then ends |
+
+The premise of zram is *swap is compressible*. The pages a serving load
+hands it under pressure are model/KV-class — high-entropy, effectively
+incompressible (1.09× measured on 4.5 GiB of real storm content) — so the
+kernel swaps ~250 MB/s, reclaims ~9 % of it, and swaps again. That is the
+signature we see: `si≈so≈250 MB/s` with decode collapsing from ~37 t/s to
+1.7 t/s at the same tier, where a disk swap instead makes real progress and
+*stops*. And because `zram0` carries priority `100` against the swapfile's
+`-1`, it is the first target of every squeeze — then stays resident, holding
+the RAM it was supposed to free (4.5 GiB held, hours after the storm). Any
+box can be checked in two commands: `swapon --show`, then `cat
+/sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the real ratio).
+
+Our setup on both nodes: `swapoff /dev/zram0`, the zram generator disabled
+in `/etc/systemd/zram-generator.conf`, a 32 GiB `swapfile` in `/etc/fstab`
+(guided mode's swap step is zram-only — a swapfile is three commands
+afterwards, or a swap partition in the manual disk layout), and
+`vm.swappiness = 10` in `/etc/sysctl.d/`. The number to watch is not swap
+*use* but swap *rate*: `si`/`so` at zero with 106 GiB of GTT is healthy;
+either one pinned at hundreds of MB/s is the failure mode this chapter
+exists to prevent.
+
+### After the install
+
+ROCm and the rest of the serving stack are one AUR package
+(`rocm-nightly-gfx1151-bin`), a `uv` install for the harness, and a
+Vulkan/ROCm build of llama.cpp — [the tooling chapter](#reproduce-our-tests)
+has the exact commands. Cockpit, if enabled, is the box's only web surface
+besides the model server itself.
+
+## Podium — the details
+
 ### Why Q5 wins
 
 **The standing decision:** the champion is
