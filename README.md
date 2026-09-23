@@ -850,7 +850,14 @@ the floor, not the mean: three other same-config runs the same day
 measured 434.8 / 472.8 / 491.9 t/s (150k-class prompts), so deep prefill
 at this tier is streaming-variance-heavy — the row-eviction disease the
 Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
-22.3) remain at the 64k-era basis from [⁶](#fn6).
+22.3) remain at the 64k-era basis from [⁶](#fn6). **Post-zram anomaly
+(2026-09-23):** one warm, post-load probe at this tier measured pp32k
+**5474** and pp128k **2048 t/s** (159,863 tokens in 78.1 s) — 4–10× the
+zram-era records above, while its own pp4k leg is invalid (14 t/s: the
+430 s first window is lazy expert streaming, not speed). Too unstable to
+promote on one run — but it hints the fleet's pp cells may be
+zram-suppressed across the board; a clean fleet re-measurement on the
+no-zram baseline is the honest next step.
 
 <a id="fn19"></a>¹⁹ The GLM-5.3 gate/AIME/zebra cells and the DeepSeek V4.1 Flash
 gate cell were **redone 2026-09-22** with artifacts on disk
