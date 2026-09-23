@@ -444,3 +444,34 @@ Steady state continues: boxes serving, sampler flat, all blockers documented
 with the morning queue in results.json. Nothing new to act on; the loop's
 remaining value tonight is passive availability. Reflection content is
 unchanged from iteration 16's — see that entry.
+
+## MORNING HANDOFF (final iterations 39-40 — night complete)
+
+### Box state (verified this iteration)
+- strixy: model-router-pwilkin active, health ok (untouched all night).
+- strixy2: q5-serve active+enabled, health ok, avail 10.3G, si=0 so=0;
+  Doctor active; pi-dream.timer re-enabled and active.
+- Leak sampler: flat series (router arm Private_Dirty unchanged over 45+ min
+  — leak hypothesis dead for that process; strixy2 q5-serve series = soak work).
+- No stray processes; no reboots since 22:10 (the vanilla-crash series).
+
+### Morning queue for the operator (priority order)
+1. SUPERVISED vanilla crash repro (the big one): dmesg -w live + one cold
+   vanilla load on strixy2 -> capture the amdgpu/kernel signature at the
+   crash; decide amdgpu.gpu_recovery; report upstream with the six-reboot
+   evidence (results.json overnight_260923.blocked[0]).
+2. pi-dream endpoint fix (4 failed starts today; likely a repurposed port).
+3. If the crash is understood/fixed: drluoto standalone MTP draft load test
+   (~/Downloads/LLM/Qwen38/mtp-drafts/drluoto, staged) -> then the vanilla
+   battery suite rerun (overnight-vanilla.sh is idempotent and resumable).
+4. pp@128k@>=160k on vanilla (needs a load that survives; blocked behind 1+3).
+5. Optional: Q6 multi-day Doctor soak (the promotion bar); fork QSA-indexer
+   f16 patch (+1G); fleet pp re-measurement.
+
+### Everything landed and pushed (last commit 0f7f4e0)
+- Uniform sharp-low basis complete across all local rows (README + artifacts).
+- Q6 zebra cell 0.65 (no-MTP) — the day's hardest-won result.
+- Vanilla q8_0 KV = fastest arm (36.6/32.0 t/s) — preliminary, cache-warm only.
+- Full forensic chain of the night: pi-dream resurrections -> fleet-guard
+  revival -> vanilla cold-load kernel crash (six reboots) — all documented
+  with timestamps in results.json + this log.
