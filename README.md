@@ -114,7 +114,7 @@ its stock template by family design).
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | — [¹¹](#fn11) | 10/10 [¹¹](#fn11) | — [¹¹](#fn11) | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-medium (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | 0.500 | 0.800 [¹⁰](#fn10) | **all rungs** | — | 0.55 | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
 
 ## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
 
@@ -132,7 +132,7 @@ effort/thinking tuning on our side).
 |---|---|---|---|---|
 | Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
 | AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
+| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
 | Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
 | sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
@@ -824,7 +824,7 @@ the floor, not the mean: three other same-config runs the same day
 measured 434.8 / 472.8 / 491.9 t/s (150k-class prompts), so deep prefill
 at this tier is streaming-variance-heavy — the row-eviction disease the
 Q6 section documents. The row's other speed cells (730 / 699 / 34.3 /
-22.3) remain at the 64k-era basis from [⁸](#fn8).
+22.3) remain at the 64k-era basis from [⁶](#fn6).
 
 <a id="fn19"></a>¹⁹ The GLM-5.3 gate/AIME/zebra cells and the DeepSeek V4.1 Flash
 gate cell were **redone 2026-09-22** with artifacts on disk
