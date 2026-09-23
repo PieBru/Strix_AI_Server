@@ -791,7 +791,12 @@ Overlapping CIs throughout: no ranking claims.
   watchdogs — the next guard is a systemd unit with `Restart=always`). 131k sits
   between two documented failures and was not attempted: **the cell closes as a
   tier-independent negative** — long CSP generations exceed the arm's activated-row
-  budget at every context size. The ladder, re-run later the same
+  budget at every context size. An 86k attempt (2026-09-23, `ub=1024`, the
+  validated 192k unit's buffers) sat on the ridge — RAM 100%, avail ~0.6 G — for
+  ~8 minutes with `so=0`, then tipped the same way; the squeeze levers measured
+  that day (PageTables 20 MB with THP already `always`, non-model services ~40 MB,
+  mmproj already absent on this fork) total well under 1 GiB, and the storm
+  proves ±1 GiB is noise against this deficit. The ladder, re-run later the same
   day on a fresh reload, completed clean: **13/15 greedy | 13/15 with-retry**
   (fails items 2 and 13; retries never flip them) — every rung held at 64k,
   the best greedy ladder cell of the three local rows. So 64k sustains

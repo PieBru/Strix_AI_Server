@@ -919,6 +919,19 @@
    "rc": 137,
    "note": "operator-requested retry at the 192k tier stormed within minutes (Doctor-observed continuous swap storm, RAM 100%, manual SIGKILL). 64k and 192k both documented; 131k not attempted (sits between two failures). The Q6 zebra cell is unobtainable at any tier of this arm.",
    "guard_failure": "local guard died silently mid-storm (log stops at 'started'); ad-hoc setsid scripts are not watchdogs - next guard is a systemd unit with Restart=always"
+  },
+  "zebra_86k": {
+   "verdict": "NEGATIVE - third tier",
+   "rc": 137,
+   "config": "c=88064, ub=1024 (validated 192k unit's buffers), MTP, MemoryMax=118G, sharp-low",
+   "behavior": "held the ridge ~8 min (RAM 100%, avail ~0.6G, so=0) then stormed; manual SIGKILL, restore complete in 14s, guard alive throughout (manual kill faster than its 30s threshold)",
+   "squeeze_audit": {
+    "page_tables": "20 MB (THP already always)",
+    "non_model_services": "~40 MB (tailscaled 14M, Doctor 13M, sshd 13M)",
+    "mmproj": "already absent on this fork",
+    "levers_ge_1GiB": "all change the arm: drop MTP ~3-3.5G, KV q8_0 ~1G at 86k, zebra-specific c=32k ~1.2G"
+   },
+   "conclusion": "64k + 86k + 192k all storm; +-1 GiB is noise against the deficit. The only Q6-class path to a zebra cell is a smaller-resident artifact (mixed-quant SSD-PLE: 90.95 GiB resident, needs the ds4 runtime, not llama.cpp)."
   }
  }
 }

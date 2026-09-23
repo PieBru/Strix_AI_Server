@@ -226,3 +226,25 @@ and effort are now uniform.
   a chained background watcher.
 - Pending: pp192k probe (background, ~15 min) → harvest the pp@128k cell
   → q5-serve auto-restore → final health report of both boxes.
+
+## Iteration 7 — the 192k storm + closure
+- Operator-requested zebra@192k attempt stormed within minutes
+  (Doctor-observed continuous swap storm, RAM 100%). Manual SIGKILL per the
+  storm rule; q5-serve restored (health ok, si=0 so=0, swap residue 134M).
+  The 192k config is OFF the box — serving is back at the normal arm.
+- **zebra/Q6 closed as tier-independent negative** (64k + 192k both stormed;
+  131k between two failures, not attempted). fn11 + results.json updated.
+- **Third guard failure class:** the ad-hoc local guard died silently
+  mid-storm (log stops at "started"). Durable fix: guards become systemd
+  user units with Restart=always (not built tonight — noted as debt).
+- **pkill self-match struck a THIRD time** (the bracket-pattern lesson is
+  now in the fault log 3×: always bracket pgrep/pkill patterns).
+- **pp anomaly banked:** the probe that finished pre-storm measured pp32k
+  5474 / pp128k 2048 t/s (post-zram, warm) vs 198.9–491.9 zram-era.
+  Flagged unstable in fn18, NOT promoted. Optional fleet-wide pp
+  re-measurement is the operator's call.
+- **Process honesty note:** commit 626b311 claimed an fn18 edit that its
+  edit-call had failed to apply (atomic failure); caught by grep, landed
+  in 4d63990. Lesson: grep-verify every edit before its commit message.
+- Pushed: 626b311, 4d63990. Both boxes verified serving. Todo: 8/9
+  (9th = optional fleet pp re-measurement, operator-gated).
