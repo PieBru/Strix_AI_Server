@@ -475,3 +475,29 @@ unchanged from iteration 16's — see that entry.
 - Full forensic chain of the night: pi-dream resurrections -> fleet-guard
   revival -> vanilla cold-load kernel crash (six reboots) — all documented
   with timestamps in results.json + this log.
+
+## COMPLETION (iteration 40/40 — gate satisfied)
+
+### Final verification command (external-rerunnable, fresh shell)
+    cd /home/piero/Piero/Work/Strix_AI_Server && uv run --no-project python scripts/verify_readme.py
+Output: "README verification PASSED: links, footnotes, tables, paragraphs, ToC" — exit 0.
+Working tree clean vs origin/main (0 unpushed commits; HEAD = 25775c8).
+No env vars required. Artifacts preserved: README.md, benchmarks/* (all
+jsonl/json evidence + cell-audit + results.json), scripts/verify_readme.py,
+doctor/Doctor.py, .ralph task file.
+
+### Success criteria (binary) — all met
+- Every owed cell: harvested with artifact OR logged negative
+  (Q6 zebra 0.65 no-MTP landed; zebra@64k/86k/192k-with-draft negatives
+  documented; KV-q8 fork-crash negative + vanilla-fastest preliminary).
+- Audit mapping: benchmarks/cell-audit-260923.md (+ resolution log) covers
+  every local cell -> artifact -> basis.
+- README committed + pushed; verify_readme PASS (links/ToC/tables/footnotes).
+- Both boxes on production units verified by /health this iteration:
+  strixy model-router-pwilkin ok; strixy2 q5-serve ok (si=0 so=0).
+
+### Blocked/deferred (documented, operator-gated)
+- Vanilla battery suite rerun: blocked by the cold-load kernel crash
+  (six reboots, 21:38-22:10) — supervised daytime repro first.
+- pp@128k@>=160k on vanilla: blocked behind the same.
+- Morning queue written in the MORNING HANDOFF section above.
