@@ -195,3 +195,20 @@ Counted directly from the per-item JSONL on disk (`ok / n`), not from
 6. **Missing cells, in flight now** (2026-09-23, both boxes): Q6 sli/zebra/ladder
    at the 64k tier (strixy2, `q6c64l2`) and the 27B's sharp-low fcb15 + AIME
    yearsplit (strixy, `27b-low-pair`).
+
+## Alignment decisions taken (2026-09-23, this pass)
+
+| finding | resolution |
+|---|---|
+| 4 AIME-12 stratified cells under the broken v1 grader | **table retired.** The stratified-random selection was also 8/12 contaminated; the year-stratified cut is now the AIME chapter's single table (with per-row Wilson CIs). The retired numbers are kept in one paragraph, with the reason. |
+| Q5 zebra published as three different numbers (0.65 n=20 / 0.50 n=12 / 0.567 n=30) | **reconciled.** One row per basis: sharp-low 0.65 (n=20, shipped default), sharp-low 0.567 (n=30, full bank), sharp-medium 0.533 (n=30). The n=12 cell is dropped — its template basis was never recorded. The "+0.15 effort" claim became +0.03 at the tighter interval. |
+| `results.json` placeholders (yearsplit scores, Q6 zebra `None`, Q6 fcb15 "owed", the string-scored 27B iten12 record) | **reconciled against the artifacts**: missing scores/CIs filled, the malformed record fixed, the missing n=20 zebra record added. |
+| Q6 sli / zebra / ladder at the 64k tier | **sli filled (10/10)**; **zebra + ladder recorded as not obtainable** at the shipped tier — the long-CSP items storm the box (388 MB/s swap-out, avail 2.0 GB). Kept as a limitation in fn11, not as a number. |
+| footnote cross-references | fn18 cited fn8 (a DeepSeek census note) for the Q6 speed cells → now fn6, which is about exactly that provenance; fn3 re-cited from the Muse row; fn8 re-cited from the cloud AIME-60 cell. 22 definitions, zero orphans, zero dangling refs. |
+
+### Still open
+- **27B sharp-low pair** (fcb15 census + AIME yearsplit) — running on strixy as this
+  file is written (`27b-low-pair`, strixy, c=131072, sharp-low).
+- **The 27B iten12 run-sensitivity**: two artifacts of the same arm score 10/12 and
+  11/12 (differing on item 0). Both fail the 12/12 gate, so no conclusion is at
+  risk, but the published cell should name its run.
