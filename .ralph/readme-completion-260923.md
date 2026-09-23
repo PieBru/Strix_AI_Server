@@ -426,3 +426,15 @@ question; morning = both boxes on production units + everything pushed.
   amdgpu.gpu_recovery, report upstream).
 - The vanilla suite rerun decision belongs to the operator with this
   evidence; the staged drluoto draft stays staged.
+
+## REFLECTION (iteration 16 — night steady-state)
+1. Accomplished: every measurable cell harvested or blocked with root
+   causes; the six-reboot discovery closed the night's mystery chain;
+   draft staged; sampler flat; boxes in production all night.
+2. Working: binary-verified checks, documented-blocker discipline,
+   quiet-watch cadence.
+3. Blocking: vanilla work is operator-gated daytime (crash repro +
+   draft load test); pi-dream endpoint fix; pp@128k@>=160k.
+4. No adjustment — the watchdog stance is correct until dawn.
+5. Next: hand the operator the morning queue (already written in
+   results.json + this log); final sweeps only.
