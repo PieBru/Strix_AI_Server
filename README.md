@@ -782,9 +782,16 @@ Overlapping CIs throughout: no ranking claims.
   sustained ~32 t/s. The podium cell is the as-shipped low basis (the `deep` arm
   serves sharp-low), per [¹⁰](#fn10)'s rule.
 - **sli:** 10/10 [0.72–1.0] — the canary saturates here too.
-- **zebra is not obtainable at this tier; the ladder is.** The 20 long-CSP items
-  stormed the box (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
-  prints for 4+ min) and had to be SIGKILLed. The ladder, re-run later the same
+- **zebra is not obtainable at ANY tier of this arm; the ladder is.** The 20 long-CSP items
+  stormed the box at 64k (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
+  prints for 4+ min) and had to be SIGKILLed. An operator-requested retry at the
+  **192k tier** (2026-09-23) stormed the same way within minutes — Doctor-observed
+  continuous swap storm, RAM at 100%, manual SIGKILL; the ad-hoc local guard died
+  silently mid-storm (its log stops at "started"; ad-hoc `setsid` scripts are not
+  watchdogs — the next guard is a systemd unit with `Restart=always`). 131k sits
+  between two documented failures and was not attempted: **the cell closes as a
+  tier-independent negative** — long CSP generations exceed the arm's activated-row
+  budget at every context size. The ladder, re-run later the same
   day on a fresh reload, completed clean: **13/15 greedy | 13/15 with-retry**
   (fails items 2 and 13; retries never flip them) — every rung held at 64k,
   the best greedy ladder cell of the three local rows. So 64k sustains

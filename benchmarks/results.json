@@ -884,5 +884,41 @@
     "note": "medium cell was 0.55; three-way tie at the top with Q5 and the BF16 anchor"
    }
   }
+ },
+ "q6_192k_260923": {
+  "pp_probe_postzram": {
+   "tier": 196608,
+   "note": "one warm post-load probe, no zram; UNSTABLE vs zram-era records - not promoted to the podium",
+   "cells": {
+    "pp4k": {
+     "value": "14 t/s",
+     "valid": false,
+     "why": "cold lazy expert streaming - the 430s first window is load, not speed"
+    },
+    "pp32k": {
+     "value": "5474 t/s",
+     "tokens": 39534,
+     "seconds": 7.2
+    },
+    "pp128k": {
+     "value": "2048 t/s",
+     "tokens": 159863,
+     "seconds": 78.1,
+     "zram_era_records": [
+      "198.9 floor",
+      "434.8",
+      "472.8",
+      "491.9"
+     ]
+    }
+   },
+   "artifact": "../Qwen38 reruns-260919/q6-low-row/pp192k.txt"
+  },
+  "zebra_192k": {
+   "verdict": "NEGATIVE - tier-independent",
+   "rc": 137,
+   "note": "operator-requested retry at the 192k tier stormed within minutes (Doctor-observed continuous swap storm, RAM 100%, manual SIGKILL). 64k and 192k both documented; 131k not attempted (sits between two failures). The Q6 zebra cell is unobtainable at any tier of this arm.",
+   "guard_failure": "local guard died silently mid-storm (log stops at 'started'); ad-hoc setsid scripts are not watchdogs - next guard is a systemd unit with Restart=always"
+  }
  }
 }
