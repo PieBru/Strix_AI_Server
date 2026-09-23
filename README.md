@@ -637,11 +637,16 @@ and HIP unified memory fight over the same physical pages); `c=32768 +
 KV q8_0` = loads but wedges on first real generation (GPU 0%, zero
 timing prints, requests hang — a fork lazy-path bug). The cure is
 fork-level (or a re-quant) for the *131k* tier — **but at c=65536 the
-cliff disappears**: a 10-minute sustained gate measured **27.4 t/s
-flat** (18k tokens, no decay; the ~1.5 GiB of extra KV headroom keeps
-the eviction away). **Q6 at 64k is a working sustained tier** — a
-single client with a whole-codebase prompt under 64k tokens gets Q6
-quality at 27 t/s.
+cliff moves, it does not disappear**: a 10-minute sustained gate measured
+**27.4 t/s flat** (18k tokens, no decay; the ~1.5 GiB of extra KV headroom
+keeps the eviction away for that long). **Q6 at 64k is a working sustained
+tier for census-length work** — a single client with a whole-codebase prompt
+under 64k tokens gets Q6 quality at 27 t/s. But the threshold is still there,
+just further out: the 2026-09-23 zebra leg at this same tier generated long
+enough to cross it and stormed the box (388 MB/s swap-out, `avail` 2.0 GB,
+decode stalled), while the fcb15 census (~6k-token items) and the sli canary
+both completed cleanly. So 64k's honest ceiling is *generation length*, not
+context size — see [¹¹](#fn11).
 
 **Context ladder — measured end to end on 2026-09-22** (Q6 + MTP, lazy
 `on-direct`, f16 KV, run under a `MemoryMax=118G` cap so the kernel keeps
@@ -649,7 +654,7 @@ a reserve instead of racing the GPU for pages):
 
 | `c` | loads | decode | ~114k-token prefill | faults |
 |---|---|---|---|---|
-| 65536 (shipped) | ✓ | 27.4 t/s flat (gate) | not tried | 0 (8/8 census) |
+| 65536 (shipped) | ✓ | 27.4 t/s flat (gate, 18k tokens) | not tried | 0 (8/8 census) |
 | **131072** | ✓ | **24.9 / 25.1 t/s** | **726 t/s, then 25.1 t/s** | **0** |
 | 196608 (`ub=4096`) | ✓ | 21.8 t/s | ✗ SIGABRT | 0 |
 | **196608 (`ub=1024`)** | ✓ | **22.65 t/s** | **434.8 t/s, then 27.8 t/s** | **0** |
