@@ -178,8 +178,8 @@ keeps closed engines at reference distance; both bite here.
 | engine | status | measured on | pp@4k | tg128 | tg2048 | fcb15 greedy | one-line read |
 |---|---|---|---:|---:|---:|---:|---|
 | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) | **adopted — serves every fleet arm** | UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26) | 865 | **33.5** | **31.7** | **14/15** | the load-bearing baseline: fork-format MTP draft, lazy PLE, fast deep-pp |
-| llama.cpp upstream (vanilla, `b11147`) [²⁸](#fn28) | preferred by policy — cannot host this family safely | Q5_K_XL (same box, 260923) | — | 27.0 f16 / **36.6 q8-KV** | 25.7 / **32.0** | none (suite aborted) | q8-KV loads *only* upstream; detached-draft configs hard-crash the box |
-| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) | upstream tracking — `llama-vulkan.service` | Q5_K_XL (recipe basis, 260921) | — | — | — | none (see [²⁸](#fn28)) | quality identical to HIP; deep prefill ~3.5× slower at 128k (flag-vs-backend question open) |
+| llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) | preferred by policy — cannot host this family safely | Q5_K_XL, draftless, dio+on (same box, 260925) | **266** f16 / **530** q8-KV | 21.0 f16 / 21.7 q8-KV | 20.9 / 21.0 | none (suite aborted) | q8-KV loads *only* upstream (+99% pp4k over f16); the old 36.6 q8-KV decode claim was a draft artifact [³⁵](#fn35); detached-draft configs hard-crash the box |
+| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) | upstream tracking — `llama-vulkan.service` | Q5_K_XL, draftless, dio+on (260925) | **257** | **24.6** | **23.5** | none (see [²⁸](#fn28)) | quality identical to HIP; decode **beats vanilla HIP f16** (+17%); deep prefill ~3.5× slower than the *fork's* HIP at 128k |
 | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
 | Gufo (open, native HIP) [³⁰](#fn30) | lab — **image modality** | Qwen-Image-2.1 official BF16 (260924) | — | — | — | — (image) | generation 111 s / 2-reference edit 200 s @1024[²](#fn2), RSS 31 GiB; text-LLM cells owed |
 | ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
@@ -1669,6 +1669,21 @@ same-day paired vs the Q5 incumbent's 0.800 — [²⁶](#fn26)); decode tg128
 `benchmarks/probe-q4-aime60-260925.json`; the Q5 column's 0.533/0.517
 moves to the AIME chapter as the incumbent's reference. Nominal deficits
 vs Q5 on AIME/zebra are recorded, not hidden — CIs overlap at these n.
+
+<a id="fn35"></a>³⁵ **The 2026-09-25 vanilla re-measure (b11168, same night, same weights).**
+All cells: Q5_K_XL, draftless (never attach a draft — [²⁸](#fn28)), f16 KV
+@131k unless noted, `-lm dio -lzm on` (the canary lazy recipe — mmap+on is
+the [wedge](#why-not-vanilla-upstream)), speed_probe corpus, temp 0.
+**HIP f16**: pp4k 266 / pp32k 254 / tg128 21.0 / tg2048 20.9. **HIP
+q8_0-KV**: pp4k 530 / pp32k 413 / tg128 21.7 / tg2048 21.0 — q8-KV buys
+prefill (+99% @4k, KV-write bandwidth) and *no* decode. **Vulkan f16**:
+pp4k 257 / pp32k 241 / tg128 24.6 / tg2048 23.5 — the best vanilla decode
+on this box. Corrections vs the 260923 cells: the q8-KV "36.6/32.0 fastest
+decode" was the fork-format draft in a degraded spec mode (fn28's own basis
+correction, now confirmed draftless); vanilla prefill is ~2.6× slower than
+the fork's (266 vs 689 @4k) — the fork's deep-pp patches are the delta.
+Artifacts: `benchmarks/logs-260925/`, results.json
+`engine_axis_vanilla_260925`.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
