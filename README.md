@@ -1622,9 +1622,10 @@ For those who want to check our work:
 - Both natural translation conventions accepted (v2 battery; v1 had a
  10/12 ceiling by forcing one convention — fixed)
 - All cells on identical hardware, same binary where noted
-- Speed numbers from the pwilkin HIP binary; vanilla-VK serves Q5 at
- quality parity, but a fair speed comparison is owed (the vanilla config
- may need `-ngl 999` — testing pending)
+- Speed numbers from the pwilkin HIP binary; the fair vanilla-vs-fork
+ speed comparison landed 2026-09-25 ([³⁵](#fn35) — draftless vanilla cells
+ on the same weights and night: pp ~2.6× slower than the fork, Vulkan the
+ best vanilla decode backend)
 - **Known limitation:** the iten12 battery measures translation quality,
  not coding ability — that is measured by the [GBench fcb15 and zebra
  cells](#coding--gbench-fcb15-deterministic-unit-tested); long-context
