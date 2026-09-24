@@ -1047,6 +1047,11 @@
     "t": "07:56",
     "config": "f16 KV @131072 + drluoto detached MTP draft (4.5G over the 1.1G margin)",
     "result": "BOX HARD-CRASH ~80s in: ssh dead <=07:57:40, boot 07:57:48, back 07:57:58; ZERO kernel messages; FAT-fs dirty flag on every crash boot = instant SoC reset, no panic path"
+   },
+   {
+    "t": "08:40",
+    "config": "f16 KV @131072 draftless (SUITE attempt, started seconds after q5-serve stop)",
+    "result": "BOX HARD-CRASH ~26s after arm-up (boot 08:41:18), during the speed probe. The identical config loaded+served at 07:47 from a long-quiesced box."
    }
   ],
   "root_cause": "GGML_HIP_ENABLE_UNIFIED_MEMORY allocation exceeding physical unified memory hard-locks the SoC silently (no OOM/no amdgpu trace/no panic). Community-known class: PR #27836 comment (flobob45, gfx1151): 'GGML_CUDA_ENABLE_UNIFIED_MEMORY=1 crashed silently at load'. The fork (llama-pw) survives the same footprint (Q5+shared draft @131k serves daily).",
@@ -1056,13 +1061,15 @@
    "@131072 f16 + detached draft": "IMPOSSIBLE on this hardware (over-commit -> SoC crash) AND on upstream (PR unmerged)",
    "@196608 any KV": "f16 needs +32G over RAM+swap (deterministic fail); q8 hits the indexer assert -> IMPOSSIBLE",
    "q8 KV anywhere": "indexer assert fires (0.9s) with a draft attached; the 260923 21:09 q8 run (36.6/32.0) attached the fork-format SHARED draft and did NOT assert - basis note below"
-  }
+  },
+  "final_verdict": "Draftless@131k vanilla loads are a COIN FLIP on box survival (today: 1 survive / 1 crash; yesterday: 2 clean app-fails / 1 crash at the same config). The unified-memory allocation path is nondeterministically lethal even when the config FITS. No autonomous vanilla suite is safe on this hardware; any further vanilla measurement is a supervised single-shot at most. The fork-vs-vanilla comparison is CLOSED: the fork's allocation safety (never trips it, same footprint) IS the headline difference; quality/speed cells beyond this morning's draftless probes would cost more box-stability risk than they're worth."
  },
  "gpu_clock_policy_260924": {
   "finding": "operator relayed drluoto HF card: on AMD auto perf level floats, ~20% loss; pin with high perf level",
   "applied": "both boxes pinned HIGH 260924 ~08:00 (amd-smi set -l high, sudo)",
   "caveat": "runtime setting - resets on reboot; re-pin at benchmark session start or make a unit. ALL existing numbers measured in AUTO - relative comparisons internally consistent, absolute values potentially ~20% below pinned-clock capability (unverified here).",
-  "measurement_note": "pinned-HIGH probes: pp4k 566-707, tg128 34.3-36.4 across consecutive identical runs - run-to-run spread right after restart is 15-25%; the drluoto-card '~20% from pinning' is NOT reproduced on our workload (at most single digits, within variance). Settled pinned numbers: pp4k ~707, pp32k ~685, tg128 ~36.4 vs yesterday AUTO pp 619/654, tg 33.2/28.2."
+  "measurement_note": "pinned-HIGH probes: pp4k 566-707, tg128 34.3-36.4 across consecutive identical runs - run-to-run spread right after restart is 15-25%; the drluoto-card '~20% from pinning' is NOT reproduced on our workload (at most single digits, within variance). Settled pinned numbers: pp4k ~707, pp32k ~685, tg128 ~36.4 vs yesterday AUTO pp 619/654, tg 33.2/28.2.",
+  "calibration_verdict": "CLEAN INTERLEAVED TEST (same settled arm, cache-busted corpus variants): HIGH vs AUTO = pp4k 709/680 vs 707/679 (identical), tg128 36.9/37.9 vs 36.6/36.5, tg2048 32.2/32.2 vs 32.0/31.9 -> NO measurable difference (<=2%, within noise). The drluoto-card ~20% does not transfer to sustained serving on this box; auto-boost covers it. Left pinned HIGH per operator directive (harmless)."
  },
  "mtp_ngram_experiment_260924": {
   "question": "does drluoto's 'draft-mtp,ngram-mod + p-min 0.7' recipe (their 16.8->47 t/s on IQ4_XS) transfer to our production Q5_K_XL+shared-draft fork arm?",
@@ -1113,5 +1120,10 @@
   "upstream_state": "ggml main: #27836 still open-draft; #28901 only changed sidecar hc-tensor requirements - no MTP loader merged. ik_llama.cpp main has it.",
   "notable": "julianmb/haloq38flash: official converter bug - every hc norm off by exactly 1.0 (first quants printed garbage); 91G quant + 56 t/s + 262k ctx",
   "implication_for_us": "our fork+shared-draft already implements the working path; challenger-engine candidates exist (EngramHalo for kernels, ik_llama.cpp for merged-main) but all published wins are on smaller quants (IQ3/IQ4) - not our Q5/Q6 matrix"
+ },
+ "vanilla_suite_260924": {
+  "attempt": "draftless f16@131072 chained suite (speed+echo+iten12+fcb15), self-healing script",
+  "outcome": "ABORTED after the 3rd crash (08:41:18 boot); contaminated phases (ran against the resurrected fork) discarded; q5-serve verified restored (binary-checked)",
+  "note": "script at /tmp/vanilla-131k-suite.log pattern preserved in reruns-260919/q6-low-row/vanilla-131k-suite.log"
  }
 }
