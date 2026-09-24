@@ -69,6 +69,14 @@
    "note": "CONS sharp-template re-run; supersedes the stale 10/12 podium cell (pre-sharp); item 7 sole failure; hardened grader. Two artifacts of this same arm exist (iten12-qwen38-27b-q8-df.jsonl 10/12, iten12-27b-sharp.jsonl 11/12) - they differ on item 0, so the arm's gate value is run-sensitive (fails the 12/12 gate either way).",
    "ok": 11,
    "score": 0.9167
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q4_K_XL + MTP (shared-Q4_K_M draft)",
+   "ok": 12,
+   "n": 12,
+   "date": "2026-09-24",
+   "battery": "v3.1",
+   "note": "strixy2 :8091, UD-Q4_K_XL 111.3GiB, f16 KV @131k, sharp-low, draft-mtp n-max 3"
   }
  ],
  "aime": [
@@ -314,6 +322,28 @@
    "battery": "fcb15 v3",
    "runner": "GBench probe (Wilson CI)",
    "note": "sharp-LOW half of the 27B effort A/B, measured on strixy (c=131072). Dead tie with the sharp-medium cell (0.800, 12/15) but NOT the same item set: low fails item 11, medium fails item 5 - the dial moves which items break, not the count."
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q4_K_XL + MTP (shared-Q4_K_M draft)",
+   "ok": 14,
+   "n": 15,
+   "score": 0.9333,
+   "mode": "census",
+   "date": "2026-09-24",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)",
+   "note": "greedy 14/15 | with-retry 14/15; sole miss is item 2, which the Q5 incumbent misses too"
+  },
+  {
+   "model": "Qwen3.8 Flash-Next Q5_K_XL + MTP (same-day same-protocol re-run)",
+   "ok": 13,
+   "n": 15,
+   "score": 0.8667,
+   "mode": "census",
+   "date": "2026-09-24",
+   "battery": "fcb15 v3",
+   "runner": "GBench probe (Wilson CI)",
+   "note": "greedy 12/15 | with-retry 13/15 (fails items 2 and 13); run to make the Q4-vs-Q5 comparison apples-to-apples on one box/day/protocol"
   }
  ],
  "zebra": [
@@ -1142,5 +1172,43 @@
   "footprint": "~25G total (vs ~100G incumbent) - 131k ctx with huge margin; load 5s",
   "verdict": "statistical TIE with the Q8_K_XL+DFlash2 arm (iten12 -1 item, fcb15 +1 item) at 1/4 memory and no draft-server complexity. Decode parity (19.7-30.3 vs 24-30). Strong candidate for a co-resident second arm / strixy2 backup role. pp32k cell void (cache replay); card reference: pp4096 270 no-MTP.",
   "caveats": "card's own: MTP output not bit-identical to greedy (treat as speed feature); KV-quant quality not perplexity-validated; type-105 file needs the ROCmFPX engine family"
+ },
+ "q4_xl_mtp_260924": {
+  "question": "serve Flash-Next at UD-Q4_K_XL (Ollama-catalog default quant) as a lighter alternative to the incumbent Q5_K_XL+MTP arm; which MTP draft rides with it?",
+  "setup": "strixy2 fork engine :8091, UD-Q4_K_XL 111.3GiB/4 shards, f16 KV @131k, sharp-v22.5.0-low, draft-mtp n-max 3, 90s settle, fresh corpus per phase",
+  "draft_ab": {
+   "A_shared-Q8_0_2.79GiB": {
+    "pp4k": 830,
+    "pp32k": 888,
+    "tg128": 32.6,
+    "tg2048": 27.4,
+    "echo_rewrite": 39.8,
+    "acceptance_128_2048_echo": "0.66/0.52/0.98"
+   },
+   "B_shared-Q4_K_M_1.91GiB": {
+    "pp4k": 865,
+    "pp32k": 909,
+    "tg128": 33.5,
+    "tg2048": 31.7,
+    "echo_rewrite": 40.8,
+    "acceptance_128_2048_echo": "0.63/0.53/0.99"
+   },
+   "incumbent_Q5_K_XL_mtp_only": {
+    "pp4k": 707,
+    "pp32k": 682,
+    "tg128": 36.4,
+    "tg2048": 32.2,
+    "echo_rewrite": 37.8
+   }
+  },
+  "quality": {
+   "iten12": "12/12 (1.000), equal to the Q5 incumbent",
+   "fcb15": "greedy 14/15 | with-retry 14/15 vs same-day Q5 12/15 greedy / 13/15 retry"
+  },
+  "footprint": "111.3GiB of weights vs 147.4GiB for Q5_K_XL - the difference between fitting a 124GiB box and faulting ~30GiB from disk",
+  "verdict": "take Q4_K_XL + shared-Q4_K_M draft. B wins every draft cell (+4% pp4k, +16% tg2048, +2.7% tg128, +2.5% echo, equal acceptance); vs the Q5 incumbent it is -1.5% tg128, +22% pp4k, +8% echo, and equal-or-better quality (12/12 iten12; fcb15 14 vs 13 with-retry, both failing item 2). Read as 'Q4 is not worse', not 'Q4 is smarter' (n=15, overlapping Wilson CIs).",
+  "caveats": "one corpus per phase (fresh, not repeated); pp128k reads n/a for both phases (probe window exceeds the served 131072 context); quality legs ran on the phase-B arm only (draft choice settled by the speed A/B)",
+  "artifacts": "reruns-260919/q6-low-row/{q4-mtp-ab.log, iten12-q4.jsonl, fcb15-q4.txt, fcb15-q5-260924.txt}",
+  "report": "benchmarks/q4-vs-q5-report-260924.md"
  }
 }
