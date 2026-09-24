@@ -231,3 +231,10 @@ one that faults from disk.
   growing, and PSI-full is 0.00, so no storm.
 - The local `q5`/`deep` arms remain loadable on demand; both are >147 GiB and will
   over-subscribe this box if requested. Documented in-file.
+
+## VIOLATION LOG #7 (260924 15:2x, operator-flagged)
+Foreground blocking wait: a polling loop of 5×45 s sleeps inside one bash call
+(400 s tool ceiling) while the operator was present and the battery had already
+died at 15:24 — I kept sleeping instead of reporting. Rule restated: with the
+operator interactive, foreground commands stay ≤55 s total; anything longer is
+launched detached and reported on immediately with short checks only.
