@@ -68,3 +68,12 @@
    delays, it cannot corrupt (resume + DONE gating).
 5. Next: when the A/B log starts, verify phase A arm health then let it run;
    harvest at completion.
+
+## REFLECTION (iteration 16)
+1-2. Unchanged from iteration 11: harness armed, zero-touch monitoring working.
+3. The CDN throttle window has persisted ~40min (~0.9G/min); shard 3 at 28.7/46G.
+   ~31G remain across shard3+4+draft -> ETA ~12:00 at current pace, sooner if
+   the throttle lifts (earlier windows alternated 74MB/s bursts with pauses).
+4. No adjustment. Considered: parallel range downloads (aria2-style) - rejected
+   (new tool on the box, worse throttle risk, curl -C - already resilient).
+5. Next: same - watch for the A/B log, verify phase-A arm, harvest.
