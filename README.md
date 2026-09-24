@@ -116,7 +116,7 @@ its stock template by family design).
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) | draft (size) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | — | **0.933** [²⁶](#fn26) | — | — | — | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
+| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | **0.667** [0.39–0.86] [³³](#fn33) | **0.933** [²⁶](#fn26) | — [³³](#fn33) | **10/10** [³³](#fn33) | **0.55** [0.34–0.74] [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
@@ -1642,6 +1642,19 @@ Standing on the shoulders of open-source giants:
 All results, recipes, and configurations in this repository are released
 under the [MIT License](LICENSE). The models and engines referenced are
 subject to their own respective licenses.
+
+<a id="fn33"></a>³³ **Q4 quality census, 2026-09-25** (the fn26 debt, run overnight
+vs the strixy2 resident arm — same basis: sharp-low, f16 KV @131k, MTP
+shared-Q4_K_M n-max 3): AIME yearsplit-12 seed-1300 **0.667 [0.39–0.86]**
+(8/12; Q5 0.833, Q6 0.750 — nominally below both, CIs overlap at n=12);
+sli **10/10** (canary-saturated like every measured local row); zebra n=20
+**0.55 [0.34–0.74]** (Q5 0.65 [0.43–0.82] — overlapping). Artifacts:
+`benchmarks/probe-q4-{aime12,zebra20,sli10,iten12}-260925.json` +
+`benchmarks/fcb15-probe-q4-*.jsonl`. The ladder cell is measured the same
+night — see `benchmarks/logs-260925/` and the marathon driver
+(`benchmarks/q4-marathon-260925.sh`); the row's honest read: quality
+parity within battery resolution with nominal deficits on AIME/zebra,
+recorded not hidden.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
