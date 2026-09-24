@@ -538,3 +538,21 @@ doctor/Doctor.py, .ralph task file.
 - Upstream report: the silent-SoC-reset-under-unified-memory-overcommit is already
   reported in PR #27836 comments by others (flobob45) — no new report needed unless
   we add the reboot-loop variant.
+
+## VIOLATION LOG (260924 09:0x — operator-flagged, 6th of its class)
+520s FOREGROUND bash timeout (speed_probe 280s + echo_probe 200s chained) blocked
+the operator's prompt. Standing rule violated: >60s => background + output-file +
+short polls. Corrective: /tmp/fp4-battery.sh pattern (nohup + phase log + polls<=55s)
+is now the ONLY way probes run. The fault recurred DESPITE being logged twice today;
+the fix is structural: never chain probe commands in one foreground call.
+
+## FP4-27B bringup (operator FYI: parsimo2010 + PaoAI cards)
+- Engine built: charlie12345/ROCmFPX @ c49ebdbd, HIP/amdclang++/gfx1151 on strixy2
+  (needs CMAKE_HIP_COMPILER=/opt/rocm/bin/amdclang++ -DROCM_PATH=/opt/rocm on the
+  Arch rocm-nightly; system clang++ can't find device libs).
+- File: Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf 15.01GB (sha per card).
+- Serving: :8091, q8 KV, -ub 512, MTP n-max4 (p_min 0.75 build default), sharp-low
+  template, c=131072. Load: 5s, ~25G total. MTP draft ctx confirmed in log.
+- Speed (first pass): pp4k 336 / tg128 23.4 / tg2048 19.7 — decode parity with the
+  incumbent 27B Q8+DFlash2 at 1/4 footprint. Card's own ppl: tie with F16.
+- Quality: iten12 + fcb15 census running (background, fp4-27b-battery.log).
