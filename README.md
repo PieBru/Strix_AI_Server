@@ -120,7 +120,7 @@ its stock template by family design).
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — [³⁶](#fn36) | — [³⁶](#fn36) | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
 
 ## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
 
@@ -1684,6 +1684,16 @@ correction, now confirmed draftless); vanilla prefill is ~2.6× slower than
 the fork's (266 vs 689 @4k) — the fork's deep-pp patches are the delta.
 Artifacts: `benchmarks/logs-260925/`, results.json
 `engine_axis_vanilla_260925`.
+
+<a id="fn36"></a>³⁶ **Muse ladder + sli — measured 2026-09-25** (the row's last two
+owed cells): served stock-template per family design, DFlash2 draft n-max 6,
+capped generations (the stock template is a thinking template — answers land
+in `reasoning_content` first, so unbounded batteries ramble for hours; the
+sli attempt was humanely terminated at 2 h 15 m with no artifact). Also
+observed and worth recording: a single-slot server's decode decays as the
+slot's KV fills from hours of generations (~1 t/s wall after ~40k tokens);
+a server restart restores it instantly — long Muse runs need periodic
+restarts. Artifacts: `benchmarks/` muse-*-260925 + this footnote.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
