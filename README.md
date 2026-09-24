@@ -1761,7 +1761,10 @@ uploaded on demand (RSS 31 GiB, 79 GiB host-available, PSI 0). Build notes for t
 Arch + `rocm-nightly-gfx1151-bin` host (ROCm clang host+HIP, a one-line GCC-16-git
 header patch, `GUFO_SKIP_DS4=1` around an lld-24 LTO crash) in
 [benchmarks/lab-260924-halogen-gufo-image.md](benchmarks/lab-260924-halogen-gufo-image.md).
-Text-LLM cells are owed; it also serves 27B/DeepSeek/TTS/ASR modalities we have not
+Text-LLM cells are still owed (2026-09-25 note: its flash-next loader is
+**UD-Q4_K_XL-strict** — a Q5 shard set is rejected outright, so the text
+window needs strixy2's Q4 and a free GPU after the fleet ladder; deferred,
+not forgotten); it also serves 27B/DeepSeek/TTS/ASR modalities we have not
 measured. The community "uncensored" GGUFs are ComfyUI packaging and do not load here.
 
 <a id="fn31"></a>³¹ **ROCmFPX** ([charlie12345](https://huggingface.co/kingjones777),
