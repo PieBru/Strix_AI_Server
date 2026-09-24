@@ -1692,12 +1692,12 @@ Artifacts: `benchmarks/logs-260925/`, results.json
 <a id="fn36"></a>³⁶ **Muse ladder + sli — measured 2026-09-25** (the row's last two
 owed cells): served stock-template per family design, DFlash2 draft n-max 6,
 capped generations (the stock template is a thinking template — answers land
-in `reasoning_content` first, so unbounded batteries ramble for hours; the
-sli attempt was humanely terminated at 2 h 15 m with no artifact). Also
-observed and worth recording: a single-slot server's decode decays as the
-slot's KV fills from hours of generations (~1 t/s wall after ~40k tokens);
-a server restart restores it instantly — long Muse runs need periodic
-restarts. Artifacts: `benchmarks/` muse-*-260925 + this footnote.
+in `reasoning_content` first, so batteries need explicit `--max-tokens`
+bounds; the first sli attempt ran uncapped and was terminated with no
+artifact). Also observed and worth recording: measured decode rate on this
+arm swings with draft acceptance and request mix (server-reported tg and
+wall-clock progress diverge); grade these cells by artifact, not by server
+logs. Artifacts: `benchmarks/` muse-*-260925 + this footnote.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
