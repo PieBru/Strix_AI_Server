@@ -85,7 +85,7 @@ numbers after the fix, re-open if they disagree with "0 new friction".
 library, never auto-closes) instead of the live `models.ini`. One-line edit
 in `state/carry.json` verify field.
 
-## Status 260924 09:4x — DONE: A1-A3, B1-B6 (all self-tested; B4 exercises live tonight). C1 pending operator pick.
+## Status 260924 09:4x — DONE: A1-A3, B1-B6 (all self-tested; B4 exercises live tonight). C1 LANDED: serialize via llama-gate -l (flock /tmp/llama-lab.lock, gate-check inside the lock), deployed both boxes, self-tested.
 
 ## Execution order (on go)
 A1 → A2 → A3 (config, reversible, kills the P1 recurrence) →
