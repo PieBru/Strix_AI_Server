@@ -501,3 +501,40 @@ doctor/Doctor.py, .ralph task file.
   (six reboots, 21:38-22:10) — supervised daytime repro first.
 - pp@128k@>=160k on vanilla: blocked behind the same.
 - Morning queue written in the MORNING HANDOFF section above.
+
+## MORNING QUEUE EXECUTION (260924, operator-supervised)
+
+### 1. Crash repro — CLOSED, signature captured (crash_repro_260924 in results.json)
+- @131k f16 draftless: LOADS (56s, 1.1G margin) — runnable basis exists.
+- @192k f16 draftless: deterministic app-exit (31.9G = swapfile filled; KV needs +32G).
+- q8 KV + detached draft: qwen4exp.cpp:1365 assert in 0.9s — UPSTREAM code (my fork
+  attribution was wrong; the night's 21:09 q8 run escaped it because the fork-format
+  SHARED draft doesn't build the draft graphs).
+- @131k f16 + drluoto draft: **BOX HARD-CRASH** ~80s in. Signature: ZERO kernel
+  messages (stream was live), ssh dead ≤07:57:40 → boot 07:57:48 → back :58 (instant
+  SoC reset, watchdog-class; FAT-fs dirty flag every crash boot). Root cause:
+  unified-memory allocation over physical limit. Community-known (PR #27836 comments).
+  The fork survives the same footprint — that's its value.
+- PR #27836: OPEN DRAFT, NOT MERGED — upstream never had qwen4exp MTP. drluoto's
+  assembled ROCm branch = strix-halo-flash-next (targets IQ4_XS tier: Q5_K_XL+KV
+  doesn't fit a non-spilling carve-out).
+
+### 2. pi-dream endpoint fix — DONE
+- Root cause: --model q36/flash → 127.0.0.1:8083, nothing listens there anymore.
+- Fixed: --model local/Qwen38-27B (live :8080 arm), one-shot pi call verified OK,
+  service now runs past its old 16s death point.
+
+### 3. GPU clocks — pinned HIGH on BOTH boxes (operator FYI + sudo provided)
+- amd-smi set -l high (rocm-smi doesn't exist on the nightly; needs sudo).
+- Runtime setting: resets on reboot — re-pin at session start or unitize.
+- ALL existing numbers measured in AUTO: relative comparisons consistent; absolutes
+  possibly ~20% low (drluoto's card; unverified here).
+
+### Decision points for the operator
+- Vanilla suite rerun: only meaningful basis = DRAFTLESS f16 @131k (pp/tg/quality,
+  no spec-decode comparison). Or skip — the fork-vs-upstream verdict is already
+  evidence-complete (allocation safety + real MTP are the fork's moat).
+- drluoto branch build: possible but IQ4_XS-tier (off the Q5/Q6/27B matrix). Parked.
+- Upstream report: the silent-SoC-reset-under-unified-memory-overcommit is already
+  reported in PR #27836 comments by others (flobob45) — no new report needed unless
+  we add the reboot-loop variant.

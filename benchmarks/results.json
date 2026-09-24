@@ -51,7 +51,7 @@
    "ok": 7,
    "n": 12,
    "date": "2026-09-16",
-   "note": "format-compliance artifact suspected — see README footnote 7",
+   "note": "format-compliance artifact suspected \u2014 see README footnote 7",
    "battery": "v1-unverified"
   },
   {
@@ -60,7 +60,7 @@
    "n": 12,
    "date": "2026-09-20",
    "battery": "v3.1",
-   "note": "anchor cell; Q8 cells 10/12(stock)/11/12(sharp) — noise tier on a saturated floor"
+   "note": "anchor cell; Q8 cells 10/12(stock)/11/12(sharp) \u2014 noise tier on a saturated floor"
   },
   {
    "model": "Qwen3.8 27B Q8 + DFlash2 (sharp)",
@@ -78,7 +78,7 @@
    "n": 12,
    "score": 0.833,
    "date": "2026-09-17",
-   "battery": "v2 grader (exec fix) — re-run 2026-09-19: 10/12, identical to v1-grader cell"
+   "battery": "v2 grader (exec fix) \u2014 re-run 2026-09-19: 10/12, identical to v1-grader cell"
   },
   {
    "model": "Qwen3.8 Flash-Next Q6_K_XL",
@@ -154,7 +154,7 @@
   "tries_per_item": 2,
   "http_timeout_s": 900,
   "grade": "deterministic exec of the model's last python block; assertions on stdout (no LLM judge)",
-  "errored_items": "spent, not answered — excluded from denominator, counted separately"
+  "errored_items": "spent, not answered \u2014 excluded from denominator, counted separately"
  },
  "aime_selection_split": {
   "aime25_items": 8,
@@ -163,7 +163,7 @@
  },
  "grading_changelog": {
   "v3 iten12 / v2 aime (2026-09-19)": "exec-namespace fix: structured solutions (functions, imports, recursion) previously raised NameError inside check() and were scored FAIL. All pre-2026-09-19 AIME cells ran under the broken grader and skew LOW for models that write organized code. Q5 re-run landed under the fixed grader; other models' re-runs owed.",
-  "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) — keyword salad no longer passes.",
+  "v3 iten12 additions": "false-friend notkw rejections (items 1,2,7,12) + sentence-shape assertion (>=6 words) \u2014 keyword salad no longer passes.",
   "v3.1 iten12": "item 3 accepts 5:45 PM == 17:45 (natural clock, matching the v2 items-7/9 precedent)"
  },
  "fcb15": [
@@ -253,7 +253,7 @@
    "date": "2026-09-20",
    "battery": "fcb15 v3",
    "runner": "GBench probe",
-   "note": "TEMPLATE DISENTANGLER: same quant/protocol as the overnight stock-template cell (0.333) — the sharp template DOUBLED the score. Overnight Qwen cells were template-inconsistent; uniform-template re-cut owed for 27B"
+   "note": "TEMPLATE DISENTANGLER: same quant/protocol as the overnight stock-template cell (0.333) \u2014 the sharp template DOUBLED the score. Overnight Qwen cells were template-inconsistent; uniform-template re-cut owed for 27B"
   },
   {
    "model": "Qwen3.8 27B Q8_K_XL + DFlash + sharp(medium)",
@@ -283,7 +283,7 @@
    "date": "2026-09-20",
    "battery": "fcb15 v3",
    "runner": "GBench probe",
-   "note": "UNQUANTIZED ANCHOR (sha256-gated BF16, GTT 64G residency verified). vs Q8+sharp 12/15: 13/15 items agree, 2 flips, Fisher p=0.11 — indistinguishable; CONFIRMS Q8~BF16 parity on this battery. flash-Q5's CI equals this anchor's exactly."
+   "note": "UNQUANTIZED ANCHOR (sha256-gated BF16, GTT 64G residency verified). vs Q8+sharp 12/15: 13/15 items agree, 2 flips, Fisher p=0.11 \u2014 indistinguishable; CONFIRMS Q8~BF16 parity on this battery. flash-Q5's CI equals this anchor's exactly."
   },
   {
    "model": "Qwen3.8 Flash-Next Q6_K_XL + sharp(medium)",
@@ -383,7 +383,7 @@
    "n": 12,
    "date": "2026-09-16",
    "battery": "zebra v1",
-   "note": "cloud cell — format-artifact caveat as ever"
+   "note": "cloud cell \u2014 format-artifact caveat as ever"
   },
   {
    "model": "Qwen3.8 Flash-Next Q6_K_XL",
@@ -413,7 +413,7 @@
    "n": 30,
    "date": "2026-09-20",
    "battery": "zebra v1 full-30",
-   "note": "full-30 re-score: low 0.567 vs medium 0.533 at n=30 both — the earlier n=20 low point (0.65) regressed to mean; low>=medium holds but the gap narrows to +0.03 at full n"
+   "note": "full-30 re-score: low 0.567 vs medium 0.533 at n=30 both \u2014 the earlier n=20 low point (0.65) regressed to mean; low>=medium holds but the gap narrows to +0.03 at full n"
   },
   {
    "model": "Qwen3.8 Flash-Next Q5_K_XL (sharp-MEDIUM, full 30)",
@@ -460,7 +460,7 @@
     "ok": 6,
     "n": 12,
     "date": "2026-09-20",
-    "note": "sharp-medium re-cut: 6/12 (was 0.417 stock) — template matters on reasoning too, less than on coding",
+    "note": "sharp-medium re-cut: 6/12 (was 0.417 stock) \u2014 template matters on reasoning too, less than on coding",
     "score": 0.5,
     "template": "sharp-medium",
     "ci95": [
@@ -495,7 +495,7 @@
    },
    {
     "model": "Qwen3.8 Flash-Next Q5_K_XL",
-    "note": "measured on strixy2 (lab box) — box-controls exact vs strixy",
+    "note": "measured on strixy2 (lab box) \u2014 box-controls exact vs strixy",
     "ok": 10,
     "n": 12,
     "date": "2026-09-20",
@@ -511,7 +511,7 @@
     "ok": 9,
     "n": 12,
     "date": "2026-09-20",
-    "note": "UNQUANTIZED anchor at sharp-medium: 9/12 = 0.750 — vs Q8+sharp 6/12 (overlapping CIs at n=12, 3-item gap). The BF16 anchor scores BELOW Q5-quantized (10/12): flash MoE architecture dominates, not quant",
+    "note": "UNQUANTIZED anchor at sharp-medium: 9/12 = 0.750 \u2014 vs Q8+sharp 6/12 (overlapping CIs at n=12, 3-item gap). The BF16 anchor scores BELOW Q5-quantized (10/12): flash MoE architecture dominates, not quant",
     "score": 0.75,
     "template": "sharp",
     "ci95": [
@@ -554,7 +554,7 @@
   "note": "cross-box cells interchangeable with box in the tuple (GEFC discipline)",
   "qwen38-27b-q6-df_260921": {
    "model": "Qwen3.8 27B Q6_K_XL + DFlash2 (IQ4_XS draft, n-max 6)",
-   "note": "same weights, same probe, second box (strixy2) — the podium is strixy-measured, so this cell pair says how much of a speed number is the machine. This runs with the NEW combination that had no arm before this date.",
+   "note": "same weights, same probe, second box (strixy2) \u2014 the podium is strixy-measured, so this cell pair says how much of a speed number is the machine. This runs with the NEW combination that had no arm before this date.",
    "strixy2": {
     "pp4k": 348,
     "pp32k": 297,
@@ -613,7 +613,7 @@
      0.0708,
      0.5586
     ],
-    "iten12": "—",
+    "iten12": "\u2014",
     "aime_yearsplit": "8/12 (0.667)"
    }
   ],
@@ -634,21 +634,21 @@
     "sharp": "10/12 (0.833)"
    }
   ],
-  "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself — the template disentangler result generalizes from IQ4/27B to Q5"
+  "conclusion": "the sharp template is worth +0.40 fcb15 / +0.25 AIME on the champion itself \u2014 the template disentangler result generalizes from IQ4/27B to Q5"
  },
  "seals": [
   {
    "date": "2026-09-20",
    "sealed_by": "operator",
    "decision": "CHAMPION PROMOTION: Qwen3.8 Flash-Next UD-Q5_K_XL + sharp template (sharp-medium effort) is the declared daily driver on both boxes",
-   "evidence_base": "bb3f748 — podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
+   "evidence_base": "bb3f748 \u2014 podium + template-axis (+0.40 fcb15/+0.25 AIME on Q5 itself) + BF16-anchor parity (3 batteries) + engine axis (fork load-bearing)",
    "not_sealed_same_session": "low-effort default (medium stays default; evidence banked), Phase-1 config execution (mirror template fix, old-gen purge, router default swap)"
   },
   {
    "date": "2026-09-21",
    "sealed_by": "operator (todos 2/3/4 directive)",
    "decision": "LOW EFFORT PROMOTED TO DEFAULT + Phase-1 rollout: router default arm + strixy2 mirror now serve sharp-low (verified by generation: brief thinking, correct answers); old-gen services confirmed already-disabled; scaffolding units removed; pi lan provider deleted",
-   "evidence": "fcb15 +0.20 at low (0.867); AIME-60 n=60 dead tie (0.533/0.517); zebra-30 tie; sli tie — coding-specific gain, zero measured downside, strictly faster",
+   "evidence": "fcb15 +0.20 at low (0.867); AIME-60 n=60 dead tie (0.533/0.517); zebra-30 tie; sli tie \u2014 coding-specific gain, zero measured downside, strictly faster",
    "ops": "restart-limit drop-ins (RestartSec=45, 4/10min burst) close doctor-F1's storm class; doctor F2 fixed (live GTT column + down-service alert, self-tested)"
   }
  ],
@@ -673,7 +673,7 @@
   }
  },
  "aime60_full": {
-  "note": "full AIME-60 paired night: LOW 0.533 [0.41-0.65] vs MEDIUM 0.517 [0.39-0.64] — dead tie at n=60 (1-item spread); the yearsplit-12 pattern (0.833/0.833) generalizes: AIME is effort-flat on the champion; the effort lever lives on coding batteries",
+  "note": "full AIME-60 paired night: LOW 0.533 [0.41-0.65] vs MEDIUM 0.517 [0.39-0.64] \u2014 dead tie at n=60 (1-item spread); the yearsplit-12 pattern (0.833/0.833) generalizes: AIME is effort-flat on the champion; the effort lever lives on coding batteries",
   "cells": [
    {
     "model": "Q5+sharp-LOW",
@@ -706,7 +706,7 @@
   "decay": "none (26.7@2k -> 27.4@18k)"
  },
  "threshold_ladder_260921": {
-  "what": "GEFC L1 tier ladder — greedy pass rates, template-UNIFORM (both models on sharp-low, the promoted default), one box, one harness",
+  "what": "GEFC L1 tier ladder \u2014 greedy pass rates, template-UNIFORM (both models on sharp-low, the promoted default), one box, one harness",
   "uniform_sharp_low": {
    "qwen38-flash-q5": {
     "v3+D": "10/15",
@@ -720,7 +720,7 @@
    }
   },
   "template_effect_at_depth": {
-   "note": "same model, same rung, only the template differs — the stock arm's deep-rung collapse is a template artifact",
+   "note": "same model, same rung, only the template differs \u2014 the stock arm's deep-rung collapse is a template artifact",
    "qwen38-27b-q8-df_v3+D": {
     "stock": "3/15",
     "sharp-low": "12/15"
@@ -734,7 +734,7 @@
    "q5": "10/15 (0.667)",
    "27b-q8-df": "12/15 (0.800, sharp-medium)"
   },
-  "conclusion": "Even the F rung does not separate them (q5 11/15 vs 27B 12/15; both solved the F items). The two production models are statistically tied across every deeper rung on this bank; separating them needs a bigger difficulty jump or different families. Also: greedy temp-0 flips of +/-1 item were observed between rungs on unchanged items (q5 item 2) — the per-rung CI is wider than n=15 suggests.",
+  "conclusion": "Even the F rung does not separate them (q5 11/15 vs 27B 12/15; both solved the F items). The two production models are statistically tied across every deeper rung on this bank; separating them needs a bigger difficulty jump or different families. Also: greedy temp-0 flips of +/-1 item were observed between rungs on unchanged items (q5 item 2) \u2014 the per-rung CI is wider than n=15 suggests.",
   "artifacts": "gbench/results/fcb15-{q5,q8df}-v3{d,dem}*.jsonl (stock) and *-slow-260921.jsonl (sharp-low)",
   "uniform_low_260923": {
    "note": "deepest rung (v3+D+E+F) re-administered at sharp-low after the low-effort promotion; the basis the podium quotes",
@@ -770,7 +770,7 @@
  "qwen38_27b_q6_df_260921": {
   "what": "the chapter's step-by-step verification model: 27B Q6_K_XL trunk + DFlash2 draft (a combination with no arm before today). ALL cells stock-template (the chapter-verification arm carried no template; labeled as such).",
   "cells": {
-   "iten12": "10/12 (CI 0.55-0.95) — fails the 12/12 gate",
+   "iten12": "10/12 (CI 0.55-0.95) \u2014 fails the 12/12 gate",
    "fcb15_v3_census": "0.333 (CI 0.15-0.58)",
    "ladder": "v3+D 4/15, v3+D+E 3/15 (stock)",
    "zebra": "0.55 (CI 0.34-0.74)",
@@ -790,7 +790,7 @@
   "nm3_ngram_off": {
    "here": "tg128 35.8 / tg2048 26.4",
    "production_nm5_ngram_mod": "36.0 / 25.7 (c=131072, sharp-low)",
-   "verdict": "TIE — strixllama's +62% does not transfer to this fork/model"
+   "verdict": "TIE \u2014 strixllama's +62% does not transfer to this fork/model"
   },
   "ctx_slope": {
    "ms_per_token": [
@@ -812,7 +812,7 @@
     ]
    ],
    "slope_2k_96k": "~0.105 ms/token per 1k ctx (non-linear: steep to 32k, flat after)",
-   "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 — we are NOT in the broken-dense state",
+   "reference": "strixllama dense-broken 0.188 / their sparse fix 0.067 \u2014 we are NOT in the broken-dense state",
    "method": "/tmp/ctx_slope.py pattern: fill corpus window, stream 256 tokens, ms/token at fill"
   },
   "therock_sdk": {
@@ -829,10 +829,10 @@
     "tg128": 34.0,
     "tg2048": 26.0
    },
-   "verdict": "TIE within noise (pp32k +2.3%, tg slightly down) — strixllama's +60% (Windows, ROCm 7.1->10.1) does not transfer to Linux on this toolchain",
+   "verdict": "TIE within noise (pp32k +2.3%, tg slightly down) \u2014 strixllama's +60% (Windows, ROCm 7.1->10.1) does not transfer to Linux on this toolchain",
    "notes": [
     "TheRock 7.14 nightly runtime core-dumps on this fork; the Clang-23-built binary runs fine on the system runtime",
-    "true production source located at .local/share/qwen3.8-strix-halo/src/llama.cpp (pwilkin b0f31f58) — the fn-src dev clone is a different lineage and lacks lazy-mode"
+    "true production source located at .local/share/qwen3.8-strix-halo/src/llama.cpp (pwilkin b0f31f58) \u2014 the fn-src dev clone is a different lineage and lacks lazy-mode"
    ]
   }
  },
@@ -977,7 +977,7 @@
    "vanilla_q8_kv": {
     "tg128": 36.6,
     "tg2048": 32.0,
-    "note": "THE HEADLINE: the -ctk q8_0 -ctv q8_0 config that GGML_ASSERT-crashes the fork (qwen4exp.cpp:1365) loads and serves on upstream AND is the fastest arm measured on this box (+10%/+13% over fork f16; KV-byte halving on the bandwidth-shared iGPU). Preliminary: one tg probe, no quality gate yet."
+    "note": "THE HEADLINE: the -ctk q8_0 -ctv q8_0 config that GGML_ASSERT-crashes the fork (qwen4exp.cpp:1365) loads and serves on upstream AND is the fastest arm measured on this box (+10%/+13% over fork f16; KV-byte halving on the bandwidth-shared iGPU). Preliminary: one tg probe, no quality gate yet. BASIS CORRECTION 260924: PR #27836 (qwen4exp MTP) is NOT merged upstream - the 'MTP' on this run was the fork-format shared draft loaded by upstream in a degraded spec mode, not true MTP. Numbers real (probe artifacts vanilla-q8-tg.txt); interpretation as 'MTP working upstream' withdrawn. With a DETACHED draft (drluoto), q8 KV hits the qwen4exp.cpp:1365 assert at 0.9s."
    }
   },
   "vanilla_pp": {
@@ -1010,8 +1010,8 @@
   },
   "blocked": {
    "vanilla_battery_suite": [
-    "BLOCKER 0 (root, supersedes the churn story): SIX full-box crash-reboots tonight (21:38/21:48/21:57/22:00/22:05/22:10), each within minutes of a vanilla unit start, no panic/OOM trace - vanilla b11147's COLD full-model GTT load hard-crashes the machine. The 21:05 q8-KV probe survived on a cache-warm load (different path; its 36.6/32.0 numbers stand). No further unattended vanilla loads; supervised daytime repro + dmesg capture + upstream report required.",
-    "BLOCKER 1 (solid): the fork's shared-MTP draft GGUF fails to load on upstream - 'check_tensor_dims: token_embd.weight not found' at 0.6s, deterministic, every -c. The shared draft (no own token_embd, borrows the main model's) is fork-format; upstream expects a self-contained draft. Vanilla must run draft-less until a standalone MTP GGUF is sourced (z-lab/dzannotti repos are candidates).",
+    "BLOCKER 0 (root, supersedes the churn story): SIX full-box crash-reboots tonight (21:38/21:48/21:57/22:00/22:05/22:10), each within minutes of a vanilla unit start, no panic/OOM trace - vanilla b11147's COLD full-model GTT load hard-crashes the machine. The 21:05 q8-KV probe survived on a cache-warm load (different path; its 36.6/32.0 numbers stand). No further unattended vanilla loads; supervised daytime repro + dmesg capture + upstream report required. RESOLVED 260924 by supervised repro: trigger = unified-memory over-commit during vanilla load; signature = zero kernel output, <=5s death window, instant SoC reset (watchdog-class); see crash_repro_260924. Fork unaffected.",
+    "BLOCKER 1 (solid): the fork's shared-MTP draft GGUF fails to load on upstream - 'check_tensor_dims: token_embd.weight not found' at 0.6s, deterministic, every -c. The shared draft (no own token_embd, borrows the main model's) is fork-format; upstream expects a self-contained draft. Vanilla must run draft-less until a standalone MTP GGUF is sourced (z-lab/dzannotti repos are candidates). RESOLVED 260924: PR #27836 unmerged - upstream cannot load a detached MTP head at all (crusaderky a82a58a is fork-only). The shared fork-format draft loads NONDETERMINISTICALLY on upstream (failed 21:03, loaded 21:04).",
     "BLOCKER 2 (unrooted): even draft-less, the full ~100G vanilla load dies silently on strixy2 (no process, no kernel OOM, no journal exit line - consistent with the user-manager churn that killed units all night at load windows). Small loads (-c 2048) listen fine; the fork binary loads the same model fine. Needs daytime forensics with the box quiet.",
     "Also: c=196608 AND c=163840 never got a clean test (blocked behind blocker 1/2) - the pp@128k@>=160k cell remains owed on vanilla."
    ]
@@ -1023,5 +1023,44 @@
    "suspect history correction: the 21:05 'vanilla+MTP works' gate-v1 result is now DOUBTFUL - its health check did not verify the binary (contamination class); the 27.0/25.7 t/s cells may be fork-served. Re-verify before quoting them."
   ],
   "morning_state": "q5-serve active+enabled healthy; pi-dream.timer re-enabled; Doctor watching; strixy router untouched; leak sampler running"
+ },
+ "crash_repro_260924": {
+  "goal": "supervised repro of the six 260923 night crash-reboots (vanilla cold loads on strixy2)",
+  "capture": "journalctl -k stream + 5s liveness heartbeat on strixy (survives box death) -> reruns-260919/q6-low-row/vanilla-crash-repro.log",
+  "runs": [
+   {
+    "t": "07:47",
+    "config": "f16 KV @131072 draftless, clean state (121G avail, cache-cold)",
+    "result": "LOADS in 56s, serves, functional chat; margin 1.1G; NO kernel messages"
+   },
+   {
+    "t": "07:51",
+    "config": "f16 KV @196608 draftless (the suite config)",
+    "result": "app exit(1) at 103s: 'failed to create context'; 31.9G swap peak = swapfile filled; NO crash, NO kernel messages"
+   },
+   {
+    "t": "07:55",
+    "config": "q8 KV @196608 + drluoto detached MTP draft",
+    "result": "GGML_ASSERT qwen4exp.cpp:1365 (QSA indexer needs f16 K/V) at 0.9s - same assert as the fork; UPSTREAM code, not fork-specific"
+   },
+   {
+    "t": "07:56",
+    "config": "f16 KV @131072 + drluoto detached MTP draft (4.5G over the 1.1G margin)",
+    "result": "BOX HARD-CRASH ~80s in: ssh dead <=07:57:40, boot 07:57:48, back 07:57:58; ZERO kernel messages; FAT-fs dirty flag on every crash boot = instant SoC reset, no panic path"
+   }
+  ],
+  "root_cause": "GGML_HIP_ENABLE_UNIFIED_MEMORY allocation exceeding physical unified memory hard-locks the SoC silently (no OOM/no amdgpu trace/no panic). Community-known class: PR #27836 comment (flobob45, gfx1151): 'GGML_CUDA_ENABLE_UNIFIED_MEMORY=1 crashed silently at load'. The fork (llama-pw) survives the same footprint (Q5+shared draft @131k serves daily).",
+  "pr_27836_status": "OPEN DRAFT, NOT MERGED upstream - fee39dd92 has only the --spec-* CLI scaffolding; the qwen4exp MTP implementation + detached-head loader (crusaderky a82a58a) are fork-only. drluoto's assembled ROCm branch: drluoto/llama.cpp@strix-halo-flash-next (+ Q8_0 sidecar HF drluoto/Qwen3.8-Flash-Next-MTP-GGUF); their production stack runs UD-IQ4_XS (93.7G) because Q5_K_XL+KV does not fit a non-spilling HIP carve-out.",
+  "vanilla_verdict": {
+   "@131072 f16 draftless": "RUNNABLE (1.1G margin) - pp/tg/quality measurable",
+   "@131072 f16 + detached draft": "IMPOSSIBLE on this hardware (over-commit -> SoC crash) AND on upstream (PR unmerged)",
+   "@196608 any KV": "f16 needs +32G over RAM+swap (deterministic fail); q8 hits the indexer assert -> IMPOSSIBLE",
+   "q8 KV anywhere": "indexer assert fires (0.9s) with a draft attached; the 260923 21:09 q8 run (36.6/32.0) attached the fork-format SHARED draft and did NOT assert - basis note below"
+  }
+ },
+ "gpu_clock_policy_260924": {
+  "finding": "operator relayed drluoto HF card: on AMD auto perf level floats, ~20% loss; pin with high perf level",
+  "applied": "both boxes pinned HIGH 260924 ~08:00 (amd-smi set -l high, sudo)",
+  "caveat": "runtime setting - resets on reboot; re-pin at benchmark session start or make a unit. ALL existing numbers measured in AUTO - relative comparisons internally consistent, absolute values potentially ~20% below pinned-clock capability (unverified here)."
  }
 }
