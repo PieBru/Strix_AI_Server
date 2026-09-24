@@ -150,8 +150,9 @@ Reading it honestly:
 these n, and the cloud column carries the format caveat. What the data
 supports is "at least level, nominally ahead" — not "beats the frontier".
 - **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
-where both sides have a tight interval): 0.533 vs 0.483 — a three-item
-gap, i.e. a tie at this n.
+  where both sides have a tight interval) — the champion's cell is measured
+  overnight 2026-09-25 and lands in [³⁴](#fn34); the incumbent Q5's 0.533 vs
+  DeepSeek's 0.483 was a three-item gap, i.e. a tie at that n.
 - **The Italian gate no longer discriminates cloud from local.** Redone
 2026-09-22 with artifacts on disk, both full cloud models **pass at 12/12**
 (DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
@@ -1655,6 +1656,17 @@ night — see `benchmarks/logs-260925/` and the marathon driver
 (`benchmarks/q4-marathon-260925.sh`); the row's honest read: quality
 parity within battery resolution with nominal deficits on AIME/zebra,
 recorded not hidden.
+
+<a id="fn34"></a>³⁴ **Champion column re-based on UD-Q4_K_XL (2026-09-25).** The column
+follows the fleet's serving default ([²⁶](#fn26), [Why Q4 wins](#why-q4-wins)):
+same arm, same batteries, same probe harness as the Q5 column before it.
+Cells: iten12 12/12; AIME-12 **0.667 [0.39–0.86]**; zebra n=20 **0.55
+[0.34–0.74]**; sli 10/10; fcb15 census **0.933 [0.70–0.99]** (greedy 14/15,
+same-day paired vs the Q5 incumbent's 0.800 — [²⁶](#fn26)); decode tg128
+33.5 t/s. The AIME-60 census cell is filled the same night from
+`benchmarks/probe-q4-aime60-260925.json`; the Q5 column's 0.533/0.517
+moves to the AIME chapter as the incumbent's reference. Nominal deficits
+vs Q5 on AIME/zebra are recorded, not hidden — CIs overlap at these n.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
