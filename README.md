@@ -110,13 +110,13 @@ Each model cell names the **template · effort** its quality cells were
 produced with (the as-served arm's basis, per [¹⁰](#fn10); Muse runs
 its stock template by family design).
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | — | **0.933** [²⁶](#fn26) | — | — | — | 111 GiB file / 91 GiB served [²⁶](#fn26) |
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB |
-| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
+| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) | draft (size) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | — | **0.933** [²⁶](#fn26) | — | — | — | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
+| **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
+| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
+| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
+| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
 
 ## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
 
@@ -365,7 +365,7 @@ wins*), and Q6 ships at 64k (its sustained gate).
 |---|---:|---:|---:|---:|---:|
 | resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | 111.3 file (GTT 91–93 incl. KV+draft) |
 | KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 | 3.0 |
-| MTP draft | 2.8 | 2.8 | 2.8 | 2.8 | 1.9 (Q4_K_M) |
+| MTP draft | 2.6 | 2.6 | 2.6 | 2.6 | 1.8 (Q4_K_M) |
 | mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 | — |
 | compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
 | OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
@@ -885,7 +885,7 @@ fcb15-low cell cross-box (0.867 [0.62–0.96], overlapping CIs).
 
 <a id="fn12"></a>¹² Concurrent clients vs the 124 GiB box (f16 KV; the pool is
 pre-allocated, so `c` = slots × ctx). Fixed cost ~108 GiB (weights
-96.5 + MTP draft 2.8 + vision 0.9 + buffers 3.0 + OS 5.0); each
+96.5 + MTP draft 2.6 + vision 0.9 + buffers 3.0 + OS 5.0); each
 slot's KV is **6.0 GiB @256k** / 3.0 @128k / 2.25 @96k. Theoretical
 slot ceilings: **2 @256k, 5 @128k, 7 @96k** — but observed page-cache
 + streaming working sets eat ~7 GiB, so **safe: 1 / 3 / 4**. Slots
@@ -901,6 +901,12 @@ tokens — code-dense corpus — and are mutually comparable at equal n).
 n-max A/B for the 27B's DFlash2 draft at sustained decode (nm = draft
 tokens per step): nm6 28.0 > nm5 16.7 ≈ nm7 15.8 t/s (tg2048) — the
 grid's nm7 pick does not generalize past short benches, so nm6 stays.
+Draft files (podium column): the Flash-Next MTP drafts are the unsloth
+shared heads — shared-Q8_0 **2.6 GiB**, shared-Q4_K_M **1.8 GiB** (the Q4 row's
+pick, chosen by the 260924 A/B: every speed cell to the smaller draft, equal
+acceptance). The 27B's DFlash2 exists in two variants on disk (Q4_K_M **1.1 GiB**,
+Q8_0 **1.9 GiB**) — the census artifacts record the trunk only, so the podium cell
+carries the range; Muse ships a single DFlash2-Q4_K_M (**1.5 GiB**).
 
 <a id="fn16"></a>¹⁶ Muse's training context is **131072** tokens — the server caps the slot
 (`n_ctx_seq 262144 > n_ctx_train 131072`), so a 128k-token prefill is out of
