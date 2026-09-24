@@ -15,7 +15,10 @@ from urllib.parse import unquote
 
 # Router unit names this panel watches (journal + is-active). Reference box:
 # model-router-pwilkin / model-router-vanilla. This repo's units: llama-hip, llama-vulkan.
-ROUTER_UNITS = ("model-router-pwilkin", "model-router-vanilla")
+# Per-box override: DOCTOR_UNITS env (comma-separated) set in the unit — keeps the
+# checkout pristine, no re-edits on git pull (strixy2: q5-serve, q6-serve-192k, ...).
+ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
+    "model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
 def _router_ini():

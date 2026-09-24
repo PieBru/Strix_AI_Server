@@ -10,9 +10,9 @@
 # ~25 MB RSS flat, sub-1% one core (2s poll).
 #
 # Install (runs straight from the checkout — no copy into $HOME):
-#   1. edit ExecStart below to your checkout path, and ROUTER_UNITS at the
-#      top of Doctor.py if your units differ (repo units: llama-hip,
-#      llama-vulkan)
+#   1. edit ExecStart below to your checkout path; set DOCTOR_UNITS to the
+#      router units to watch (default: the reference box's; this repo's:
+#      llama-hip, llama-vulkan) — no edits to Doctor.py needed
 #   2. install -Dm644 doctor/Doctor.service ~/.config/systemd/user/Doctor.service
 #   3. systemctl --user daemon-reload && systemctl --user enable --now Doctor
 

@@ -1411,9 +1411,9 @@ web app (htmx, 2 s poll) — and its user unit
  calls; ~25 MB RSS (resident memory) flat, sub-1% of one core
 
 Install — the app runs straight from the checkout (no files in `$HOME`).
-`ROUTER_UNITS` at the top of `Doctor.py` names the units it watches
-(defaults are the reference box's `model-router-pwilkin`/
-`-vanilla`; this repo's units are `llama-hip`/`llama-vulkan`):
+Set `DOCTOR_UNITS` in the unit to the router units to watch (default:
+the reference box's `model-router-pwilkin`/`-vanilla`; this repo's units
+are `llama-hip`/`llama-vulkan`) — no edits to `Doctor.py` needed:
 
 ```bash
 # edit ExecStart in doctor/Doctor.service to your checkout path, then:

@@ -24,7 +24,7 @@ Drop `OOMScoreAdjust=200`; add `MemoryHigh=4G` (pi + model calls live here;
 
 **A3. Launch gate for any second full-model load.** Both OOM rounds happened
 when a second model was loaded at the PLE steady state (~2–4 G free). Wrapper
-`scripts/llama-gate` (in this repo; both boxes):
+`scripts/llama-gate` (in this repo; bare-name via `~/.local/bin/llama-gate` symlink, both boxes):
 ```bash
 #!/bin/bash
 # llama-gate MIN_GB CMD... — refuse to run CMD unless MemAvailable >= MIN_GB
