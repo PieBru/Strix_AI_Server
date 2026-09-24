@@ -77,3 +77,9 @@
 4. No adjustment. Considered: parallel range downloads (aria2-style) - rejected
    (new tool on the box, worse throttle risk, curl -C - already resilient).
 5. Next: same - watch for the A/B log, verify phase-A arm, harvest.
+
+## REFLECTION (iteration 21)
+Steady-state: shard 3 at 33.2/46G (~0.9G/min through the throttle window,
+consistent since ~10:30). ~26G total remain -> ETA ~12:15 worst case. The
+chain design means the only remaining work after DONE is verification and
+harvest; nothing to adjust. Priorities unchanged.
