@@ -140,7 +140,7 @@ effort/thinking tuning on our side).
 |---|---|---|---|---|
 | Italian gate (iten12) | **12/12** (passes) [³⁴](#fn34) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
 | AIME yearsplit-12 | **0.667** [0.39–0.86] [³⁴](#fn34) | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **—** [³⁴](#fn34) (census in flight) | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
+| AIME-60 census | **0.533** [0.41–0.65] [³⁴](#fn34) | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
 | Zebra CSP ladder | **0.55** [0.34–0.74] (n=20) [³⁴](#fn34) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.933** low [0.70–0.99] (n=15 census) [³⁴](#fn34) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
 | sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
@@ -152,9 +152,10 @@ Reading it honestly:
 these n, and the cloud column carries the format caveat. What the data
 supports is "at least level, nominally ahead" — not "beats the frontier".
 - **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
-  where both sides have a tight interval) — the champion's cell is measured
-  overnight 2026-09-25 and lands in [³⁴](#fn34); the incumbent Q5's 0.533 vs
-  DeepSeek's 0.483 was a three-item gap, i.e. a tie at that n.
+  where both sides have a tight interval): the Q4 champion's **0.533
+  [0.41–0.65]** (2026-09-25) vs DeepSeek's 0.483 — a three-item gap, i.e.
+  a tie at this n — and a dead tie with the incumbent Q5's own 0.533: the
+  quant step down moved nothing measurable at the cell that matters most.
 - **The Italian gate no longer discriminates cloud from local.** Redone
 2026-09-22 with artifacts on disk, both full cloud models **pass at 12/12**
 (DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
@@ -1684,9 +1685,9 @@ same arm, same batteries, same probe harness as the Q5 column before it.
 Cells: iten12 12/12; AIME-12 **0.667 [0.39–0.86]**; zebra n=20 **0.55
 [0.34–0.74]**; sli 10/10; fcb15 census **0.933 [0.70–0.99]** (greedy 14/15,
 same-day paired vs the Q5 incumbent's 0.800 — [²⁶](#fn26)); decode tg128
-33.5 t/s. The AIME-60 census cell is filled the same night from
-`benchmarks/probe-q4-aime60-260925.json`; the Q5 column's 0.533/0.517
-moves to the AIME chapter as the incumbent's reference. Nominal deficits
+33.5 t/s. The AIME-60 census (same night, `benchmarks/probe-q4-aime60-260925.json`):
+**0.533 [0.41–0.65]** — numerically identical to the Q5 incumbent's 0.533
+and nominally three items above DeepSeek's 0.483. Nominal deficits
 vs Q5 on AIME/zebra are recorded, not hidden — CIs overlap at these n.
 
 <a id="fn35"></a>³⁵ **The 2026-09-25 vanilla re-measure (b11168, same night, same weights).**
