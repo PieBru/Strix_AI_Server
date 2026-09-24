@@ -1,0 +1,40 @@
+{
+ "answered": 12,
+ "artifact": "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/fcb15-probe-q4-aime12-260925.jsonl",
+ "budget": 12,
+ "candidate": {
+  "battery": "aime",
+  "hardware": null,
+  "model": "default",
+  "ts": "2026-09-24"
+ },
+ "ci95": [
+  0.3906,
+  0.8619
+ ],
+ "estimate": 0.6667,
+ "k": 8,
+ "method": "Wilson score interval (implemented; not the FAQ factor model)",
+ "mode": "probe",
+ "n": 12,
+ "selection": {
+  "items": [
+   0,
+   1,
+   7,
+   18,
+   22,
+   23,
+   24,
+   25,
+   35,
+   36,
+   42,
+   49
+  ],
+  "mode": "stratified-random (seed 1300)",
+  "rationale": "no version-matched IRT artifact \u2014 seeded stratified fallback; fixed order decided up front (no peeking)",
+  "seed": 1300
+ },
+ "spent": 12
+}

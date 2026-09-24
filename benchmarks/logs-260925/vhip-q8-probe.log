@@ -1,0 +1,5 @@
+vhip-q8-pp4k: 5714 tokens in 10.8s -> 530 t/s
+vhip-q8-pp32k: 39421 tokens in 95.4s -> 413 t/s
+vhip-q8-pp128k: n/a (HTTP 400 — window exceeds the served context)
+vhip-q8-tg128: 128 tokens, first 0.7s, span 5.9s -> 21.7 t/s
+vhip-q8-tg2048: 2048 tokens, first 0.1s, span 97.5s -> 21.0 t/s

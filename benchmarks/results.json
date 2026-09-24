@@ -1210,5 +1210,42 @@
   "caveats": "one corpus per phase (fresh, not repeated); pp128k reads n/a for both phases (probe window exceeds the served 131072 context); quality legs ran on the phase-B arm only (draft choice settled by the speed A/B)",
   "artifacts": "reruns-260919/q6-low-row/{q4-mtp-ab.log, iten12-q4.jsonl, fcb15-q4.txt, fcb15-q5-260924.txt}",
   "report": "benchmarks/q4-vs-q5-report-260924.md"
+ },
+ "engine_axis_vanilla_260925": {
+  "question": "fill the vanilla-upstream engine row cells on b11168 (pp@4k/tg128/tg2048) and re-check fn28's q8-KV claim draftless",
+  "setup": "strixy, one engine config at a time, Q5_K_XL 147.4GiB/6shards, DRAFTLESS (fn28: vanilla+detached-draft hard-crashes), f16 KV @131072, b8192/ub4096, fa on, dio+on (canary lazy recipe; mmap+on is the 260924 wedge), 90s settle, speed_probe corpus, temp 0",
+  "cells": {
+   "vanilla_hip_f16": {
+    "pp4k": 266,
+    "pp32k": 254,
+    "tg128": 21.0,
+    "tg2048": 20.9,
+    "load_s": 33
+   },
+   "vanilla_hip_q8_0_kv": {
+    "pp4k": 530,
+    "pp32k": 413,
+    "tg128": 21.7,
+    "tg2048": 21.0,
+    "load_s": 52
+   },
+   "vanilla_vulkan_f16": {
+    "pp4k": 257,
+    "pp32k": 241,
+    "tg128": 24.6,
+    "tg2048": 23.5,
+    "load_s": 72,
+    "note": "dio falls back to buffered IO on Vulkan"
+   }
+  },
+  "findings": [
+   "q8-KV draftless LOADS on b11168 - the qwen4exp.cpp:1365 assert is q8+DRAFT, not q8 alone",
+   "q8-KV prefill +99%/+63% over f16 (KV-write bandwidth); decode parity 21.x",
+   "fn28's 36.6 q8-KV 'fastest decode' was the degraded-draft artifact - confirmed: draftless q8 decodes 21.7",
+   "Vulkan decode BEATS vanilla HIP f16 (+17%/+12%); pp parity vs HIP-f16",
+   "vanilla pp is ~2.6x slower than the fork (266 vs 689 @4k) - the fork's deep-pp patches are the delta"
+  ],
+  "artifacts": "benchmarks/logs-260925/{vhip-f16,vhip-q8,vvk-f16}*.log",
+  "verdict": "engine row cells measured same-night same-weights Q5 draftless; fork remains the only engine hosting the MTP draft; Vulkan is the best vanilla decode backend on this box"
  }
 }
