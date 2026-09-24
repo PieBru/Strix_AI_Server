@@ -29,6 +29,8 @@
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
   - [Why not vanilla upstream?](#why-not-vanilla-upstream)
+  - [Why not Halogen?](#why-not-halogen)
+  - [Why not ROCmFPX?](#why-not-rocmfpx)
 - [Footnotes](#footnotes)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
@@ -813,6 +815,63 @@ the fork's deep-pp patch work showing, and decode dominated by the missing
 draft. The verdict: upstream is the tracked canary and the q8-KV lab; the
 fork stays load-bearing until the draft format and the PLE path land
 upstream — at which point this chapter inverts.
+
+### Why not Halogen?
+
+[halogen-flash-server](#inference-stacks--the-engine-axis) is the strongest
+outside engine we have measured — and the honest answer starts with what it
+**wins**: prefill. On the same weights, same box, same day as the fork's Q4
+cells it prefilled at **980/1297/1252 t/s** (4k/32k/128k) — +13–43% over the
+fork — and it is the only engine here that serves a **262k context** where
+our arm caps at 131k ([²⁹](#fn29)). The 260908 quality collapse (2/15,
+thinking-budget deaths) is fixed: 0.13.8 scores 12/15 greedy on fcb15.
+
+So why is it reference-only? Four reasons, in order of weight:
+
+1. **Decode is what a resident fleet arm does all day**, and Halogen loses
+   it: 26.9/22.8 t/s vs the fork's 33.5/31.7 — −20/−28% ([²⁹](#fn29)). A
+   prefill king that decodes a third slower is a batch engine, not a
+   serving engine, for our traffic.
+2. **Closed and container-only** — [policy 5](#policy) keeps it at
+   reference distance. We cannot audit it, patch it, or pin it to a commit;
+   BYO-GGUF still ends in their repacked kernel layouts and their 1.4 GiB
+   draft file.
+3. **Quality gap, small but consistent**: 12/15 vs the fork's 14/15 greedy
+   on the same weights and day (overlapping CIs — read "not worse" is
+   unavailable, "nominally behind" is what the cell supports).
+4. **Defaults tax wall-clock**: its `reasoning_effort: xhigh` default burned
+   99–165 s per fcb15 item vs our 36–58 s at sharp-low — fine once tuned,
+   but every comparison needs the tuning documented first.
+
+The one-line read: **Halogen is the deep-prefill specialist we benchmark
+against, not the engine we serve on** — if a workload ever becomes
+prefill-dominated at >131k context, this row is where we look first.
+
+### Why not ROCmFPX?
+
+ROCmFPX ([³¹](#fn31)) is the engine that reads the type-105 ROCmFP4 GGUFs —
+the fp4-27B card. The pitch is real: **a statistical tie with the Q8 27B at
+¼ the memory** (~25 GiB total, 5 s loads, 131k context with huge margin,
+13/15 greedy / 14/15 retry on fcb15, pp4k 336 / tg128 23.4 / tg2048 19.7).
+As a co-resident second arm or a memory-lean backup, the numbers support it.
+
+Three things keep it out of the fleet today:
+
+1. **It fails the Italian gate**: 10/12 on iten12 — the fleet's own floor is
+   12/12. A model that drops two Italian items is not a fleet default,
+   whatever its memory profile.
+2. **Decode below the fleet's practical floor**: 23.4/19.7 t/s without a
+   usable draft path — the fp4 card is a filler engine, and speculation on
+   type-105 files is unmeasured here.
+3. **A one-format engine**: type-105 files load on ROCmFPX-family engines
+   only. Adopting it couples the fleet to a third engine lineage (fork,
+   vanilla, ROCmFPX) for exactly one model card — the maintenance tail is
+   the cost, not the binary.
+
+The honest door-left-open: if a 2-arm future wants a lean co-resident
+worker, the fp4-27B at 25 GiB is the strongest candidate we have measured —
+re-run iten12 first; if it holds 12/12 on a newer checkpoint, this chapter
+gets revisited.
 
 ## Footnotes
 
