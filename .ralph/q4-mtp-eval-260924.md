@@ -19,16 +19,17 @@
   (see benchmarks/results.json q5 rows).
 
 ## Checklist
-1. [ ] Monitor download + A/B chain each iteration; babysit rules apply
+1. [x] Monitor download + A/B chain each iteration; babysit rules apply
        (storm -> SIGKILL arm; failure -> inspect log, fix invocation, relaunch).
-2. [ ] Harvest phase A vs B: tg128/tg2048/echo/pp4k + draft acceptance;
-       pick the better draft with reasons.
-3. [ ] Harvest iten12 + fcb15 for Q4; compare vs Q5 incumbent cells.
-4. [ ] If Q4 wins anywhere decisively, note the serving recommendation
-       (which box/port/role: simple-task alternative to CyberTiel).
-5. [ ] Write the human-friendly report (README-style table + plain-language
-       verdict) into benchmarks/q4-vs-q5-report-260924.md; commit + push.
-6. [ ] Verify q5-serve restored + healthy at the end; report box state.
+2. [x] Harvest phase A vs B: tg128/tg2048/echo/pp4k + draft acceptance;
+       pick the better draft with reasons.  -> B (shared-Q4_K_M) wins every cell.
+3. [x] Harvest iten12 + fcb15 for Q4; compare vs Q5 incumbent cells.  -> 12/12 both;
+       fcb15 Q4 14/15 vs same-day same-protocol Q5 13/15 (both miss item 2).
+4. [x] If Q4 wins anywhere decisively, note the serving recommendation
+       (which box/port/role: simple-task alternative to CyberTiel).  -> report §3.
+5. [x] Write the human-friendly report (README-style table + plain-language
+       verdict) into benchmarks/q4-vs-q5-report-260924.md; commit + push.  -> 3e06802.
+6. [x] Verify q5-serve restored + healthy at the end; report box state.  -> gate §3.
 
 ## Success criteria (binary)
 - Both MTP drafts measured on the same arm+config (numbers in the log).
@@ -177,3 +178,56 @@ so the shared Q8_0 MTP draft works with the IQ4_NL conversion. Load time 170 s.
 
 Phase B (Q4_K_M draft) leads phase A on every cell so far; both still trail the
 Q5 incumbent on decode but beat it on prefill (~+20%).
+
+## ITERATION 30 — TASK COMPLETE (all six checklist items closed)
+
+### Final verification command (external, read-only, re-runnable from a fresh shell)
+```bash
+cd /home/piero/Piero/Work/Strix_AI_Server && bash benchmarks/verify-q4-eval-260924.sh; echo "EXIT=$?"
+```
+No environment variables needed; needs ssh BatchMode to `strixy2.local`. It checks
+artifacts + published state + both boxes' RAM/swap/PSI envelope + service health and
+exits non-zero on any failure. **Sabotage-checked:** with the swap gate tightened to
+1 MiB it prints `1 GATE(S) FAILED` and exits 1; unmodified it exits 0.
+
+Output summary (260924 ~11:5x, EXIT=0, `ALL GATES PASS`):
+```
+PASS  exists: benchmarks/q4-vs-q5-report-260924.md | q4-mtp-ab.log | iten12-q4.jsonl
+                | fcb15-q4.txt | fcb15-q5-260924.txt | results.json
+PASS  A/B phase A measured / phase B measured / both phases echoed / acceptance captured
+PASS  A/B self-restored q5-serve        PASS iten12 12/12 + 12 raw rows
+PASS  fcb15 Q4 census (14/15)           PASS fcb15 Q5 same-day census (12/15 greedy)
+PASS  results.json carries the day's cells (q4_xl_mtp_260924)
+PASS  HEAD == origin/main (3e06802 -> 6785d38 after the gate landed)
+PASS  strixy2 ram% = 98 (<=100) | swap = 96 MiB (<=500) | psi-full = 0% (<=5)
+PASS  strixy2 q5-serve active           PASS strixy2 :8080 healthy
+PASS  local ram% = 68 | swap = 457 MiB | psi-full = 0% | :8080 has a loaded arm
+```
+
+### Deliverables
+| what | where | commit |
+|---|---|---|
+| report (tables + verdict + serving recommendation) | `benchmarks/q4-vs-q5-report-260924.md` | 3e06802 |
+| measured cells (iten12 Q4, fcb15 Q4 + same-day Q5, A/B section) | `benchmarks/results.json` | 3e06802 |
+| acceptance gate | `benchmarks/verify-q4-eval-260924.sh` | 6785d38 |
+| raw A/B + quality evidence | `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/` | — |
+| local storm fix (config + logs) | `models.ini` (+`.bak-260924-storm`), `/tmp/local-arm-switch.log` | repo commit "local storm fixed…" |
+
+### Result in one line
+Serve **UD-Q4_K_XL + shared-Q4_K_M draft** (MTP n-max 3, f16 KV @131k, sharp-low): it
+beat the Q8_0 draft on every cell (+4 % pp4k, +16 % tg2048, +2.7 % tg128, +2.5 % echo,
+equal acceptance), sits within 1.5 % of the Q5 incumbent's decode while beating it +22 %
+on prefill and +8 % on echo, matched it on iten12 (12/12) and beat it on fcb15
+(14/15 vs 13/15), at **36 GiB less weight** — the difference between a box that fits and
+one that faults from disk.
+
+### Residual risks / deferred (not blockers)
+- strixy2 still defaults to the 147 GiB Q5 arm at **98 % RAM / ~2-4 GiB available** — it
+  passes the gate today with no margin; the report recommends defaulting it to Q4_K_XL
+  (a one-line `models.ini` change, mirrors the strixy config per the 260914 two-box plan).
+  **Left for the operator: it changes which arm serves the LAN.**
+- Local box carries **457-520 MiB** of stale swap from long-lived processes; clearing it
+  needs root (`swapoff -a && swapon -a`) — no passwordless sudo here. It is flat, not
+  growing, and PSI-full is 0.00, so no storm.
+- The local `q5`/`deep` arms remain loadable on demand; both are >147 GiB and will
+  over-subscribe this box if requested. Documented in-file.
