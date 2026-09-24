@@ -112,6 +112,7 @@ its stock template by family design).
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB |
+| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | — | **0.933** [²⁶](#fn26) | — | — | — | 111 GiB file / 91 GiB served [²⁶](#fn26) |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB |
 | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — | — | 0.45 | 32 GiB |
@@ -266,11 +267,19 @@ besides the model server itself.
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
  generation, then we measure wall-clock, not server-reported. See below,
  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
-3. **Q5+ quants only** — Q4 and below are deprecated here. This floor
- comes from enterprise-level experience and community expert consensus
- on MoE (mixture-of-experts) quantization robustness, not from a 12-item battery alone.
- Our battery *confirms* Q5 meets the quality gate; the floor itself is
- practitioner judgment. See below,
+3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
+ (revised 2026-09-24). The floor comes from enterprise-level experience and
+ community expert consensus on MoE (mixture-of-experts) quantization
+ robustness, not from a 12-item battery alone; our battery *confirms* Q5
+ meets the quality gate. The deprecation is now **per-quant, not per-class**:
+ a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
+ paired census ties or beats the champion's cell, and (ii) it fits the RAM
+ envelope the champion does not (the 2026-09-24 sizing rule: RAM <100%,
+ swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
+ exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
+ weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
+ the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
+ See below,
  [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
 4. **llama.cpp first** — preferably the vanilla build (upstream master,
  easy updates); the tuned HIP fork is used where prefill speed demands.
@@ -322,17 +331,17 @@ The @262k columns are the *arithmetic* at the native ceiling — the
 champion actually serves 200k (the measured-stable value; see *Why Q5
 wins*), and Q6 ships at 64k (its sustained gate).
 
-| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k |
-|---|---:|---:|---:|---:|
-| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 |
-| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 |
-| MTP draft | 2.8 | 2.8 | 2.8 | 2.8 |
-| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 |
-| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
-| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
-| **total** | **114.2** | **124.7** | **121.7** | **83.7** |
-| box limit | 124 | 124 | 124 | 124 |
-| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** |
+| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
+|---|---:|---:|---:|---:|---:|
+| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | 111.3 file (GTT 91–93 incl. KV+draft) |
+| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 | 3.0 |
+| MTP draft | 2.8 | 2.8 | 2.8 | 2.8 | 1.9 (Q4_K_M) |
+| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 | — |
+| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
+| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
+| **total** | **114.2** | **124.7** | **121.7** | **83.7** | **95.4 measured RAM in use** |
+| box limit | 124 | 124 | 124 | 124 | 124 |
+| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** | **~29 (measured)** |
 
 **Observed in practice:** with the full 262k KV pool allocated and the
 server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
@@ -583,6 +592,19 @@ reasoning vs stock), BF16-anchor parity across three batteries, the
 effort matrix (low = better coding, flat elsewhere, strictly faster),
 and the engine axis proving the tuned fork is load-bearing.
 
+**2026-09-24 — the champion is the quality tier, no longer the resident
+default.** The Q5 file is 147.4 GiB on a 124 GiB box: held resident at
+f16 KV @131k it reached 116 GiB GTT, faulted the rest from disk, and the
+box measured **1.64 t/s at 3% GPU, 12.9 GiB swap, PSI-full ~20%** — the
+same over-subscription disease the context retreats (262k→200k→131k) had
+been buying time against, now measured at the file-size root. With the
+operator's 2026-09-24 sizing rule (RAM <100%, swap <0.5 GiB, no storms),
+the fleet's resident defaults became **UD-Q4_K_XL + the shared-Q4_K_M MTP
+draft** on strixy2 (33.3 t/s live, RAM 75%) and **IQ4_NL** on strixy (37.9
+t/s, RAM 68%) — both measured inside the envelope. Q5 keeps every quality
+cell above and stays one config line away (on demand, idle box only); the
+champion lineage continues in [²⁶](#fn26).
+
 **The winner:** llama.cpp + Qwen3.8 Flash-Next Q5_K_XL (147 GiB) + its
 MTP draft, on a single 128 GB Strix Halo.
 
@@ -614,11 +636,16 @@ now has a sharp cell; the flash family and the 27B were re-cut at sharp-low
 
 ### Why not IQ4_NL? (also 12/12, faster decode, less RAM)
 
-Our Q5+ policy (principle 3). A 12-item battery can't discriminate within
-the top tier — the floor itself comes from practitioner experience with
-MoE quantization robustness. IQ4_NL is a strong candidate and we may
-revisit; for now, Q5 is the tier we trust for production, until we find a
-reliable way to run Q6.
+The 2026-09-24 paired census settled it as a *tier* decision rather than a
+policy one: same day, same protocol, same box — IQ4_NL **10/15 greedy /
+13/15 retry** vs UD-Q4_K_XL's **14/15 / 14/15** ([²⁶](#fn26)). At ~3.9 bpw
+it drops real coding quality that Q4_K_XL (~4.6 bpw, 18 GiB more) keeps.
+It still holds a *serving* role the others can't: as strixy's local default
+(93.3 GiB file, ~40 GiB headroom) it measured **41.1 tg128 / 33.8 tg2048 /
+45.2 echo** and **12/12 iten12** — the fastest Flash-Next tier here — chosen
+on 2026-09-24 to end the Q5-resident swap storm on the box that also hosts
+agent workloads. Speed cells compare *serving recipes* (quant + draft +
+n-max + binary differ), not pure quants.
 
 ### Why not Q6_K_XL? (also 12/12 — our preferred tier)
 
@@ -934,6 +961,29 @@ is the yearsplit re-cut (0.750); its fcb15 (0.867), ladder (all rungs,
 13/15 greedy) and sli (10/10) landed 2026-09-23. The 27B's podium row is
 sharp-low throughout (AIME 0.833 and zebra 0.65, both up from its medium
 cells); its serving arm still runs stock for speed.
+
+<a id="fn26"></a>²⁶ **UD-Q4_K_XL row — the 2026-09-24 paired measurement.** All cells from
+one day, one box (strixy2, idle), one protocol: the A/B harness
+(`benchmarks/` + GEFC `fcb15_run.py`), f16 KV @131k, sharp-low, MTP draft
+n-max 3, 90 s settle, fresh corpus per cell. **fcb15 0.933 [0.70–0.99]**
+(greedy 14/15, with-retry 14/15; sole miss = item 2, which the champion also
+misses) against the champion's **same-day re-run 0.800 greedy / 0.867 retry**
+(12/15, fails items 2 and 13) — the podium's 0.867 champion cell is its
+2026-09-23 promoted basis; the same-day pairing is why the rows compare.
+iten12 12/12. Speed: pp4k 865 / pp32k 909 / tg128 33.5 / tg2048 31.7 t/s,
+echo 40.8 — prefill ~+25% and tg2048 ~+23% over the champion's re-measured
+cells (689/672/25.7), tg128 −4%. pp@128k is `n/a`: the arm serves
+`c=131072` and the probe's 128k window exceeds it (same honest-refusal basis
+as Muse's [¹⁶](#fn16)). **RAM: 111.3 GiB of weights (4 shards); observed
+serving footprint 95.4 of 127.4 GiB RAM, GTT 91–93 GiB** — the only
+Flash-Next tier measured inside the 2026-09-24 envelope with ~29 GiB to
+spare, which is why it replaced the 147.4 GiB Q5 arm as the resident
+default on both boxes (strixy2 `q5-serve.service`; strixy runs the IQ4_NL
+arm, [below](#why-not-iq4_nl-also-1212-faster-decode-less-ram)). AIME /
+ladder / sli / zebra cells owed — the row earns its place on the paired
+census + speed + RAM axes. Artifacts:
+`benchmarks/q4-vs-q5-report-260924.md`, `benchmarks/results.json`
+(`q4_xl_mtp_260924`), raw logs in `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/`.
 
 ## Italian (iten12)
 
