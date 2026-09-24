@@ -29,6 +29,7 @@
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
   - [Why not vanilla upstream?](#why-not-vanilla-upstream)
+  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
   - [Why not Halogen?](#why-not-halogen)
   - [Why not ROCmFPX?](#why-not-rocmfpx)
 - [Footnotes](#footnotes)
@@ -872,6 +873,36 @@ The honest door-left-open: if a 2-arm future wants a lean co-resident
 worker, the fp4-27B at 25 GiB is the strongest candidate we have measured —
 re-run iten12 first; if it holds 12/12 on a newer checkpoint, this chapter
 gets revisited.
+
+### Why not Q5? (the demoted champion)
+
+For three weeks Q5_K_XL + MTP was the answer to "which local model serves
+this fleet" — [iten12-v2](#italian-iten12) 12/12, AIME 0.833, every fcb15
+ladder rung, 34.8 t/s decode. Nothing in this chapter walks those cells
+back: they are why the podium still prints the Q5 row. What demoted it was
+not quality. It was arithmetic.
+
+**The weights stopped fitting the box.** UD-Q5_K_XL is 147.4 GiB of GGUF on
+a machine with 124 GiB of usable unified memory. For a while the recipe
+retreated around the problem — context 262144 → 200000 → 131072 — and each
+retreat bought weeks, not a fix ([¹²](#fn12) documents the ladder). At
+f16 KV @131k the arm held 116 GiB of GTT with ~30 GiB of weights faulting
+from disk on demand; on 260924 the failure finally presented in full:
+decode collapsed to **1.64 t/s at 3% GPU busy**, the host pushed **12.9 GiB
+into swap**, and memory-PSI sat near 20% for the duration (measured
+260924 10:50, artifacts in [²⁶](#fn26)'s A/B logs). That is the exact
+refault-storm class the sizing rule exists to prevent: **an arm that must
+leave ≥8 GiB of host headroom cannot be 147 GiB of weights on a 124 GiB
+box.**
+
+The same day's paired measurement settled the succession: UD-Q4_K_XL at
+111 GiB file / 91–95 GiB served keeps the proven recipe (sharp-low, MTP
+draft, f16 KV @131k) inside the envelope with ~29 GiB to spare, decodes
+within ~4% at tg128 and **+23% at tg2048**, prefills +25%, and matches the
+gate batteries (iten 12/12, fcb15 0.933 vs 0.867 same-day) — [²⁶](#fn26).
+Q5 did not lose; it ran out of room. Full-Q5 serving lives on strixy2's
+on-demand slot, and the podium's Q5 row stays as the quality reference the
+Q4 row is checked against.
 
 ## Footnotes
 
