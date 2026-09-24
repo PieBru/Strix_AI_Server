@@ -121,3 +121,59 @@ Chain stdout: `/tmp/q4-chain.log`.
 **Lesson (durable):** `cmd && echo ok` plus an unconditional completion marker
 converts a hard failure into a green log. Completion markers must be emitted
 only on the success path, and downloads must assert the expected byte size.
+
+## ITERATION 29b — OPERATOR RULE + local swap-storm fix (decision B) — DONE & VERIFIED
+
+**New standing operator rule (260924, applies to EVERY inference experiment):**
+while looping on inference work, monitor RAM **<100%**, swap **<0.5 GiB**, and
+traffic (no refault/swap storms). A resident arm must leave >=8 GiB host headroom.
+
+**Local `strixy-9ad3` storm — root cause (OBSERVED 10:50):** the resident
+`qwen38-flash-q5` arm is **147.4 GiB of GGUF on a 124 GiB box** (`MemoryMax=120G`,
+f16 KV @131k). At 116 GiB GTT the rest faulted from disk → 3% GPU busy, **1.64 t/s**,
+RAM 122/124 GiB, **12.9 GiB swap**, PSI-full ~20%. The models.ini comment trail
+(262144→200000→131072) is the same failure bought back three times: the arm was
+oversubscribed from the start.
+
+**Fix applied (operator chose B — reload with a fitting working set):**
+- new default arm `[qwen38-flash-iq4nl]` = local `flash-next-iq4nl` IQ4_NL,
+  **93.3 GiB** (54 GiB smaller), same qwen4exp recipe: sharp-low template, kvu,
+  shared-Q8_0 MTP draft, f16 KV @131k, b=8192/ub=4096. mmproj omitted on purpose
+  (documented wedge combo). Aliases `default,quality,fast`, load-on-startup true.
+- `[qwen38-flash-q5]` demoted: alias `q5`, `load-on-startup = false` (on-demand
+  only, warned in-file). `[qwen38-flash-q6]` unchanged (`deep`, 158 GiB, warned).
+- config replaced atomically (`mv` of a fully-diffed temp file; backup
+  `models.ini.bak-260924-storm`); only additive + the two q5 lines changed.
+- switch script `/tmp/local-arm-switch.sh` (stop → wait GTT<15G → start → wait loaded);
+  log `/tmp/local-arm-switch.log`.
+
+**Before → after (same box, same minute):**
+
+| metric | Q5 arm (before) | IQ4_NL arm (after) |
+|---|---|---|
+| decode | **1.64 t/s** | **37.9 t/s** |
+| GPU busy | 3% | normal |
+| RAM used | 122 / 124 GiB | 86.7 / 124 GiB (68%) |
+| free/available | 2.4 GiB | 40.8 GiB |
+| swap | 12.9 GiB | 520 MiB (stale, not growing; no passwordless sudo to swapoff) |
+| PSI mem full (avg10) | ~20% | **0.00** |
+| GTT | 116 GiB | 81.6 GiB |
+
+Verified with a real request (`POST /v1/chat/completions`, alias `quality`): correct
+answer, 41 tokens in 1056 ms = 37.9 t/s, **draft acceptance 0.60 / mean len 4.00** —
+so the shared Q8_0 MTP draft works with the IQ4_NL conversion. Load time 170 s.
+
+**strixy2 (the A/B box) stays inside the envelope:** phase A/B logged at RAM
+98.7/127.4 GiB, swap 95 MiB, PSI 0.00. Monitored each polling cycle from now on.
+
+### A/B harvest so far (same arm, same config, fresh corpus per phase)
+| cell | phase A — shared-Q8_0 draft | phase B — shared-Q4_K_M draft | Q5+MTP incumbent (same-day) |
+|---|---|---|---|
+| pp4k | 830 t/s | **865 t/s** | 707 |
+| pp32k | 888 t/s | **909 t/s** | — |
+| tg128 | 32.6 t/s | **33.5 t/s** | 36.4 |
+| tg2048 | 27.4 t/s | **31.7 t/s** | 32.2 settled |
+| echo | 39.8 t/s | pending | 37.8 |
+
+Phase B (Q4_K_M draft) leads phase A on every cell so far; both still trail the
+Q5 incumbent on decode but beat it on prefill (~+20%).
