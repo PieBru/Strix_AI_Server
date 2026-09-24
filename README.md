@@ -1236,6 +1236,9 @@ medium** — the battery saturates at both tiers; no effort sensitivity.
 Re-run across the fleet 2026-09-23: Q6 **10/10** [0.72–1.0] at its 64k
 tier and the 27B **10/10** [0.72–1.0] at sharp-low — it saturates
 everywhere. Useful as a fleet regression canary, not as a discriminator.
+The 2026-09-25 census adds the Q4 fleet default **10/10** [0.72–1.0]
+([³³](#fn33)); Muse's cell remains owed — its stock thinking template
+makes the battery pathological without per-item caps ([³⁶](#fn36)).
 
 ## Coding — GBench fcb15 (deterministic, unit-tested)
 
