@@ -54,3 +54,17 @@
    healthy curl for a perceived stall would be the error.
 5. Next: shard 3 (~35G) then shard 4 (12G) then the 1.91G draft -> A/B
    autostarts -> harvest into the comparison report.
+
+## REFLECTION (iteration 11)
+1. Accomplished: harness armed (unchanged); shard 3 at ~24.5/46G; everything
+   downstream (A/B, quality, restore) is fully automated behind the DONE marker.
+2. Working: zero-touch monitoring; the diagnosis recipe kept me from killing
+   healthy curls three times.
+3. Blocking: only the HF CDN throttle window (~1G/min aggregate since ~10:30).
+   At this pace shard 3+4+draft complete ~11:20-11:40. No intervention helps
+   (parallel range-requests would need a different tool and may trip harder
+   throttling; curl -C - resume is already the resilient path).
+4. No adjustment — the chain is the correct design; a slower download only
+   delays, it cannot corrupt (resume + DONE gating).
+5. Next: when the A/B log starts, verify phase A arm health then let it run;
+   harvest at completion.
