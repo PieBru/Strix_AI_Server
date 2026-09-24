@@ -364,9 +364,11 @@ you prefer upstream-default behavior.
 
 One method, applied to every candidate. All figures GiB.
 
-The @262k columns are the *arithmetic* at the native ceiling — the
-champion actually serves 200k (the measured-stable value; see *Why Q5
-wins*), and Q6 ships at 64k (its sustained gate).
+The @262k columns are the *arithmetic* at the native ceiling — no tier
+serves it; the retreat ladder ended at **131k** for Q5 (its measured-stable
+value) and the Q4 fleet default serves 131k by recipe (see
+[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-demoted-
+champion)); Q6 ships at 64k (its sustained gate).
 
 | component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
 |---|---:|---:|---:|---:|---:|
