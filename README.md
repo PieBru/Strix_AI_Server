@@ -122,7 +122,7 @@ its stock template by family design).
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | — [³⁶](#fn36) | — [³⁶](#fn36) | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
+| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | 7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
 
 ## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
 
@@ -1710,10 +1710,12 @@ owed cells): served stock-template per family design, DFlash2 draft n-max 6,
 capped generations (the stock template is a thinking template — answers land
 in `reasoning_content` first, so batteries need explicit `--max-tokens`
 bounds; the first sli attempt ran uncapped and was terminated with no
-artifact). Also observed and worth recording: measured decode rate on this
-arm swings with draft acceptance and request mix (server-reported tg and
-wall-clock progress diverge); grade these cells by artifact, not by server
-logs. Artifacts: `benchmarks/` muse-*-260925 + this footnote.
+artifact). **Ladder cell (the night's tail): greedy 7/15, with-retry
+13/15** — the retry gap is the thinking template's format noise as much as
+capability (greedy answers often stay buried in `reasoning_content`);
+artifact `benchmarks/fcb15-muse-ladder-260925.jsonl`. Also observed:
+measured decode rate on this arm swings with draft acceptance and request
+mix; grade these cells by artifact, not by server logs.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
