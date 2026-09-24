@@ -85,6 +85,8 @@ numbers after the fix, re-open if they disagree with "0 new friction".
 library, never auto-closes) instead of the live `models.ini`. One-line edit
 in `state/carry.json` verify field.
 
+## Status 260924 09:4x — DONE: A1-A3, B1-B6 (all self-tested; B4 exercises live tonight). C1 pending operator pick.
+
 ## Execution order (on go)
 A1 → A2 → A3 (config, reversible, kills the P1 recurrence) →
 B6 (one line) → B1 → B2 (same file) → B4 → B5 → B3.

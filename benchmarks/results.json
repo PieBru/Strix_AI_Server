@@ -1125,5 +1125,22 @@
   "attempt": "draftless f16@131072 chained suite (speed+echo+iten12+fcb15), self-healing script",
   "outcome": "ABORTED after the 3rd crash (08:41:18 boot); contaminated phases (ran against the resurrected fork) discarded; q5-serve verified restored (binary-checked)",
   "note": "script at /tmp/vanilla-131k-suite.log pattern preserved in reruns-260919/q6-low-row/vanilla-131k-suite.log"
+ },
+ "fp4_27b_260924": {
+  "model": "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf (parsimo2010 HF, 15.01GB, 4.39bpw, MTP head in-file)",
+  "engine": "charlie12345/ROCmFPX @ c49ebdbd, HIP/amdclang++/gfx1151, strixy2 :8091 (build recipe in .ralph log)",
+  "config": "c=131072, q8_0 KV, -ub 512, draft-mtp n-max 4 (p_min 0.75 build default), sharp-v22.5.0-low, clocks pinned HIGH",
+  "cells": {
+   "pp4k": 336,
+   "tg128": 23.4,
+   "tg2048": 19.7,
+   "echo_rewrite": 30.3,
+   "iten12": "10/12 (0.833) vs incumbent 27B Q8+DFlash2 11/12",
+   "fcb15": "greedy 13/15 (0.867) | retry 14/15 vs incumbent 12/15 (0.800)"
+  },
+  "artifacts": "reruns-260919/q6-low-row/{fp4-27b-battery.log, iten12-fp4-27b.jsonl, fcb15-fp4-27b.txt}",
+  "footprint": "~25G total (vs ~100G incumbent) - 131k ctx with huge margin; load 5s",
+  "verdict": "statistical TIE with the Q8_K_XL+DFlash2 arm (iten12 -1 item, fcb15 +1 item) at 1/4 memory and no draft-server complexity. Decode parity (19.7-30.3 vs 24-30). Strong candidate for a co-resident second arm / strixy2 backup role. pp32k cell void (cache replay); card reference: pp4096 270 no-MTP.",
+  "caveats": "card's own: MTP output not bit-identical to greedy (treat as speed feature); KV-quant quality not perplexity-validated; type-105 file needs the ROCmFPX engine family"
  }
 }
