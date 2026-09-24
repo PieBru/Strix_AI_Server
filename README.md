@@ -56,7 +56,9 @@
 
 The whole README distils into two tables:
 [**the podium**](#podium) — which local model this fleet serves and why
-(speed × quality × RAM, every cell wall-clock and re-measured), and
+(speed × quality × RAM, every cell wall-clock and re-measured; the fleet
+default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
+[Why Q4 wins](#why-q4-wins)), and
 [**the champion vs the cloud**](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53) — the same batteries run
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
