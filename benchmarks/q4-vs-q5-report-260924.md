@@ -88,8 +88,10 @@ refault/traffic storms**; a resident arm must leave ≥ 8 GiB host headroom.
 - **strixy2:** the A/B arm measured at RAM 101/127 GiB, swap 95 MiB, PSI 0.00 — inside the
   envelope. The restored Q5 incumbent sits at **~98 % RAM** with only ~2–4 GiB available:
   it passes today, it has no margin, and it is the same over-subscription as the local
-  storm waiting for the next long prefill. **Recommendation: make Q4_K_XL the default on
-  strixy2 too** (mirrors the strixy config, per the 260914 two-box plan).
+  storm waiting for the next long prefill. **Applied 260924 (operator-approved): strixy2's
+  `q5-serve.service` now defaults to Q4_K_XL + shared-Q4_K_M draft** — RAM 75 % (was 98 %),
+  swap 82 MiB, PSI 0.00; live check 33.3 t/s, draft acceptance 0.73. Unit backup:
+  `q5-serve.service.bak-260924-q5`.
 
 ## 5. Evidence paths
 
