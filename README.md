@@ -1155,6 +1155,7 @@ speed, RAM, and context headroom.
 
 | model | score |
 |---|---:|
+| Flash-Next UD-Q4_K_XL (fleet default, [²⁶](#fn26) [³³](#fn33)) | **12/12** |
 | Flash-Next Q5_K_XL | **12/12** |
 | Flash-Next IQ4_NL | **12/12** |
 | Flash-Next Q6_K_XL | **12/12** |
