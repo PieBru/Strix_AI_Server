@@ -24,7 +24,7 @@
   - [4. Compare](#4-compare)
 - [Reproduce our tests](#reproduce-our-tests)
 - [Podium — the details](#podium--the-details)
-  - [Why Q5 wins](#why-q5-wins)
+  - [Why Q4 wins](#why-q4-wins)
   - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
@@ -610,56 +610,43 @@ Everything is in the repo:
 
 ## Podium — the details
 
-### Why Q5 wins
+### Why Q4 wins
 
-**The standing decision:** the champion is
-**Qwen3.8 Flash-Next UD-Q5_K_XL + the sharp template**, with the
-promoted default effort tier **low** (sharp-low) — both boxes' serving
-configs updated and verified. **Reaffirmed 2026-09-23 (operator):**
-Q5+MTP stays the default **until Q6 is servable stable enough to
-guarantee multi-day workloads without crashes or storms** — the Q6
-zebra cell now exists (0.65, no-MTP basis, [¹¹](#fn11)), but one clean
-census on the ridge is not a multi-day stability proof; promotion
-requires a soak test under the Doctor first. The evidence base: the podium
-above, the template axis measured on Q5 itself (+0.40 coding / +0.25
-reasoning vs stock), BF16-anchor parity across three batteries, the
-effort matrix (low = better coding, flat elsewhere, strictly faster),
-and the engine axis proving the tuned fork is load-bearing.
+**The standing decision (2026-09-24, reaffirmed by the 2026-09-25 quality
+census):** the champion is **Qwen3.8 Flash-Next UD-Q4_K_XL + the shared
+Q4_K_M MTP draft** at the promoted effort tier **low** (sharp-low) — the
+fleet's serving default on both boxes ([²⁶](#fn26)). The succession was
+arithmetic, not quality: Q5's 147.4 GiB of weights stopped fitting the
+124 GiB box (full story in [Why not Q5?](#why-not-q5-the-demoted-champion));
+Q4 is the tier that keeps the proven recipe — sharp-low, MTP draft, f16 KV
+@131k — resident with ~29 GiB to spare (111 GiB file / 91–95 GiB served).
 
-**2026-09-24 — the champion is the quality tier, no longer the resident
-default.** The Q5 file is 147.4 GiB on a 124 GiB box: held resident at
-f16 KV @131k it reached 116 GiB GTT, faulted the rest from disk, and the
-box measured **1.64 t/s at 3% GPU, 12.9 GiB swap, PSI-full ~20%** — the
-same over-subscription disease the context retreats (262k→200k→131k) had
-been buying time against, now measured at the file-size root. With the
-operator's 2026-09-24 sizing rule (RAM <100%, swap <0.5 GiB, no storms),
-the fleet's resident defaults became **UD-Q4_K_XL + the shared-Q4_K_M MTP
-draft** on strixy2 (33.3 t/s live, RAM 75%) and **IQ4_NL** on strixy (37.9
-t/s, RAM 68%) — both measured inside the envelope. Q5 keeps every quality
-cell above and stays one config line away (on demand, idle box only); the
-champion lineage continues in [²⁶](#fn26).
+**The winner:** llama.cpp (fork engine) + Qwen3.8 Flash-Next UD-Q4_K_XL
++ its shared-Q4_K_M MTP draft, on a single 128 GB Strix Halo.
 
-**The winner:** llama.cpp + Qwen3.8 Flash-Next Q5_K_XL (147 GiB) + its
-MTP draft, on a single 128 GB Strix Halo.
-
-- Passes the quality gate (12/12, tied with Q6 and IQ4_NL) **and** the
- speed floor
-- Serves a **200k-token context** — whole codebases, no chunking —
- with real headroom ([the math](#ram-accounting)). The native 262k was
- deliberately walked back: at `c=262144` the arm allocates ~111.8 GiB of
- the box's 124 GiB and, under sustained load, the kernel enters a
- swap/refault storm that takes decode from ~35 t/s to **under 1 t/s**
- (measured twice). 200k is the value that survives a night of load
-- A 32k-token prompt (a big file plus instructions) prefills in ~48
- seconds (**672 t/s** probe) — the axis that matters for
- coding, and the co-resident pair can't touch this
-- One main model + draft = zero swap overhead, simplest operations
-- All **quality** scores are reproducible from this repo — serve
- commands, checksums, unit files, the batteries, and the champion's raw
- JSONL runs in [benchmarks/](benchmarks/), [configs/](configs/), and
- [systemd/](systemd/). The wall-clock speed probe is committed as
- [benchmarks/speed_probe.py](benchmarks/speed_probe.py) — see
- [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
+- Passes the quality gate **and** holds the speed floor: iten12 **12/12**,
+  sli **10/10** (canary-saturated like every measured local row), fcb15
+  **0.933** same-day paired vs the incumbent's 0.800 greedy / 0.867 retry
+  ([²⁶](#fn26)); decode within ~4% of Q5 at tg128, **+23% at tg2048**
+  (31.7 vs 25.7), prefill +25% (865 vs 689 @4k)
+- The 2026-09-25 census completes the quality row: AIME-12 **0.667
+  [0.39–0.86]** and zebra **0.55 [0.34–0.74]** — both nominally under Q5's
+  0.833/0.65, both CIs overlapping at these n. The honest read: quality
+  parity within these batteries' resolution, with the nominal deficits
+  recorded, not hidden
+- Serves a **131k-token context** — whole codebases, no chunking — with
+  real headroom ([the math](#ram-accounting)); the native 262k ceiling is
+  not reachable for this family on this box at any tier (retreat log
+  262k→200k→131k, per-arm comments in the serving config)
+- A 32k-token prompt prefills in ~44 s (**909 t/s** probe) — the axis that
+  matters for coding
+- One main model + 1.9 GiB draft = zero swap overhead, simplest operations
+- All **quality** scores are reproducible from this repo — serve commands,
+  checksums, unit files, the batteries, and the champion's raw JSONL runs
+  in [benchmarks/](benchmarks/), [configs/](configs/), and
+  [systemd/](systemd/). The wall-clock speed probe is committed as
+  [benchmarks/speed_probe.py](benchmarks/speed_probe.py) — see
+  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
 
 **The template confound is measured, not hypothetical:** IQ4_NL scored **0.333 on its stock template** overnight and
 **0.667 with the sharp template** — same quant, battery, protocol,
@@ -692,7 +679,7 @@ re-run chain on a dedicated process — iten12 12/12 under the hardened
 grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GB** —
 no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
 pool is pre-allocated and cannot outgrow the margin. Q5 ships at 200k for
-the same measured reason (see *Why Q5 wins*); Q6 at 131k is a
+the same measured reason (see *Why Q4 wins*); Q6 at 131k is a
 demonstrated fallback tier, not a hope.
 
 **But there is a second, slower disease — measured:** sustained
