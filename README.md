@@ -1111,7 +1111,8 @@ caveats live in the AIME chapter. **ladder** = deepest fcb15 tier rung
 held under greedy (`v3+D+E+F`); "all rungs" means the model holds every
 rung drafted — Q5 and the 27B tie at every depth (tier-ladder chapter).
 **sli** = structured-list canary, saturated at 10/10 for every local row
-measured (champion at both tiers, Q6 at 64k, 27B at sharp-low) —
+measured (champion at both tiers, Q6 at 64k, 27B at sharp-low, Q4 in the
+2026-09-25 census [³³](#fn33); Muse's cell is owed — [³⁶](#fn36)) —
 regression canary only, not a discriminator. **zebra** = n=20 (Q5
 sharp-low, 27B sharp-low, Muse) or n=12 cells, overlapping CIs throughout
 (zebra chapter); Q6's zebra is unobtainable at its 64k tier (storm,
@@ -1138,9 +1139,11 @@ serving footprint 95.4 of 127.4 GiB RAM, GTT 91–93 GiB** — the only
 Flash-Next tier measured inside the 2026-09-24 envelope with ~29 GiB to
 spare, which is why it replaced the 147.4 GiB Q5 arm as the resident
 default on both boxes (strixy2 `q5-serve.service`; strixy runs the IQ4_NL
-arm, [below](#why-not-iq4_nl-also-1212-faster-decode-less-ram)). AIME /
-ladder / sli / zebra cells owed — the row earns its place on the paired
-census + speed + RAM axes. Artifacts:
+arm, [below](#why-not-iq4_nl-also-1212-faster-decode-less-ram)). AIME-12, sli,
+zebra and iten12 landed the next night ([³³](#fn33)); the fcb15 ladder cell
+is the same night's marathon tail. The row earned its place on the paired
+census + speed + RAM axes, and the quality census confirmed it within
+battery resolution. Artifacts:
 `benchmarks/q4-vs-q5-report-260924.md`, `benchmarks/results.json`
 (`q4_xl_mtp_260924`), raw logs in `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/`.
 
