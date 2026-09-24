@@ -176,7 +176,7 @@ keeps closed engines at reference distance; both bite here.
 | llama.cpp upstream (vanilla, `b11147`) [²⁸](#fn28) | preferred by policy — cannot host this family safely | Q5_K_XL (same box, 260923) | — | 27.0 f16 / **36.6 q8-KV** | 25.7 / **32.0** | none (suite aborted) | q8-KV loads *only* upstream; detached-draft configs hard-crash the box |
 | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) | upstream tracking — `llama-vulkan.service` | Q5_K_XL (recipe basis, 260921) | — | — | — | none (see [²⁸](#fn28)) | quality identical to HIP; deep prefill ~3.5× slower at 128k (flag-vs-backend question open) |
 | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
-| Gufo (open, native HIP) [³⁰](#fn30) | lab — **image modality** | Qwen-Image-2.1 official BF16 (260924) | — | — | — | — (image) | generation 111 s / 2-reference edit 200 s @1024², RSS 31 GiB; text-LLM cells owed |
+| Gufo (open, native HIP) [³⁰](#fn30) | lab — **image modality** | Qwen-Image-2.1 official BF16 (260924) | — | — | — | — (image) | generation 111 s / 2-reference edit 200 s @1024[²](#fn2), RSS 31 GiB; text-LLM cells owed |
 | ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
 
 Reading it honestly: only two rows share weights and day — the fork and halogen on
@@ -1557,7 +1557,7 @@ re-verified per release).
 native-HIP C++ engine from the Italian community; per-model docs with pinned upstream
 revisions. On this box it is the **image modality**: `gufo serve image` loads the
 official Qwen/Qwen-Image-2.1 BF16 checkpoint (30.9 GiB, revision-pinned) and speaks
-the OpenAI Images API — generation 111 s, two-reference edit 200 s at 1024², weights
+the OpenAI Images API — generation 111 s, two-reference edit 200 s at 1024[²](#fn2), weights
 uploaded on demand (RSS 31 GiB, 79 GiB host-available, PSI 0). Build notes for this
 Arch + `rocm-nightly-gfx1151-bin` host (ROCm clang host+HIP, a one-line GCC-16-git
 header patch, `GUFO_SKIP_DS4=1` around an lld-24 LTO crash) in
