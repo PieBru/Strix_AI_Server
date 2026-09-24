@@ -88,3 +88,36 @@ harvest; nothing to adjust. Priorities unchanged.
 Download 35.5/46G on shard 3; total elapsed ~75 min against the ~20 min
 optimistic ETA — the throttle window is the whole story, still ~0.5-0.9G/min.
 Everything else remains armed and correct. No adjustment; harvest on DONE.
+
+## ITERATION 29 — download closed, A/B recovered and RUNNING (260924 10:5x)
+
+**Download verified complete (10:31) against the HF API, byte-exact:**
+| shard | HF size | on disk |
+|---|---|---|
+| 00001 | 10,946,624 | ✓ |
+| 00002 | 49,859,583,136 | ✓ |
+| 00003 | 49,376,141,504 | ✓ |
+| 00004 | 12,087,983,520 | ✓ |
+(shard 1 is *legitimately* 10.9 MB — not a truncation; the repo splits it that way.)
+
+**BUG FOUND (silent, my own):** the draft fetch in `/tmp/q4-dl.sh` wrote to
+`$D/flash-next/...` where `$D=.../flash-next-unsloth` — a directory that does
+not exist → `curl` exited 23 in the *same second* the last shard finished.
+Because the line was `curl ... && echo ok`, a failure left no log line, and
+`echo DONE` ran unconditionally — so the download log looked like a clean
+success while the 1.91G draft was absent. The chained A/B therefore never had
+its phase-B file (and no watcher was alive to fire).
+
+**Fix + recovery:** `/tmp/q4-run-chain.sh` — fetch the draft to the correct
+dir (`~/Downloads/LLM/Qwen38/flash-next/`), assert size == 1,907,151,936, only
+then exec the A/B. Ran: fetched in 25 s (78 MB/s burst), size verified, A/B
+autostarted 10:48:34.
+
+**Live state:** phase A (shared-Q8_0 draft) arm healthy on `strixy2:8091`
+(`{"status":"ok"}`); q5-serve stopped by design, restored by the script at end.
+Log: `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/q4-mtp-ab.log`
+Chain stdout: `/tmp/q4-chain.log`.
+
+**Lesson (durable):** `cmd && echo ok` plus an unconditional completion marker
+converts a hard failure into a green log. Completion markers must be emitted
+only on the success path, and downloads must assert the expected byte size.
