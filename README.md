@@ -308,8 +308,8 @@ besides the model server itself.
  robustness, not from a 12-item battery alone; our battery *confirms* Q5
  meets the quality gate. The deprecation is now **per-quant, not per-class**:
  a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
- paired census ties or beats the champion's cell, and (ii) it fits the RAM
- envelope the champion does not (the 2026-09-24 sizing rule: RAM <100%,
+ paired census ties or beats the then-champion's cell, and (ii) it fits the
+ RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
  swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
  exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
  weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
