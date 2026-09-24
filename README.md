@@ -851,7 +851,7 @@ Overlapping CIs throughout: no ranking claims.
   continuous swap storm, RAM at 100%, manual SIGKILL; the ad-hoc local guard died
   silently mid-storm (its log stops at "started"; ad-hoc `setsid` scripts are not
   watchdogs — the next guard is a systemd unit with `Restart=always`). An 86k attempt
-  (`ub=1024`) sat on the ridge ~8 min then tipped. **Dropping the MTP draft (+2.8 GiB
+  (`ub=1024`) sat on the ridge ~8 min then tipped. **Dropping the MTP draft (+2.6 GiB
   weights + draft KV/buffers) is what finally fits**: the no-MTP arm at 86k
   (`b=1024 ub=512`) rode the ridge to 87 M avail and completed the census clean —
   **zebra 0.65 (13/20) [0.43–0.82]**, a three-way tie with the champion and the 27B.
