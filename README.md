@@ -134,15 +134,15 @@ model/battery pairs **we have not measured** — they are not zeros.
 Cloud cells were probed 2026-09-16 at the vendor default API config (no
 effort/thinking tuning on our side).
 
-| metric (battery) | **Q5_K_XL + MTP** (local, sharp-low) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
+| metric (battery) | **UD-Q4_K_XL + MTP** (local, sharp-low) [³⁴](#fn34) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
 |---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (passes) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
-| AIME yearsplit-12 | **0.833** [0.55–0.95] | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **0.533** low / 0.517 med | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
-| Zebra CSP ladder | **0.65** [0.43–0.82] (n=20) [²¹](#fn21) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
-| fcb15 coding | **0.867** low [0.62–0.96] / 0.667 med (n=15 census) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
+| Italian gate (iten12) | **12/12** (passes) [³⁴](#fn34) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
+| AIME yearsplit-12 | **0.667** [0.39–0.86] [³⁴](#fn34) | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
+| AIME-60 census | **—** [³⁴](#fn34) (census in flight) | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
+| Zebra CSP ladder | **0.55** [0.34–0.74] (n=20) [³⁴](#fn34) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
+| fcb15 coding | **0.933** low [0.70–0.99] (n=15 census) [³⁴](#fn34) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
 | sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
-| decode tg128 / weights RAM | **34.8 t/s / 97 GiB, local** | n/a (API) | n/a (API) | n/a (API) |
+| decode tg128 / weights RAM | **33.5 t/s / 111 GiB file · 91–95 GiB served, local** [³⁴](#fn34) | n/a (API) | n/a (API) | n/a (API) |
 
 Reading it honestly:
 
