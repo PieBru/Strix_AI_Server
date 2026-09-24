@@ -1061,6 +1061,57 @@
  "gpu_clock_policy_260924": {
   "finding": "operator relayed drluoto HF card: on AMD auto perf level floats, ~20% loss; pin with high perf level",
   "applied": "both boxes pinned HIGH 260924 ~08:00 (amd-smi set -l high, sudo)",
-  "caveat": "runtime setting - resets on reboot; re-pin at benchmark session start or make a unit. ALL existing numbers measured in AUTO - relative comparisons internally consistent, absolute values potentially ~20% below pinned-clock capability (unverified here)."
+  "caveat": "runtime setting - resets on reboot; re-pin at benchmark session start or make a unit. ALL existing numbers measured in AUTO - relative comparisons internally consistent, absolute values potentially ~20% below pinned-clock capability (unverified here).",
+  "measurement_note": "pinned-HIGH probes: pp4k 566-707, tg128 34.3-36.4 across consecutive identical runs - run-to-run spread right after restart is 15-25%; the drluoto-card '~20% from pinning' is NOT reproduced on our workload (at most single digits, within variance). Settled pinned numbers: pp4k ~707, pp32k ~685, tg128 ~36.4 vs yesterday AUTO pp 619/654, tg 33.2/28.2."
+ },
+ "mtp_ngram_experiment_260924": {
+  "question": "does drluoto's 'draft-mtp,ngram-mod + p-min 0.7' recipe (their 16.8->47 t/s on IQ4_XS) transfer to our production Q5_K_XL+shared-draft fork arm?",
+  "setup": "strix y2 q5-serve, f16 KV @131k, clocks pinned HIGH, same speed_probe corpus + a purpose-built echo probe (benchmarks/echo_probe.py)",
+  "runs": [
+   {
+    "arm": "mtp-only pinned run1 (5 min post-restart)",
+    "pp4k": 566,
+    "pp32k": 614,
+    "tg128": 34.3,
+    "tg2048": 27.6
+   },
+   {
+    "arm": "mtp+ngram-mod p-min0.7",
+    "pp4k": 656,
+    "pp32k": 686,
+    "tg128": 30.9,
+    "tg2048": 25.8,
+    "echo_rewrite": 36.5,
+    "acceptance": "0.79-0.89 but mean accepted len 2.8 (vs 3.2)"
+   },
+   {
+    "arm": "mtp-only echo probe",
+    "echo_rewrite": 37.8
+   },
+   {
+    "arm": "mtp-only pinned run2 (settled)",
+    "pp4k": 707,
+    "pp32k": 682,
+    "tg128": 36.4
+   }
+  ],
+  "verdict": "NO - reverted. Novel tg -7..-10%, echo rewrite -3%, and the apparent pp gain was warmup variance (mtp-only run1 566 vs run2 707 on identical config). Their gains need the IQ4_XS target + hipCUB TOP_K patch + their ngram tuning; not reproducible by flags alone on our stack.",
+  "measurement_lesson": "single speed probes within ~5 min of a restart read 15-25% low on pp; settled-state re-runs needed before believing any small delta",
+  "kept": "q5-serve unchanged (draft-mtp only); echo_probe.py committed as the echo-workload check"
+ },
+ "mtp_ecosystem_survey_260924": {
+  "trigger": "operator pointed at EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF + kin",
+  "repos": {
+   "EasiiX ...-Strix-Halo-GGUF": "hc sidecar (4.1G, needs upstream PR #28901-era loader + a fork with the MTP head; tested vs Aristo94/EngramHalo.cpp); measured +50% decode on IQ3_XXS",
+   "drluoto/MTP-GGUF": "our staged Q8_0 sidecar; branch strix-halo-flash-next; discussion ggml#27950 (17->47 t/s IQ4_XS)",
+   "jlkivey/...-PR27836-GGUF": "PR #27836-only layout + graft script; mutual-incompatibility warning across community heads",
+   "jamesrogers/...-MTP-MXFP4": "head BUILT IN (self-speculative, one file); qwen4exp MTP MERGED in ik_llama.cpp main (PR #2369, 260902) - no fork needed on that engine",
+   "quimmedes + cafe-llama.cpp": "fork with hc+QSA+MTP graphs",
+   "unsloth official MTP/ heads": "shared-Q8_0 2.6G recommended (the layout our fork already runs) + self-contained variants",
+   "Aristo94/EngramHalo.cpp": "strix-halo kernel fork (RDNA3.5 patches, true QSA sparse gather, working MTP); 23.5->39 t/s IQ3_XXS; third-party verified (sleepingrobots.com)"
+  },
+  "upstream_state": "ggml main: #27836 still open-draft; #28901 only changed sidecar hc-tensor requirements - no MTP loader merged. ik_llama.cpp main has it.",
+  "notable": "julianmb/haloq38flash: official converter bug - every hc norm off by exactly 1.0 (first quants printed garbage); 91G quant + 56 t/s + 262k ctx",
+  "implication_for_us": "our fork+shared-draft already implements the working path; challenger-engine candidates exist (EngramHalo for kernels, ik_llama.cpp for merged-main) but all published wins are on smaller quants (IQ3/IQ4) - not our Q5/Q6 matrix"
  }
 }
