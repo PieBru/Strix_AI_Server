@@ -1185,11 +1185,13 @@ still planned.
 The AIME surface is now a single **year-stratified 12-item selection**
 (6×AIME 2025 + 6×AIME 2026, seed 1300, same graders) — the contamination-correct
 cut that replaced the original stratified-random one. At n=12 it is a pointer,
-not a verdict: every interval below overlaps the champion's except where noted.
+not a verdict: every interval below overlaps the fleet default's except where
+noted.
 
 | model | template basis | yearsplit | CI95 | n |
 |---|---|---:|---|---:|
-| **Flash-Next Q5_K_XL** (champion) | sharp | **0.833** | 0.55–0.95 | 12 |
+| **Flash-Next UD-Q4_K_XL** (fleet default, [³³](#fn33)) | sharp-low | **0.667** | 0.39–0.86 | 12 |
+| **Flash-Next Q5_K_XL** (quality reference) | sharp | **0.833** | 0.55–0.95 | 12 |
 | Flash-Next Q6_K_XL | sharp | 0.750 | 0.47–0.91 | 12 |
 | 27B BF16 anchor | sharp-medium | 0.750 | 0.47–0.91 | 12 |
 | Qwen3.8 27B Q8 | sharp **low** | **0.833** | 0.55–0.95 | 12 |
