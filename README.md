@@ -597,7 +597,10 @@ Everything is in the repo:
 - [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
  tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
  results (`results.json`). Three commands reproduce a score — see
- [benchmarks/README.md](benchmarks/README.md)
+ [benchmarks/README.md](benchmarks/README.md). The 2026-09-25 Q4 census
+ ran end-to-end from one script against the live serving arm:
+ `benchmarks/q4-marathon-260925.sh` (iten12 → sli → zebra → AIME-12 →
+ AIME-60 → fcb15 ladder; per-battery JSONL + reports land beside it)
 - [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
  batteries, Wilson-CI runner) behind the
  [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
