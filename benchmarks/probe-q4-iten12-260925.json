@@ -1,0 +1,40 @@
+{
+ "answered": 12,
+ "artifact": "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/fcb15-probe-q4-iten12-260925.jsonl",
+ "budget": 12,
+ "candidate": {
+  "battery": "iten12",
+  "hardware": null,
+  "model": "default",
+  "ts": "2026-09-24"
+ },
+ "ci95": [
+  0.7575,
+  1.0
+ ],
+ "estimate": 1.0,
+ "k": 12,
+ "method": "Wilson score interval (implemented; not the FAQ factor model)",
+ "mode": "census",
+ "n": 12,
+ "selection": {
+  "items": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "mode": "census (budget >= battery size)",
+  "rationale": "full battery",
+  "seed": 1300
+ },
+ "spent": 12
+}

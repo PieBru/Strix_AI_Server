@@ -28,6 +28,7 @@
   - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
+  - [Why not vanilla upstream?](#why-not-vanilla-upstream)
 - [Footnotes](#footnotes)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
@@ -771,6 +772,47 @@ honest caveat: the pair was never benchmarked as a co-resident serving
 unit — this is a component-level comparison. The pair's theoretical
 advantage (62 GiB total weights, more room for context) is real but
 untested as a serving configuration.
+
+### Why not vanilla upstream?
+
+Policy [4](#policy) prefers upstream, so this chapter is the running
+answer to "why does a fork still serve the fleet?" — with the 260924/25
+verification evidence, not vibes.
+
+**The draft wall.** Every fleet arm accelerates decode with the model's own
+MTP head, and both MTP draft GGUFs (shared and non-shared) are fork-format:
+vanilla `b11168` rejects them at load (`tensor 'token_embd.weight' not found`,
+non-shared variant: `'output_hc_norm.weight'`) — the draft tensor layout the
+fork defined never went upstream ([²⁷](#fn27)). Without a draft, vanilla
+decodes at ~21 t/s on Q5 (260925) where the fork's MTP arms hold 33–35 —
+and attaching a draft anyway is not an option: vanilla + detached MTP draft
+**hard-crashes the box** ~80 s in, zero kernel messages ([²⁸](#fn28)).
+
+**The load-path spellings.** The fleet recipe reads
+`--load-mode none --lazy-mode on-direct` — fork flags. Vanilla's `on-direct`
+does not exist, and the naive translation is a trap: `mmap + lazy on`
+wedges on this family (260924: a 15-minute single-thread CPU grind at
+~57 GiB resident, zero disk IO, zero GPU — the load never completes). The
+working vanilla spellings we now use for canary cells are its own
+`-lm dio -lzm on` — loads the same weights cleanly in 33 s. So the box can
+run vanilla; it cannot run it *on the fleet recipe*.
+
+**The memory envelope.** Without the fork's PLE streaming, a full-recipe
+arm (131k context, unified KV, mmproj, PLE resident) oversubscribes the
+124 GiB pool — 26 GiB of swap and memory-PSI stalls at 38% in the 260924
+run, exactly the refault-storm class the sizing rule exists to prevent.
+Vanilla fits only in reduced configurations.
+
+**What vanilla buys anyway.** q8-KV decode (the fork's QSA indexer asserts
+on non-f16 KV; upstream loads it — [²⁸](#fn28) measured 36.6 t/s there, the
+fastest decode on this box), first-access to upstream features, and the
+Vulkan canary in [systemd/](systemd/). Tonight's b11168 HIP cells
+(Q5, draftless, dio+on, f16 KV): **pp@4k 266 / pp@32k 254 t/s, tg128 21.0 /
+tg2048 20.9 t/s** — prefill ~2.6–3× slower than the fork's 689–865, which is
+the fork's deep-pp patch work showing, and decode dominated by the missing
+draft. The verdict: upstream is the tracked canary and the q8-KV lab; the
+fork stays load-bearing until the draft format and the PLE path land
+upstream — at which point this chapter inverts.
 
 ## Footnotes
 
