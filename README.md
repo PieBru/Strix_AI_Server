@@ -1488,7 +1488,8 @@ stratified):
 | model | zebra | CI95 | n |
 |---|---:|---|---:|
 | 27B BF16 (anchor, sharp) | 0.65 | 0.43–0.82 | 20 |
-| **Flash-Next Q5 (sharp-low, shipped default)** | **0.65** | 0.43–0.82 | 20 |
+| **Flash-Next Q5 (sharp-low, quality reference)** | **0.65** | 0.43–0.82 | 20 |
+| **Flash-Next UD-Q4_K_XL (sharp-low, fleet default, [³³](#fn33))** | **0.55** | 0.34–0.74 | 20 |
 | Flash-Next Q6 (sharp-low, **no MTP**, 86k tier [¹¹](#fn11)) | **0.65** | 0.43–0.82 | 20 |
 | **Flash-Next Q5 (sharp-low, full bank)** | **0.57** | 0.39–0.73 | 30 |
 | Qwen3.8 27B Q8 + DFlash (sharp-low) | **0.65** | 0.43–0.82 | 20 |
