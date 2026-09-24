@@ -434,8 +434,10 @@ For context: a 32k prompt is roughly "a medium codebase plus your task."
 A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
 the deciding axis for coding.
 
-**Credit where due:** Halogen wins decode at depth (27.3/25.6 t/s at
-2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
+**Credit where due** (these wall-clock cells are the Q5-era Halogen
+measurement; the engine table's same-day Q4 cells live in
+[²⁹](#fn29) — two epochs, do not mix them): Halogen wins decode at depth
+(27.3/25.6 t/s at 2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
 short decode (**34.8 t/s** tg128) now edges its 32.4. For
 short-prompt chat it remains the faster engine; the collapse at depth
 is what kills it for our workload. Its 128k cell completed at 1770s —
