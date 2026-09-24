@@ -885,7 +885,8 @@ not quality. It was arithmetic.
 **The weights stopped fitting the box.** UD-Q5_K_XL is 147.4 GiB of GGUF on
 a machine with 124 GiB of usable unified memory. For a while the recipe
 retreated around the problem — context 262144 → 200000 → 131072 — and each
-retreat bought weeks, not a fix ([¹²](#fn12) documents the ladder). At
+retreat bought weeks, not a fix (the retreat log lives in the serving
+config's own comments, `models.ini` on this box). At
 f16 KV @131k the arm held 116 GiB of GTT with ~30 GiB of weights faulting
 from disk on demand; on 260924 the failure finally presented in full:
 decode collapsed to **1.64 t/s at 3% GPU busy**, the host pushed **12.9 GiB
