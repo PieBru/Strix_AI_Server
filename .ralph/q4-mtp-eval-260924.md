@@ -83,3 +83,8 @@ Steady-state: shard 3 at 33.2/46G (~0.9G/min through the throttle window,
 consistent since ~10:30). ~26G total remain -> ETA ~12:15 worst case. The
 chain design means the only remaining work after DONE is verification and
 harvest; nothing to adjust. Priorities unchanged.
+
+## REFLECTION (iteration 26)
+Download 35.5/46G on shard 3; total elapsed ~75 min against the ~20 min
+optimistic ETA — the throttle window is the whole story, still ~0.5-0.9G/min.
+Everything else remains armed and correct. No adjustment; harvest on DONE.
