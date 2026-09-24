@@ -1,0 +1,24 @@
+#!/bin/bash
+# llama-gate [-l] MIN_GB CMD... — refuse CMD unless MemAvailable >= MIN_GB.
+# (doctor 260924 F1: both kernel-OOM rounds were second-model loads at the
+#  ~2-4G PLE steady state)
+# -l: also serialize box-wide via flock held for CMD's lifetime (C1 policy:
+#  lab loads check-then-run atomically, one at a time per box).
+lock=""
+[ "$1" = "-l" ] && { lock=1; shift; }
+need=$1; shift
+run() {
+  avail=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo)
+  if [ "$avail" -lt "$need" ]; then
+    echo "REFUSED: ${avail}G avail < ${need}G — unload the resident arm first (doctor F1)" >&2
+    exit 75
+  fi
+  exec "$@"
+}
+if [ -n "$lock" ]; then
+  exec 9>/tmp/llama-lab.lock
+  flock 9
+  run "$@"
+else
+  run "$@"
+fi

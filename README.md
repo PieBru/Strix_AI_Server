@@ -1410,12 +1410,13 @@ web app (htmx, 2 s poll) — and its user unit
 - **Read-only by design** — no ini writes, no arm swaps, no privileged
  calls; ~25 MB RSS (resident memory) flat, sub-1% of one core
 
-Install — `ROUTER_UNITS` at the top of `Doctor.py` names the units it
-watches (defaults are the reference box's `model-router-pwilkin`/
+Install — the app runs straight from the checkout (no files in `$HOME`).
+`ROUTER_UNITS` at the top of `Doctor.py` names the units it watches
+(defaults are the reference box's `model-router-pwilkin`/
 `-vanilla`; this repo's units are `llama-hip`/`llama-vulkan`):
 
 ```bash
-cp doctor/Doctor.py ~/Doctor.py # edit ROUTER_UNITS if your units differ
+# edit ExecStart in doctor/Doctor.service to your checkout path, then:
 install -Dm644 doctor/Doctor.service ~/.config/systemd/user/Doctor.service
 systemctl --user daemon-reload && systemctl --user enable --now Doctor
 ```
