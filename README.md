@@ -9,6 +9,7 @@
 - [Hardware](#hardware)
 - [Podium](#podium)
 - [Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53)
+- [Inference stacks — the engine axis](#inference-stacks--the-engine-axis)
 - [Arch Linux minimal server — the base install](#arch-linux-minimal-server--the-base-install)
   - [Swap: answer **No** to zram — and why](#swap-answer-no-to-zram--and-why)
   - [After the install](#after-the-install)
@@ -157,6 +158,35 @@ regression tripwire, not a cloud separator.
 - Cloud cells are cheap to add and cheap to keep: an API key and a probe
 run per model. The table can grow a row per model without touching the
 local test rig.
+
+## Inference stacks — the engine axis
+
+The podium ranks *models*; this chapter ranks the *engines* that serve them.
+Same silicon, same probes ([speed_probe](benchmarks/speed_probe.py), fcb15), same
+rule as everywhere else: a cell is wall-clock on this box, and two cells compare only
+on the same weights and day — which is why the **measured-on** column is part of the
+table, not a footnote. Two orthogonal axes live here: *which engine* (fork vs upstream
+vs the outsiders) and *which GPU backend* (HIP/ROCm vs Vulkan — [³²](#fn32); every
+adopted arm runs a HIP build). [Policy 4](#policy) keeps llama.cpp first and [policy 5](#policy)
+keeps closed engines at reference distance; both bite here.
+
+| engine | status | measured on | pp@4k | tg128 | tg2048 | fcb15 greedy | one-line read |
+|---|---|---|---:|---:|---:|---:|---|
+| **llama.cpp fork** (strix-halo build) [²⁷](#fn27) | **adopted — serves every fleet arm** | UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26) | 865 | **33.5** | **31.7** | **14/15** | the load-bearing baseline: fork-format MTP draft, lazy PLE, fast deep-pp |
+| llama.cpp upstream (vanilla, `b11147`) [²⁸](#fn28) | preferred by policy — cannot host this family safely | Q5_K_XL (same box, 260923) | — | 27.0 f16 / **36.6 q8-KV** | 25.7 / **32.0** | none (suite aborted) | q8-KV loads *only* upstream; detached-draft configs hard-crash the box |
+| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) | upstream tracking — `llama-vulkan.service` | Q5_K_XL (recipe basis, 260921) | — | — | — | none (see [²⁸](#fn28)) | quality identical to HIP; deep prefill ~3.5× slower at 128k (flag-vs-backend question open) |
+| halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
+| Gufo (open, native HIP) [³⁰](#fn30) | lab — **image modality** | Qwen-Image-2.1 official BF16 (260924) | — | — | — | — (image) | generation 111 s / 2-reference edit 200 s @1024², RSS 31 GiB; text-LLM cells owed |
+| ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
+
+Reading it honestly: only two rows share weights and day — the fork and halogen on
+UD-Q4_K_XL (260924) — and they split the axes cleanly: **halogen prefill, fork decode,
+fork quality by two items** (14/15 vs 12/15, overlapping CIs). The vanilla row is a
+special case: its headline cell (q8-KV 36.6 t/s, the fastest decode measured on this
+box) exists *only* upstream because the fork's QSA indexer asserts on non-f16 KV —
+but vanilla cannot safely load this family's draft, so the cell is a fork-fix TODO,
+not a serving option. Gufo is the newest axis and the only one that changes *modality*:
+it is how this fleet serves images.
 
 ## Arch Linux minimal server — the base install
 
@@ -1485,3 +1515,72 @@ Standing on the shoulders of open-source giants:
 All results, recipes, and configurations in this repository are released
 under the [MIT License](LICENSE). The models and engines referenced are
 subject to their own respective licenses.
+
+<a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
+(build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —
+HIP/ROCm build, gfx1151; binaries on both boxes (recipe + sha256 in
+[configs/q5-flash-next-winner.md](configs/q5-flash-next-winner.md)). Load-bearing for
+this model family: the shared-MTP draft GGUF is fork-format (upstream rejects it:
+`tensor 'token_embd.weight' not found`), and the lazy-PLE path
+(`--load-mode none --lazy-mode on-direct`) is fork spellings. Same-box same-day
+vanilla comparison (260923, Q5_K_XL, f16 KV): fork 33.2/28.2 t/s vs upstream
+27.0/25.7 — the fork buys +19%/+9% decode on top of the draft support. Every podium
+row is served by this engine.
+
+<a id="fn28"></a>²⁸ **Vanilla upstream, HIP build** (`b11147`, 260923 + the 260924 crash
+matrix in `benchmarks/results.json` → `crash_repro_260924`, `vanilla_suite_260924`).
+The two-sided finding: (i) the **q8-KV config that the fork refuses** (QSA indexer
+asserts `k/v == F16`, `qwen4exp.cpp:1365`) loads and serves on upstream and is the
+fastest decode measured on this box — 36.6/32.0 t/s — though the basis correction
+stands: PR #27836 (qwen4exp MTP) is *not* merged, so that run's "MTP" was the fork-format
+draft in a degraded spec mode, not true MTP; (ii) vanilla cannot host this family
+safely — draftless f16 @131k loads are a coin flip (the 260924 three-crash suite),
+and f16 @131k + a detached MTP draft **hard-crashed the box** ~80 s in (zero kernel
+messages, instant reboot — the repro of the six 260923 night crashes). Quality census
+aborted with the suite, so the fcb15 cell is empty by measurement, not by omission.
+
+<a id="fn29"></a>²⁹ **halogen-flash-server** (peonist-ai) — closed engine, container-only,
+so [policy 5](#policy) keeps it at reference distance; the 0.11.0 closed-format eval
+lives in [configs/halogen-eval.md](configs/halogen-eval.md). The 0.13.8 cells are the
+**BYO-GGUF** path (since 0.7.0): it repacks unsloth's UD-Q4_K_XL losslessly into its
+own kernel layouts and takes the draft head from its own 1.4 GiB file — same weights,
+same box, same day as the fork's [²⁶](#fn26) cells. Prefill 980/1297/1252 t/s at
+4k/32k/128k (+13–43%; it serves a 262k context where our arm caps at 131k), decode
+26.9/22.8 (−20/−28% vs the fork), fcb15 12/15 greedy — the 260908 collapse (2/15,
+thinking-budget deaths, see [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
+is fixed. Practical caveat: its default `reasoning_effort: xhigh` burned 99–165 s per
+fcb15 item vs our 36–58 s at sharp-low — budget your defaults before comparing
+wall-clock. Temperature-0 output is byte-identical to serial greedy (their guarantee,
+re-verified per release).
+
+<a id="fn30"></a>³⁰ **Gufo** ([gufo-org/gufo](https://github.com/gufo-org/gufo), MIT) —
+native-HIP C++ engine from the Italian community; per-model docs with pinned upstream
+revisions. On this box it is the **image modality**: `gufo serve image` loads the
+official Qwen/Qwen-Image-2.1 BF16 checkpoint (30.9 GiB, revision-pinned) and speaks
+the OpenAI Images API — generation 111 s, two-reference edit 200 s at 1024², weights
+uploaded on demand (RSS 31 GiB, 79 GiB host-available, PSI 0). Build notes for this
+Arch + `rocm-nightly-gfx1151-bin` host (ROCm clang host+HIP, a one-line GCC-16-git
+header patch, `GUFO_SKIP_DS4=1` around an lld-24 LTO crash) in
+[benchmarks/lab-260924-halogen-gufo-image.md](benchmarks/lab-260924-halogen-gufo-image.md).
+Text-LLM cells are owed; it also serves 27B/DeepSeek/TTS/ASR modalities we have not
+measured. The community "uncensored" GGUFs are ComfyUI packaging and do not load here.
+
+<a id="fn31"></a>³¹ **ROCmFPX** ([charlie12345](https://huggingface.co/kingjones777),
+@c49ebdbd) — the engine family that reads the type-105 ROCmFP4 GGUFs (the fp4-27B
+card, `fp4_27b_260924` in `benchmarks/results.json`). pp4k 336, tg128 23.4, tg2048
+19.7, echo 30.3; iten12 10/12, fcb15 13/15 greedy / 14/15 retry — a statistical tie
+with the Q8_K_XL+DFlash2 27B arm at **¼ the memory** (~25 GiB total, 5 s load, 131k
+context with huge margin). Candidate for a co-resident second arm / backup role; the
+type-105 file binds it to this engine family.
+
+<a id="fn32"></a>³² **Vulkan vs HIP/ROCm — the backend axis, orthogonal to the fork
+question.** Both units ship in [systemd/](systemd/) and switch with one command
+(`Conflicts=` handles the swap). The **Vulkan build** is vanilla-upstream, our
+upstream-tracking canary: same model, same template, quality identical — and lazy
+loading since master `b23701f77` (PR #28136). Its measured cost is **deep prefill:
+~3.5× slower than HIP at 128k** (the flag-vs-backend split is still open — see
+[configs/q5-flash-next-winner.md](configs/q5-flash-next-winner.md)). The **HIP build**
+(fork and the 260923 vanilla measurements alike) is what every adopted arm runs:
+fast deep-prefill on the gfx1151-only ROCm 10.2 nightly (`rocm-nightly-gfx1151-bin`,
+AUR) with `GGML_HIP_ENABLE_UNIFIED_MEMORY=1`. Rule of thumb on this fleet: HIP for
+anything that serves, Vulkan for tracking upstream behaviour.
