@@ -1261,7 +1261,8 @@ Uniform-template fcb15 column — sharp family, effort noted per cell
 
 | model | template / effort | fcb15 | CI95 |
 |---|---|---:|---|
-| **Flash-Next Q5_K_XL (champion)** | sharp **low** | **0.867** (13/15, census) | 0.62–0.96 |
+| **Flash-Next UD-Q4_K_XL (fleet default, [²⁶](#fn26))** | sharp **low** | **0.933** (14/15, census) | 0.70–0.99 |
+| **Flash-Next Q5_K_XL (quality reference)** | sharp **low** | **0.867** (13/15, census) | 0.62–0.96 |
 | Qwen3.8 27B Q8 + DFlash | sharp medium | **0.800** (12/15, census) | 0.55–0.93 |
 | Qwen3.8 27B Q8 + DFlash | sharp **low** | **0.800** (12/15, census) | 0.55–0.93 |
 | Muse-Glimmer Q8 | stock (family design) | 0.733 (11/15, census) | 0.48–0.89 |
