@@ -1,0 +1,15 @@
+# qwen-image-test — the lightweight test app (tests/simple_gradio_ui.py, :7860).
+# Conflicts the demo app (same port) and the llm arms (co-residency verdict).
+[Unit]
+Description=Qwen-Image-2.1 test app on 0.0.0.0:7860 (gufo backend)
+After=network.target gufo-serve.service
+Conflicts=llama-llm.service gufo-llm.service qwen-image-demo.service
+
+[Service]
+WorkingDirectory=/home/piero/Piero/Work/QImage21
+ExecStart=/usr/bin/uv run --with gradio --with pillow python tests/simple_gradio_ui.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

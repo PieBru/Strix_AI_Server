@@ -1,0 +1,16 @@
+# qwen-image-demo — official Qwen-Image-2.1 gradio demo app (qwen-space/, :7860).
+# GPU work lives in gufo-serve (:8081). Conflicts: llm arms + the test app
+# (same port). On-demand — not boot-enabled.
+[Unit]
+Description=Qwen-Image-2.1 official demo app on 0.0.0.0:7860 (gufo backend)
+After=network.target gufo-serve.service
+Conflicts=llama-llm.service gufo-llm.service qwen-image-test.service
+
+[Service]
+WorkingDirectory=/home/piero/Piero/Work/QImage21
+ExecStart=/usr/bin/uv run --with gradio --with numpy --with requests --with pillow python qwen-space/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

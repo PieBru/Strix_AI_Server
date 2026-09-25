@@ -274,9 +274,9 @@ def boxinfo():
     if _svc("gufo-serve"):
         _eps.append(":8081 image API · "
                     + (f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:7860/" target="_blank">:7860 web UI</a>'
-                       if _svc("qwen-image-web") else "(web UI down)"))
+                       if _svc("qwen-image-demo") or _svc("qwen-image-test") else "(UI down)"))
     elif _has("gufo-serve.service"):
-        _eps.append(_btn("/svcstart", "▶ start image stack (:8081/:7860)"))
+        _eps.append(_btn("/svcdemo", "▶ demo app (:7860)") + " " + _btn("/svctest", "▶ test app (:7860)"))
     if _svc("open-webui"):
         _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:3000/" target="_blank">:3000 open-webui</a>')
     _eps.append(":8667 doctor — /")
@@ -583,10 +583,22 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
+        elif self.path == "/svcdemo":
+            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-demo.service"], timeout=60)
+            body, ct = "starting image backend + demo app…", "text/plain"
+            self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
+        elif self.path == "/svctest":
+            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-test.service"], timeout=60)
+            body, ct = "starting image backend + test app…", "text/plain"
+            self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
         elif self.path == "/svcstart":
             # fixed-argv allowlist (260925): image stack only. Conflicts= in the
             # units tears down gufo-llm automatically. POST-only, LAN-trusted.
-            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-web.service"], timeout=60)
+            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-demo.service"], timeout=60)
             body, ct = "starting image stack (llm auto-stops)…", "text/plain"
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
