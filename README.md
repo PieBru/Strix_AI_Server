@@ -118,7 +118,7 @@ its stock template by family design).
 
 | model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) | draft (size) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | n/a [²⁶](#fn26) | 33.5 | **31.7** | **12/12** | **0.667** [0.39–0.86] [³³](#fn33) | **0.933** [²⁶](#fn26) | **all rungs** (13/15) [³³](#fn33) | **10/10** [³³](#fn33) | **0.55** [0.34–0.74] [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
+| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | **747** [³⁷](#fn37) | 33.5 | **31.7** | **12/12** | **0.667** [0.39–0.86] [³³](#fn33) | **0.933** [²⁶](#fn26) | **all rungs** (13/15) [³³](#fn33) | **10/10** [³³](#fn33) | **0.55** [0.34–0.74] [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
 | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
 | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
@@ -1742,6 +1742,19 @@ capability (greedy answers often stay buried in `reasoning_content`);
 artifact `benchmarks/fcb15-muse-ladder-260925.jsonl`. Also observed:
 measured decode rate on this arm swings with draft acceptance and request
 mix; grade these cells by artifact, not by server logs.
+
+<a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
+owed (the served c=131072 refuses the probe's ~160k-token window). The
+champion arm re-served at `c=262144` (same binary, weights, Q4_K_M draft
+n-max 3, f16 KV, sharp-low, mmproj; bench port, strixy): **pp128k 747 and
+761 t/s across two full runs** (159,889 real tokens), pp32k 688–893,
+tg128 32.3–34.6 — consistent with the fn26 cells. Two honest notes: (i)
+pp4k swung 549–1481 t/s between runs (262k-context KV paging makes the
+shallow cell noisy — the fn26 865 @131k stays the podium basis); (ii)
+tg2048 at 262k reads 21.8 t/s vs 31.7 @131k — the doubled KV taxes decode
+~30%, which is exactly why the fleet serves 131k. Artifacts:
+`benchmarks/logs-260925/fork-q4-262k-probe.log` + driver
+`benchmarks/bench-samebasis-260925.sh`.
 
 <a id="fn27"></a>²⁷ **The adopted fork** = upstream commit `b0f31f5876ef3856b55f5bb88072cc96e5effafe`
 (build 10977) + [pwilkin/strix-halo](https://github.com/pwilkin/strix-halo) packaging —

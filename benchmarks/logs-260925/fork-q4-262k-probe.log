@@ -1,0 +1,5 @@
+fork-q4-262k-pp4k: 5853 tokens in 10.7s -> 549 t/s
+fork-q4-262k-pp32k: 39560 tokens in 57.5s -> 688 t/s
+fork-q4-262k-pp128k: 159889 tokens in 214.0s -> 747 t/s
+fork-q4-262k-tg128: 128 tokens, first 0.8s, span 4.0s -> 32.3 t/s
+fork-q4-262k-tg2048: 2046 tokens, first 0.1s, span 93.9s -> 21.8 t/s
