@@ -4,9 +4,10 @@
 
 <!-- toc -->
 
-- [In a hurry? Look at this table](#in-a-hurry-look-at-this-table)
+- [In a hurry? Look here.](#in-a-hurry-look-here)
 - [Glossary](#glossary)
 - [Hardware](#hardware)
+- [Our podium](#our-podium)
 - [What we measured](#what-we-measured)
 - [Analysis — every measured solution](#analysis--every-measured-solution)
   - [Why Q4 wins](#why-q4-wins)
@@ -55,9 +56,10 @@
 
 <!-- /toc -->
 
-## In a hurry? Look at this table
+## In a hurry? Look here.
 
 The whole README distils into two tables:
+[**Our podium**](#our-podium) — the ranked shortlist: gufo #1, the fork + Q4 #2
 [**What we measured**](#what-we-measured) — every solution with a number on it
 (speed × quality × RAM, every cell wall-clock and re-measured; the fleet
 default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
@@ -109,6 +111,25 @@ browser-based monitoring. If you reproduce this, a headless setup keeps
 ~5 GiB of RAM free that a desktop would otherwise consume — that margin
 is counted in the [RAM accounting](#ram-accounting) table.
 
+## Our podium
+
+The ranked shortlist — judgment on top of the measurements (the numbers
+live in [What we measured](#what-we-measured)):
+
+1. **#1 — Gufo + Qwen3.8 Flash-Next UD-Q4_K_XL (shared-Q8_0 MTP).** The open
+   engine wins both speed axes at the fleet basis — prefill +39% (1200 vs
+   865 t/s), tg128 +32% (44.1 vs 33.5), pp@128k **621 t/s** where vanilla
+   upstream dies — quality holds (fcb15 13/15), and one MIT binary covers
+   text + image + TTS + ASR. What still keeps it off the fleet's serving
+   port: robustness, concurrency and ops surface unproven
+   ([Gufo — the open challenger](#gufo--the-open-challenger)).
+2. **#2 — our llama.cpp fork + Qwen3.8 Flash-Next UD-Q4_K_XL + MTP
+   (Q4_K_M draft) · sharp-low.** The fleet serving default and the
+   load-bearing baseline: months of resident-serving robustness, the
+   deep-prefill patches, and the router + systemd fleet around it
+   ([The fork — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)).
+3. *#3 — reserved: a row joins when a solution earns it.*
+
 ## What we measured
 
 One table, every solution this fleet has put a number on — local LLMs, cloud
@@ -133,7 +154,7 @@ live in [Footnotes](#footnotes).
 | Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 | 476 | 395 | dies [³⁸](#fn38) | 20.7 | 21.7 | — | — | — | — | none | — | — | — |
 | Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 | 407 | — | **26.0** | **25.1** | — | — | — | — | none | — | — | — |
 | Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | — | 262k-capable | 26.9 | 22.8 | — | — | — | — | 12/15 | — | — | — |
-| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **1100** | n/a [³⁰](#fn30) | **44.3** | **35.3** | — | — | — | — | **13/15** | — | — | — |
+| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | **1200** | **1109** | **621** [³⁰](#fn30) | **44.1** | **37.3** | — | — | — | — | **13/15** | — | — | — |
 | Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — | 23.4 | 19.7 | — | — | — | — | 13/15 | — | — | — |
 
 Reading it honestly:
@@ -448,7 +469,8 @@ same arm, same weights).
 
 ### Gufo — the open challenger
 The only engine beating the fork on both axes at the fleet basis (pp +39%,
-tg +11–32%), quality holding (13/15), one MIT binary covering text +
+tg up to +32%), and deep prefill measured once the window opened (pp@128k
+621 t/s at c=192k — vanilla dies on the same request). Quality holds (13/15), one MIT binary covering text +
 Qwen-Image-2.1 + TTS + ASR, maintained by the Italian Strix-Halo community.
 Cons: fleet robustness unproven (every cell <1 h fresh-load), concurrency
 unmeasured, operational surface (router/slots/eviction) unmapped, loader is
@@ -1804,7 +1826,12 @@ fleet census; loader is **UD-Q4_K_XL-strict** — a Q5 shard set is rejected
 outright): `gufo serve llm` with the fleet basis — Q4 + the shared-Q8_0 MTP
 sidecar, `-d 3`, c 131072, effort low — loads in **16 s** and measures
 **pp4k 1200 / pp32k 1100 t/s, tg128 44.3 / tg2048 35.3 t/s** (probe:
-`benchmarks/logs-260925/gufo-q4-probe.log`). That is +39% prefill and
+`benchmarks/logs-260925/gufo-q4-probe.log`). **192k window (same day, operator question):** the 131k was our
+basis choice, not a gufo cap — `-c 196608` loads +1.7 GiB (90.2/125 GiB GPU)
+and the full probe re-ran: pp4k 1200 / pp32k 1109 / **pp@128k 621 t/s**
+(159,738 realized tokens, where the 131k window returned HTTP 400), tg128
+44.1 / tg2048 37.3 (`benchmarks/logs-260925/gufo-q4-192k-probe.log`).
+That is +39% prefill and
 +11–32% decode over the fork's same-day, same-weights cells — the only
 engine measured to beat the fork on both axes at the fleet basis; gufo's
 own headline (pp 1628 / tg 59) is a best-case workload, our numbers are

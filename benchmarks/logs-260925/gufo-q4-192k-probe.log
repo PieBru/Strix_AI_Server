@@ -1,0 +1,8 @@
+# gufo serve llm -c 196608 (UD-Q4_K_XL + shared-Q8_0 MTP, -d 3, effort low, strixy2 :8096, 260925 11:07)
+# window opened by raising -c (no engine cap — 131k was the fleet-basis choice, fn30)
+# server: load_completed context_tokens=196608 elapsed_ms=14406 gpu_device_used_mib=90173/125000 (+1.7 GiB vs 131k)
+gufo-q4-192k-pp4k: 5702 tokens in 4.8s -> 1200 t/s
+gufo-q4-192k-pp32k: 39409 tokens in 35.5s -> 1109 t/s
+gufo-q4-192k-pp128k: 159738 tokens in 257.4s -> 621 t/s
+gufo-q4-192k-tg128: 128 tokens, first 0.2s, span 2.9s -> 44.1 t/s
+gufo-q4-192k-tg2048: 2047 tokens, first 0.0s, span 54.9s -> 37.3 t/s
