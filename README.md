@@ -169,6 +169,10 @@ live in [What we measured](#what-we-measured)):
    load-bearing baseline: months of resident-serving robustness, the
    deep-prefill patches, and the router + systemd fleet around it
    ([The fork — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)).
+   The exit plan is upstream: vanilla llama.cpp is our privileged citizen,
+   and we adopt it the day [PR #27836](https://github.com/ggml-org/llama.cpp/pull/27836)
+   (qwen4exp NextN/MTP draft head, still open) merges and vanilla can host
+   the champion's draft ([³⁸](#fn38)).
 3. *#3 — reserved: a row joins when a solution earns it.*
 
 ## What we measured
