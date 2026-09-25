@@ -29,9 +29,9 @@
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
   - [Why not vanilla upstream?](#why-not-vanilla-upstream)
-  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
   - [Why not Halogen?](#why-not-halogen)
   - [Why not ROCmFPX?](#why-not-rocmfpx)
+  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
 - [Footnotes](#footnotes)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
@@ -441,7 +441,7 @@ the deciding axis for coding.
 
 **Credit where due** (these wall-clock cells are the Q5-era Halogen
 measurement; the engine table's same-day Q4 cells live in
-[²⁹](#fn29) — two epochs, do not mix them): Halogen wins decode at depth
+<a id="fn29"></a>²⁹ — two epochs, do not mix them): Halogen wins decode at depth
 (27.3/25.6 t/s at 2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
 short decode (**34.8 t/s** tg128) now edges its 32.4. For
 short-prompt chat it remains the faster engine; the collapse at depth
