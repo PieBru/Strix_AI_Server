@@ -197,6 +197,22 @@ but vanilla cannot safely load this family's draft, so the cell is a fork-fix TO
 not a serving option. Gufo is the newest axis and the only one that changes *modality*:
 it is how this fleet serves images.
 
+**Gufo as the overall engine (operator question, 2026-09-25):** the case is
+real — open (MIT), Italian group, the only engine that beats the fork on
+*both* speed axes at the fleet basis (pp +39%, tg +11–32%), quality holding
+(13/15), one binary covering text + Qwen-Image-2.1 + TTS + ASR. What still
+gates a cutover, in order: (1) **fleet robustness is unproven** — every
+measured cell is a fresh-load, single-session, <1 h window; the fork's cells
+come from months of resident serving incl. multi-hour censuses, and the one
+long-run pathology we know (Muse KV-poisoning decay) took hours to show;
+(2) **concurrency** — 8-request aggregate decode is claimed but unmeasured
+here, and the pi workload is bursty multi-client; (3) **operational
+surface** — the fork's models.ini router, systemd units, slot eviction at
+131k and --spec-draft knobs have no gufo equivalents mapped yet. A honest
+path: run gufo as the resident `default` arm on strixy2 for a one-week
+probation (same batteries nightly, Doctor watching RAM/decay), keep the
+fork on strixy as fallback — the engines are one systemd unit apart.
+
 ## Arch Linux minimal server — the base install
 
 Everything in this file runs on a plain Arch install with **no desktop
