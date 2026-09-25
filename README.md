@@ -496,6 +496,10 @@ both speed axes (865 vs 1200 pp@4k; 33.5 vs 44.1 tg128); no modality beyond
 text+vision. Its census rows (iten 12/12, AIME-12 0.667, zebra 0.55, fcb15
 0.933 same-day paired) remain the quality reference the gufo cells are
 checked against — and the fleet falls back here without a reinstall.
+Since 260925 pm it is also the webui arm (llama-llm.service): the only
+engine serving the browser UI + MCP + tools, at the **native 262k
+context** (solo mode, ubatch 1024 — the co-residency-era "262k
+unreachable" was a router-era constraint).
 
 ### Gufo — the champion
 Winner on both speed axes at the fleet basis (pp +39%, tg128 +32%), deep
