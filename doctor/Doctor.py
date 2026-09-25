@@ -264,19 +264,20 @@ def boxinfo():
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
     _eps = []
-    _llm_up = CACHE.get("gufo") and _svc("gufo-llm")
-    if not _llm_up:
-        _llm_up = _svc("llama-llm")
-    if _llm_up:
-        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health · webui/MCP at /")
-    else:
-        _eps.append(_btn("/svcllm", "▶ start LLM (:8080)"))
-    if _svc("gufo-serve"):
-        _eps.append(":8081 image API · "
-                    + (f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:7860/" target="_blank">:7860 web UI</a>'
-                       if _svc("qwen-image-demo") or _svc("qwen-image-test") else "(UI down)"))
-    elif _has("gufo-serve.service"):
-        _eps.append(_btn("/svcdemo", "▶ demo app (:7860)") + " " + _btn("/svctest", "▶ test app (:7860)"))
+    # LLM arm toggle (260925): label carries status; link opens from LAN browser.
+    _llm_arm = "llama-llm" if _has("llama-llm.service") else "gufo-llm"
+    _llm_up = _svc(_llm_arm)
+    _lbl = ("webui :8080" if _llm_arm == "llama-llm" else "llm :8080")
+    _eps.append(_btn("/llmtoggle", ("⏹ stop " if _llm_up else "▶ start ") + _lbl)
+                + (f' <a style="color:#8cf" href="http://{socket.gethostname()}.local:8080/" target="_blank">open ↗</a>'
+                   if _llm_up else ""))
+    # Image stack: demo/test app toggles (mutually exclusive via Conflicts)
+    if _has("gufo-serve.service"):
+        _dm, _ts = _svc("qwen-image-demo"), _svc("qwen-image-test")
+        _eps.append(_btn("/imgtoggle?app=demo", ("⏹ demo :7860" if _dm else "▶ demo :7860"))
+                    + " " + _btn("/imgtoggle?app=test", ("⏹ test :7860" if _ts else "▶ test :7860"))
+                    + (f' <a style="color:#8cf" href="http://{socket.gethostname()}.local:7860/" target="_blank">open ↗</a>'
+                       if _dm or _ts else ""))
     if _svc("open-webui"):
         _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:3000/" target="_blank">:3000 open-webui</a>')
     _eps.append(":8667 doctor — /")
@@ -583,35 +584,34 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
-        elif self.path == "/svcdemo":
-            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-demo.service"], timeout=60)
-            body, ct = "starting image backend + demo app…", "text/plain"
-            self.send_response(200); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
-        elif self.path == "/svctest":
-            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-test.service"], timeout=60)
-            body, ct = "starting image backend + test app…", "text/plain"
-            self.send_response(200); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
-        elif self.path == "/svcstart":
-            # fixed-argv allowlist (260925): image stack only. Conflicts= in the
-            # units tears down gufo-llm automatically. POST-only, LAN-trusted.
-            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-demo.service"], timeout=60)
-            body, ct = "starting image stack (llm auto-stops)…", "text/plain"
-            self.send_response(200); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
-        elif self.path == "/svcllm":
-            # 260925: llama-llm (fork webui+MCP arm) preferred; gufo-llm fallback
+        elif self.path == "/llmtoggle":
+            # 260925: toggle the :8080 arm (llama-llm webui arm preferred, gufo-llm
+            # fallback where the fork unit doesn't exist). Fixed argv, POST-only.
+            _arm = "llama-llm.service"
             try:
-                subprocess.run(["systemctl", "--user", "cat", "llama-llm.service"], capture_output=True, timeout=4)
-                subprocess.run(["systemctl", "--user", "start", "llama-llm.service"], timeout=60)
+                subprocess.run(["systemctl", "--user", "cat", _arm], capture_output=True, timeout=4)
             except Exception:
-                subprocess.run(["systemctl", "--user", "start", "gufo-llm.service"], timeout=60)
-            body, ct = "starting llm arm (other arms auto-stop)…", "text/plain"
+                _arm = "gufo-llm.service"
+            _act = subprocess.run(["systemctl", "--user", "is-active", _arm],
+                                  capture_output=True, text=True, timeout=4).stdout.strip()
+            subprocess.run(["systemctl", "--user", ("stop" if _act == "active" else "start"), _arm], timeout=60)
+            body, ct = f"{('stopping' if _act == 'active' else 'starting')} {_arm}…", "text/plain"
             self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
+        elif self.path.startswith("/imgtoggle"):
+            # 260925: start/stop the image stack; ?app=demo|test picks the UI.
+            # Starting one app auto-stops the other + llm arms (unit Conflicts).
+            _app = "qwen-image-demo.service" if "app=test" not in self.path else "qwen-image-test.service"
+            _act = subprocess.run(["systemctl", "--user", "is-active", _app],
+                                  capture_output=True, text=True, timeout=4).stdout.strip()
+            if _act == "active":
+                subprocess.run(["systemctl", "--user", "stop", _app, "gufo-serve.service"], timeout=60)
+                body = f"stopping {_app} + image backend…"
+            else:
+                subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", _app], timeout=60)
+                body = f"starting image backend + {_app}…"
+            body, ct = body, "text/plain"
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
         else:
