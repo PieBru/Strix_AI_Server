@@ -237,6 +237,49 @@ def inference():
     if CACHE["jn"] == []: refresh()
     return CACHE["h"], CACHE["svc"], CACHE["arm"], CACHE["tg"], CACHE["acc"], CACHE["jn"], CACHE["errs"], CACHE["gpu_err"]
 
+def boxinfo():
+    # page footer (operator 260925): box identity + live endpoints + the
+    # llm⇄image swap buttons. The units carry Conflicts=, so each start
+    # tears the other side down — the dashboard just calls systemctl.
+    _ip = "?"
+    try:
+        _ip = next((i for i in subprocess.run(["hostname", "-I"], capture_output=True, text=True,
+                    timeout=4).stdout.split() if i.startswith("192.168.")), "?")
+    except Exception:
+        try:
+            _ip = next((a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
+                        if a[4][0].startswith("192.168.")), "?")
+        except Exception: pass
+    def _svc(u):
+        try: return subprocess.run(["systemctl", "--user", "is-active", u],
+                   capture_output=True, text=True, timeout=4).stdout.strip() == "active"
+        except Exception: return False
+    def _has(u):
+        try: return subprocess.run(["systemctl", "--user", "cat", u],
+                   capture_output=True, timeout=4).returncode == 0
+        except Exception: return False
+    def _btn(path, label):
+        return (f'<button class="cp" style="font-size:1em" onclick="'
+                f'this.textContent=\'working…\';fetch(\'{path}\',{{method:\'POST\'}})'
+                f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
+                f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
+    _eps = []
+    if CACHE.get("gufo") and _svc("gufo-llm"):
+        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health")
+    else:
+        _eps.append(_btn("/svcllm", "▶ start LLM (:8080)"))
+    if _svc("gufo-serve"):
+        _eps.append(":8081 image API · "
+                    + (f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:7860/" target="_blank">:7860 web UI</a>'
+                       if _svc("qwen-image-web") else "(web UI down)"))
+    elif _has("gufo-serve.service"):
+        _eps.append(_btn("/svcstart", "▶ start image stack (:8081/:7860)"))
+    if _svc("open-webui"):
+        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:3000/" target="_blank">:3000 open-webui</a>')
+    _eps.append(":8667 doctor — /")
+    return (f'<div class="boxfoot"><b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
+            + " · ".join(_eps) + "</div>")
+
 def stats():
     gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
     h, svc, arm, tg, acc, jn, errs, gpu_err = inference()
@@ -354,38 +397,7 @@ def stats():
         act.append(f'<div class="l {cls}">{html.escape(t[-150:])}</div>')
     log = (f'<div class="card log"><b>ACTIVITY — {_eng} (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
-    # box strip (operator 260925): network name, LAN IP, ports + API endpoints
-    _ip = "?"
-    try:
-        import subprocess as _sp
-        _ip = next((i for i in _sp.run(["hostname", "-I"], capture_output=True, text=True,
-                    timeout=4).stdout.split() if i.startswith("192.168.")), "?")
-    except Exception:
-        try:
-            _ip = next((a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
-                        if a[4][0].startswith("192.168.")), "?")
-        except Exception: pass
-    try:
-        _img = subprocess.run(["systemctl", "--user", "is-active", "gufo-serve"],
-                              capture_output=True, text=True, timeout=4).stdout.strip() == "active"
-    except Exception: _img = False
-    _eps = []
-    if CACHE.get("gufo"):
-        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health")
-    if _img:
-        _eps.append(":8081 image — /v1/images/generations")
-    try:
-        _web = subprocess.run(["systemctl", "--user", "is-active", "qwen-image-web"],
-                              capture_output=True, text=True, timeout=4).stdout.strip() == "active"
-    except Exception: _web = False
-    if _web:
-        _eps.append(":7860 image web UI — / (gradio)")
-    _eps.append(":8667 doctor — /")
-    box = (f'<div style="margin:2px 0 8px;font-size:1.28em;color:#9ab;'
-           f'border:1px solid #234;border-radius:8px;padding:4px 10px">'
-           f'<b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
-           + " · ".join(_eps) + "</div>")
-    return (banner + box + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
+    return (banner + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
             f'{log}')
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
@@ -442,6 +454,7 @@ details.chk summary::-webkit-details-marker{display:none}
 details.chk summary::before{content:"▸ ";color:#4c9aff}
 details.chk[open] summary::before{content:"▾ "}
 .err{background:#3a1111;border:1px solid #ff6b6b;color:#ffb3b3;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85em;white-space:pre-wrap}
+.boxfoot{margin-top:24px;font-size:.78em;color:#789;border-top:1px solid #234;padding:8px 2px}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
@@ -469,6 +482,7 @@ details.chk[open] summary::before{content:"▾ "}
 </details>
 <details class="actbox"><summary>activity</summary>
 <div id="stats2" hx-get="/stats2" hx-trigger="every 2s" hx-swap="innerHTML"></div>
+<div id="box" class="boxfoot" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></div>
 </details>
 </body></html>"""
 
@@ -566,6 +580,20 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
+        elif self.path == "/svcstart":
+            # fixed-argv allowlist (260925): image stack only. Conflicts= in the
+            # units tears down gufo-llm automatically. POST-only, LAN-trusted.
+            subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", "qwen-image-web.service"], timeout=60)
+            body, ct = "starting image stack (llm auto-stops)…", "text/plain"
+            self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
+        elif self.path == "/svcllm":
+            subprocess.run(["systemctl", "--user", "start", "gufo-llm.service"], timeout=60)
+            body, ct = "starting gufo-llm (image stack auto-stops)…", "text/plain"
+            self.send_response(200); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
         else:
             self.send_response(404); self.end_headers()
 
@@ -589,6 +617,9 @@ class H(BaseHTTPRequestHandler):
             m = re.search(r"mode=(\d)", self.path)
             if m: ARM_SORT_MODE = int(m.group(1))
             self.send_response(204); self.end_headers(); return
+        elif self.path == "/boxinfo":
+            try: body, ct = boxinfo(), "text/html"
+            except Exception as e: body, ct = f"<div class='err'>boxinfo error: {html.escape(str(e))}</div>", "text/html"
         elif self.path == "/stats2":
             try: body, ct = stats()[1], "text/html"
             except Exception as e: body, ct = f"<div class='err'>dash error: {html.escape(str(e))}</div>", "text/html"
