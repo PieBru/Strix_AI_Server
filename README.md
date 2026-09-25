@@ -196,7 +196,7 @@ live in [Footnotes](#footnotes).
 | Local LLM | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) |**689** |**672** | 🟡**605** | 🟢**34.8** | 🟡**25.7** | **12/12** | 🟢**0.833** | 🟢0.533 [³⁴](#fn34) | 🟢**0.65** | 🟡**0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | 97 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
 | Local LLM | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) |**730** |**699** |199 [¹⁸](#fn18) | 🟡**34.3** |**22.3** | **12/12** | 🟡0.750 | — | 🟢**0.65** [¹¹](#fn11) | 🟡**0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | 107 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
 | Local LLM | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) |486 |409 |192 | 20.5 | 🟡**28.0** | 🔴11/12 | 🟢**0.833** | — | 🟢**0.65** |0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | 30 GiB · draft DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock |499 |470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | — |0.45 |0.733 [¹⁰](#fn10) |7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 32 GiB · draft DFlash2 · 1.5 GiB |
+| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock |499 |470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | — |0.45 |0.733 [¹⁰](#fn10) |7/15 greedy · 13/15 retry [³⁶](#fn36) | 10/10 [⁴¹](#fn41) | 32 GiB · draft DFlash2 · 1.5 GiB |
 | Cloud | DeepSeek V4.1 Flash (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) | 🟡0.667 [0.39–0.86] | 🟡0.483 [0.36–0.61] [⁸](#fn8) | 0.42 [0.19–0.68] | 0.533 [0.30–0.75] (n=15) [²²](#fn22) |7/15 [²²](#fn22) | 🔴0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
 | Cloud | GLM-5.3 (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) |0.583 [0.32–0.81] [¹⁹](#fn19) | 🟡0.433 [0.32–0.56] [²³](#fn23) |0.50 [0.25–0.75] [¹⁹](#fn19) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 🟡11/15 [²²](#fn22) | 10/10 [²²](#fn22) | n/a (API) |
 | Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | 🔴**11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) |0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 🟡9/15 [²²](#fn22) | 🔴0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
@@ -225,7 +225,8 @@ Reading it honestly:
   is impossible in GitHub markdown, so emoji carry the tiers.
 - **What is still missing and doable**: battery cells for halogen, both
   vanilla builds and ROCmFPX (Gufo's landed [³⁹](#fn39)); AIME-60 for
-  Q6/27B/Muse; Muse's capped sli re-run [³⁶](#fn36).
+  Q6/27B/Muse (Muse's runs at stock-template thinking pace — deferred if
+  the window closes).
 
 
 ## Analysis — every measured solution
@@ -1838,6 +1839,13 @@ t/s pp@32k). The fork serves the identical request at 761 t/s on the same
 GPU ([³⁷](#fn37)) — surviving deep prefill at 262k is a fork-patch
 property, not a hardware one. Logs: `/tmp/vvk-262k{,-retry}.log` (same-day
 bench session).
+
+<a id="fn41"></a>⁴¹ **Muse sli — the capped re-run (2026-09-25): 10/10
+[0.72–1.0], saturates.** Same basis as fn36's ladder cell (UD-Q8_K_XL +
+DFlash2 n6, stock thinking template, strixy :8095) but with the lesson
+applied: `--max-tokens 4096` bounds the thinking phase so answers reach
+`content` (fn36's first uncapped attempt never terminated). Artifacts:
+`benchmarks/logs-260925/probe-muse-q8-sli.json`.
 
 <a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
 owed (the served c=131072 refuses the probe's ~160k-token window). The
