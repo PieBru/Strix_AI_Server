@@ -1,0 +1,22 @@
+[items-file] batteries/fcb15_v3def.py: 15 items, version v3+D+E+F
+item 1: greedy PASS (27.9s)
+item 2: greedy FAIL | retry@0.6 PASS (49.3s)
+item 3: greedy FAIL | retry@0.6 PASS (189.8s)
+item 4: greedy PASS (34.9s)
+item 5: greedy PASS (16.8s)
+item 6: greedy PASS (17.3s)
+item 7: greedy PASS (81.6s)
+item 8: greedy PASS (11.4s)
+item 9: greedy FAIL | retry@0.6 PASS (51.3s)
+item 10: greedy FAIL | retry@0.6 FAIL (174.0s)
+item 11: greedy PASS (62.6s)
+item 12: greedy PASS (59.8s)
+item 13: greedy FAIL | retry@0.6 FAIL (79.4s)
+item 14: greedy PASS (42.6s)
+item 15: greedy FAIL | retry@0.6 PASS (172.5s)
+V5 retry loop round 2: 2 unsolved item(s)
+item 10: retry#2 PASS (75.3s)
+item 13: retry#2 PASS (55.8s)
+V5 retry loop: all items solved
+
+SUMMARY glm-5.3-flash [glm53f-ladder]: greedy 9/15 | with-retry 15/15

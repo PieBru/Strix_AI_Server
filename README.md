@@ -143,7 +143,7 @@ effort/thinking tuning on our side).
 | AIME-60 census | **0.533** [0.41–0.65] [³⁴](#fn34) | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
 | Zebra CSP ladder | **0.55** [0.34–0.74] (n=20) [³⁴](#fn34) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
 | fcb15 coding | **0.933** low [0.70–0.99] (n=15 census) [³⁴](#fn34) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
-| fcb15 ladder (all rungs, greedy) | **all rungs — 13/15** [³³](#fn33) | — [²²](#fn22) | — [²²](#fn22) | — [²²](#fn22) |
+| fcb15 ladder (all rungs, greedy) | **all rungs — 13/15** [³³](#fn33) | 7/15 [²²](#fn22) | 11/15 [²²](#fn22) | 9/15 [²²](#fn22) |
 | sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
 | decode tg128 / weights RAM | **33.5 t/s / 111 GiB file · 91–95 GiB served, local** [³⁴](#fn34) | n/a (API) | n/a (API) | n/a (API) |
 
@@ -1098,10 +1098,16 @@ picture is the sharpest separator in this table: the champion's
 shipped-default 0.867 sits above every cloud census (0.533 / 0.60 /
 0.667 — only the flash variant's CI brushes the champion's lower bound).
 sli mostly saturates (GLM-5.3 matches the champion's 10/10; both flash
-variants drop 2/10 — the first non-saturating sli results measured). The
-ladder battery was not run against the clouds — the ladder row's cloud
-cells are not-measured empties, not zeros (the champion's ladder cell is
-fn33's all-rungs 13/15 greedy, same night as its census).
+variants drop 2/10 — the first non-saturating sli results measured). Ladders
+run 2026-09-25 (same v3+D+E+F items, temp 0 greedy, 8192-token caps;
+api.deepseek.com and the z.ai coding endpoint, vendor-default thinking):
+**greedy 7/15 (DeepSeek) · 11/15 (GLM-5.3) · 9/15 (GLM-5.3-flash)** — the
+champion's 13/15 tops all three. With-retry tells the sampling story:
+GLM-5.3-flash reaches 15/15 at temp 0.6 and GLM-5.3 14/15 (their greedy
+misses are largely format, not capability), while DeepSeek's 9/15
+with-retry stays below the locals' floor. Artifacts:
+`benchmarks/fcb15-{dsv4f,glm53,glm53f}-ladder.jsonl` +
+`benchmarks/logs-260925/`.
 
 <a id="fn23"></a>²³ Cloud AIME-60 censuses (n=60, the tightest-CI cell in the table):
 DeepSeek V4.1 Flash 0.483 (2026-09-16), GLM-5.3 0.433 and GLM-5.3-flash
