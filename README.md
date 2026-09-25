@@ -203,7 +203,8 @@ Reading it honestly:
   is impossible in GitHub markdown, so emoji carry the tiers.
 - **What is still missing and doable**: battery cells for halogen, both
   vanilla builds and ROCmFPX (Gufo's landed [³⁹](#fn39)); AIME-60 for
-  Q6 (running) — and Muse's defers: the 2 h probe window timed out at
+  Q6 and Muse (both parked: the 300 s client timeout cancels long-thinking
+  items — rerun needs --http-timeout 900, driver staged) — and Muse's defers: the 2 h probe window timed out at
   ~57/60 items (stock-template thinking ≈ 2 min/item; artifact unwritten,
   so no partial score is claimed).
 
