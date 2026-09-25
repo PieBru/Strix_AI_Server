@@ -266,6 +266,15 @@ The 2026-09-24 paired census settled it as a *tier* decision rather than a
 policy one: same day, same protocol, same box — IQ4_NL **10/15 greedy /
 13/15 retry** vs UD-Q4_K_XL's **14/15 / 14/15** ([²⁶](#fn26)). At ~3.9 bpw
 it drops real coding quality that Q4_K_XL (~4.6 bpw, 18 GiB more) keeps.
+
+**v6 update (260925, producer params):** the tier gate HOLDS on coding —
+IQ4_NL fcb15 **14/15** (11→13, 14→14, n=2 samples) now matches Q4's 13–14/15
+band — but the template-confound story **inverted**: AIME-12 with the stock
+template **0.750 [0.47–0.91]** vs **0.417** on sharp-low (greedy era said
+0.333 stock → 0.667 sharp — the exact opposite). At sampled temperatures the
+stock template's longer thinking budget wins math; sharp-low's compressed
+reasoning does not. iten12 **11/12**. Re-run both templates before quoting
+any sharp-vs-stock margin.
 It still holds a *serving* role the others can't: as strixy's local default
 (93.3 GiB file, ~40 GiB headroom) it measured **41.1 tg128 / 33.8 tg2048 /
 45.2 echo** and **12/12 iten12** — the fastest Flash-Next tier here — chosen
@@ -1066,10 +1075,12 @@ config you edited: `curl -s localhost:8080/v1/models`.
 
 **Two settings decide whether the numbers mean anything**
 
-- **Chat template.** The measured template effect on this family is 2–3×
-  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
+- **Chat template.** The measured template effect on this family is real
+  and *protocol-dependent* — greedy era: IQ4_NL 0.333 stock → 0.667 sharp;
+  producer params (v6): **0.750 stock → 0.417 sharp** — inverted. A stock
   template run is a valid measurement *of the stock template*, and is not
-  comparable to the podium's sharp-family rows. State which one you ran.
+  comparable to the podium's sharp-family rows. State which one you ran —
+  and at which temperature.
 - **Context.** Serve the context you intend to claim. Some models are
   trained short (Muse-Glimmer: 131072) and the server silently caps the
   slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
