@@ -184,7 +184,7 @@ keeps closed engines at reference distance; both bite here.
 | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) | preferred by policy — cannot host this family safely | Q5_K_XL, draftless, dio+on (same box, 260925) | **266** f16 / **530** q8-KV | 21.0 f16 / 21.7 q8-KV | 20.9 / 21.0 | none (suite aborted) | q8-KV loads *only* upstream (+99% pp4k over f16); the old 36.6 q8-KV decode claim was a draft artifact [³⁵](#fn35); detached-draft configs hard-crash the box |
 | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) | upstream tracking — `llama-vulkan.service` | Q5_K_XL, draftless, dio+on (260925) | **257** | **24.6** | **23.5** | none (see [²⁸](#fn28)) | quality identical to HIP; decode **beats vanilla HIP f16** (+17%); deep prefill ~3.5× slower than the *fork's* HIP at 128k |
 | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
-| Gufo (open, native HIP) [³⁰](#fn30) | lab — text + image | UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **44.3** | **35.3** | (in flight) | text pp +39% and tg +11–32% over the fork at the same MTP basis; also the image modality [²](#fn2) |
+| Gufo (open, native HIP) [³⁰](#fn30) | lab — text + image | UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **44.3** | **35.3** | **13/15** | text pp +39% and tg +11–32% over the fork at the same MTP basis; also the image modality [²](#fn2) |
 | ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
 
 Reading it honestly: only two rows share weights and day — the fork and halogen on
@@ -1774,7 +1774,10 @@ engine measured to beat the fork on both axes at the fleet basis; gufo's
 own headline (pp 1628 / tg 59) is a best-case workload, our numbers are
 corpus-real. Caveats: single session, pp128k n/a (probe window 160k >
 131k ctx, same as vanilla HIP), Q8 draft is 2.6 GiB vs the fork's lighter
-Q4_K_M, no draft-format moat left if it holds. It also serves
+Q4_K_M, fcb15 (same
+night, same basis): **greedy 13/15** — misses are item 2 (the fork's
+known-hard one too) plus item 6; CIs overlap the fork's 14/15, so quality
+holds where speed wins. It also serves
 27B/DeepSeek/TTS/ASR modalities we have not
 measured. The community "uncensored" GGUFs are ComfyUI packaging and do not load here.
 
