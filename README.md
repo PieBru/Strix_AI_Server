@@ -39,6 +39,7 @@
 - [Reproduce our tests](#reproduce-our-tests)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
+- [AIME-60 (the full census)](#aime-60-the-full-census)
 - [sli — structured-list integrity (GBench)](#sli--structured-list-integrity-gbench)
 - [Coding — GBench fcb15 (deterministic, unit-tested)](#coding--gbench-fcb15-deterministic-unit-tested)
   - [The tier ladder — where a model stops holding](#the-tier-ladder--where-a-model-stops-holding)
@@ -1285,6 +1286,41 @@ Quote only the year-stratified cut above — earlier
 stratified cuts ran a flawed v1 grader and are superseded (per-item
 artifacts: `aime_selection_split` in
 [results.json](benchmarks/results.json)).
+
+## AIME-60 (the full census)
+
+The 60-item full bank is the **resolution axis** of the AIME surface: the
+same graders and seed as the yearsplit-12 pointer, but n=60 halves the CI
+(±0.12 vs ±0.24 at n=12). The bank includes the harder unsolved-era items,
+so census cells read lower than subset cells — compare censuses with
+censuses only. The champion's census is the cell the table's AIME-60
+column quotes.
+
+| row | basis | AIME-60 | CI95 | n | date |
+|---|---|---:|---:|---:|---|
+| Qwen3.8 Flash-Next Q5_K_XL + MTP | sharp-low | **0.533** | [0.41–0.65] | 60 | 2026-09-21 |
+| Qwen3.8 Flash-Next Q5_K_XL + MTP | sharp-medium | 0.517 | [0.39–0.64] | 60 | 2026-09-21 |
+| **UD-Q4_K_XL + MTP (fleet default — also the fork engine's cell, same arm)** | sharp-low | **0.533** | [0.41–0.65] | 60 | 2026-09-25 |
+| DeepSeek V4.1 Flash (cloud) [⁸](#fn8) | API | 0.483 | [0.36–0.61] | 60 | 2026-09-16 |
+| GLM-5.3 (cloud) [²³](#fn23) | API | 0.433 | [0.32–0.56] | 60 | 2026-09-22 |
+| GLM-5.3-flash (cloud) [²³](#fn23) | API | 0.367 | [0.26–0.49] | 60 | 2026-09-22 |
+
+Readings that survive the CIs:
+
+- **Q4 and Q5 tie at 0.533** — the quant drop from 147.4 GiB weights to
+  111 GiB costs nothing measurable at n=60 (the demotion-era worry, closed).
+- **The champion leads every cloud arm nominally**; pairwise CIs still
+  overlap ([²³](#fn23)) — a lead, not a crown.
+- **Subset-vs-census spread is real**: DeepSeek scored 0.667 on the
+  yearsplit-12 subset but 0.483 on the full census ([⁸](#fn8)) — the
+  12-item cut is a pointer, never a verdict.
+- Q6 / 27B / Muse censuses: landing as measured (see the table's
+  AIME-60 column).
+
+Reproduce: `uv run python3 scripts/probe.py --battery aime --budget 60
+--tag <name> --model <arm> --seed 1300` (from [gbench/](gbench/)).
+Artifacts: `benchmarks/probe-q4-aime60-260925.json`,
+`benchmarks/aime60-q5{low,med}.jsonl`.
 
 ## sli — structured-list integrity (GBench)
 
