@@ -485,7 +485,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>Doctor · __HOST__ · system + inference<span class="up">__UPTIME__</span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
+<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
