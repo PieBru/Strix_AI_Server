@@ -1094,7 +1094,7 @@ config you edited: `curl -s localhost:8080/v1/models`.
 cd gbench   # vendored in this repo (~/Piero/Work/Qwen38/gbench on the box)
 
 # the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
-uv run python3 scripts/probe.py --battery iten12 --budget 12 \
+uv run python3 scripts/probe.py --battery iten12 --budget 12 --rdir benchmarks/ \
     --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
 
 # coding: the 15-item deterministically-graded bank (census for a podium row)
@@ -1110,8 +1110,8 @@ uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
 uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
 
 # reasoning tiers
-uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
-uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
+uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm> --rdir benchmarks/
+uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm> --rdir benchmarks/
 ```
 
 Grading is deterministic and machine-only — a Python harness per item, no
