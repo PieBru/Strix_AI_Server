@@ -486,8 +486,8 @@ details.chk[open] summary::before{content:"▾ "}
 </details>
 <details class="actbox"><summary>activity</summary>
 <div id="stats2" hx-get="/stats2" hx-trigger="every 2s" hx-swap="innerHTML"></div>
-<div id="box" class="boxfoot" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></div>
 </details>
+<div id="box" class="boxfoot" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></div>
 </body></html>"""
 
 def res(name):
