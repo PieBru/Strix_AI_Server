@@ -23,7 +23,7 @@ from urllib.parse import unquote
 # separated) set in the unit — keeps the checkout pristine, no re-edits on
 # git pull.
 ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
-    "gufo-llm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
+    "llama-llm,gufo-llm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
 def _router_ini():
@@ -185,6 +185,10 @@ def refresh():
         _gufo = subprocess.run(["systemctl", "--user", "is-active", "gufo-llm"],
                                capture_output=True, text=True, timeout=4).stdout.strip() == "active"
     except Exception: _gufo = False
+    try:
+        _llm_any = _gufo or subprocess.run(["systemctl", "--user", "is-active", "llama-llm"],
+                               capture_output=True, text=True, timeout=4).stdout.strip() == "active"
+    except Exception: _llm_any = _gufo
     try: svc = next((s for s in (
                 subprocess.run(["systemctl","--user","is-active",u],
                                capture_output=True, text=True, timeout=4).stdout.strip()
@@ -218,7 +222,7 @@ def refresh():
         dmesg = subprocess.run(["dmesg","--since","-5min"], capture_output=True, text=True, timeout=4).stdout
         gpu_err = [l for l in dmesg.splitlines() if "amdgpu" in l and re.search(r"error|fault|timeout|hang", l, re.I)][-3:]
     except Exception: gpu_err = []
-    CACHE.update(h=h, svc=svc, arm=arm, arms=arms, gufo=_gufo, tg=tg, acc=acc, jn=jn, errs=errs, gpu_err=gpu_err)
+    CACHE.update(h=h, svc=svc, arm=arm, arms=arms, gufo=_gufo, llm_any=_llm_any, tg=tg, acc=acc, jn=jn, errs=errs, gpu_err=gpu_err)
     sig = (arm, tg[:2] if tg else None)          # append chart point only when journal advanced
     if sig != CACHE["sig"]:
         CACHE["sig"] = sig
@@ -389,7 +393,9 @@ def stats():
     probs = []
     _eng = "gufo" if CACHE.get("gufo") else "model-router"
     if not sok: probs.append(f"{_eng} service: {svc}")
-    if not hok: probs.append(f"/health: {h}")
+    if not hok and CACHE.get("llm_any") is not None and not CACHE.get("llm_any"):
+        probs.append("LLM parked — image mode (no :8080 arm; footer buttons switch)")   # informational, not an outage
+    elif not hok: probs.append(f"/health: {h}")
     probs += [f"journal: {html.escape(e[-160:])}" for e in errs]
     probs += [f"dmesg: {html.escape(e[-160:])}" for e in gpu_err]
     banner = ('<div class="err"><button class="cp" style="float:right;margin-left:8px" onclick="cpBox(this,\'.err\')" title="copy errors">⧉</button>' + "<br>".join(probs) + "</div>") if probs else ""
