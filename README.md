@@ -187,20 +187,20 @@ live in [Footnotes](#footnotes).
 
 | class | solution | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | iten12 [¹](#fn1) | AIME-12 [²⁵](#fn25) | AIME-60 | zebra [²¹](#fn21) | fcb15 | ladder | sli | RAM / draft |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Local LLM | **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | 🟡**865** | 🟡**909** | 🟢**761** [³⁷](#fn37) | 🟢33.5 | 🟢**31.7** | 🟢**12/12** | 🟡**0.667** [0.39–0.86] [³³](#fn33) | 🟢**0.533** [0.41–0.65] [³⁴](#fn34) | 🟢**0.55** [0.34–0.74] [³³](#fn33) | 🟢**0.933** [²⁶](#fn26) | 🟢**all rungs** (13/15) [³³](#fn33) | 🟢**10/10** [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) · draft MTP shared-Q4_K_M · 1.8 GiB |
-| Local LLM | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | 🟢**689** | 🟢**672** | 🟡**605** | 🟢**34.8** | 🟡**25.7** | 🟢**12/12** | 🟢**0.833** | 🟢0.533 [³⁴](#fn34) | 🟢**0.65** | 🟡**0.867** [¹⁰](#fn10) | **all rungs** | 🟢10/10 | 97 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
-| Local LLM | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | 🟡**730** | 🟡**699** | 🟢199 [¹⁸](#fn18) | 🟡**34.3** | 🟡**22.3** | 🟢**12/12** | 🟢0.750 | — | 🟢**0.65** [¹¹](#fn11) | 🟡**0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 🟢10/10 [¹¹](#fn11) | 107 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
-| Local LLM | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 🟡486 | 🟡409 | 🟢192 | 20.5 | 🟡**28.0** | 🟢11/12 | 🟢**0.833** | — | 🟢**0.65** | 🟡0.800 [¹⁰](#fn10) | **all rungs** | 🟢10/10 | 30 GiB · draft DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock | 🟢499 | 🟢470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | 🟢**12/12** | 0.333 | — | 🟡0.45 | 🟡0.733 [¹⁰](#fn10) | 🟡7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 32 GiB · draft DFlash2 · 1.5 GiB |
-| Cloud | DeepSeek V4.1 Flash (cloud API) | — | — | — | — | — | 🟢**12/12** (passes) [¹⁹](#fn19) | 🟡0.667 [0.39–0.86] | 🟢0.483 [0.36–0.61] [⁸](#fn8) | 0.42 [0.19–0.68] | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 🟡7/15 [²²](#fn22) | 🟢0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
-| Cloud | GLM-5.3 (cloud API) | — | — | — | — | — | 🟢**12/12** (passes) [¹⁹](#fn19) | 🟡0.583 [0.32–0.81] [¹⁹](#fn19) | 🟡0.433 [0.32–0.56] [²³](#fn23) | 🟡0.50 [0.25–0.75] [¹⁹](#fn19) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 🟢11/15 [²²](#fn22) | 🟢10/10 [²²](#fn22) | n/a (API) |
-| Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | 🟢**11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) | 🟡0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 🟡9/15 [²²](#fn22) | 🟢0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
-| Engine | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) — UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26); quality cells = the champion row (same arm, same weights) | 🟡**865** | 🟡**909** | 🟢**761** [³⁷](#fn37) | 🟢33.5 | 🟢**31.7** | 🟢**12/12** [³⁴](#fn34) | 🟡**0.667** [³⁴](#fn34) | 🟢**0.533** [³⁴](#fn34) | 🟢**0.55** [³⁴](#fn34) | 🟢**14/15** | 🟢**all rungs (13/15)** [³³](#fn33) | 🟢**10/10** [³³](#fn33) | — |
-| Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 | 🟡476 | 395 | dies [³⁸](#fn38) | 20.7 | 🟡21.7 | — | — | — | — | none | — | — | — |
-| Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 | 🟡407 | — | 🟡**26.0** | 🟢**25.1** | — | — | — | — | none | — | — | — |
-| Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | 🟢**980** | 🟢**1297** | 🟢**1252** (262k ctx) | 🟢26.9 | 🟢22.8 | — | — | — | — | 🟡12/15 | — | — | — |
+| Local LLM | **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | 🟡**865** | 🟡**909** | 🟢**761** [³⁷](#fn37) |33.5 | 🟢**31.7** | 🟢**12/12** | 🟡**0.667** [0.39–0.86] [³³](#fn33) | 🟢**0.533** [0.41–0.65] [³⁴](#fn34) | 🟡**0.55** [0.34–0.74] [³³](#fn33) | 🟢**0.933** [²⁶](#fn26) | 🟢**all rungs** (13/15) [³³](#fn33) | 🟢**10/10** [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) · draft MTP shared-Q4_K_M · 1.8 GiB |
+| Local LLM | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) |**689** |**672** | 🟡**605** | 🟢**34.8** | 🟡**25.7** | 🟢**12/12** | 🟢**0.833** | 🟢0.533 [³⁴](#fn34) | 🟢**0.65** | 🟡**0.867** [¹⁰](#fn10) | **all rungs** | 🟢10/10 | 97 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
+| Local LLM | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) |**730** |**699** |199 [¹⁸](#fn18) | 🟡**34.3** |**22.3** | 🟢**12/12** | 🟡0.750 | — | 🟢**0.65** [¹¹](#fn11) | 🟡**0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 🟢10/10 [¹¹](#fn11) | 107 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
+| Local LLM | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) |486 |409 |192 | 20.5 | 🟡**28.0** | 🟡11/12 | 🟢**0.833** | — | 🟢**0.65** |0.800 [¹⁰](#fn10) | **all rungs** | 🟢10/10 | 30 GiB · draft DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
+| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock |499 |470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | 🟢**12/12** | 0.333 | — |0.45 |0.733 [¹⁰](#fn10) |7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 32 GiB · draft DFlash2 · 1.5 GiB |
+| Cloud | DeepSeek V4.1 Flash (cloud API) | — | — | — | — | — | 🟢**12/12** (passes) [¹⁹](#fn19) | 🟡0.667 [0.39–0.86] | 🟡0.483 [0.36–0.61] [⁸](#fn8) | 0.42 [0.19–0.68] | 0.533 [0.30–0.75] (n=15) [²²](#fn22) |7/15 [²²](#fn22) | 🟡0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
+| Cloud | GLM-5.3 (cloud API) | — | — | — | — | — | 🟢**12/12** (passes) [¹⁹](#fn19) |0.583 [0.32–0.81] [¹⁹](#fn19) | 🟡0.433 [0.32–0.56] [²³](#fn23) |0.50 [0.25–0.75] [¹⁹](#fn19) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 🟡11/15 [²²](#fn22) | 🟢10/10 [²²](#fn22) | n/a (API) |
+| Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | 🟡**11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) |0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 🟡9/15 [²²](#fn22) | 🟡0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
+| Engine | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) — UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26); quality cells = the champion row (same arm, same weights) | 🟡**865** | 🟡**909** | 🟢**761** [³⁷](#fn37) |33.5 | 🟢**31.7** | 🟢**12/12** [³⁴](#fn34) | 🟡**0.667** [³⁴](#fn34) | 🟢**0.533** [³⁴](#fn34) | 🟡**0.55** [³⁴](#fn34) | 🟢**14/15** | 🟢**all rungs (13/15)** [³³](#fn33) | 🟢**10/10** [³³](#fn33) | — |
+| Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 |476 | 395 | dies [³⁸](#fn38) | 20.7 |21.7 | — | — | — | — | none | — | — | — |
+| Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 |407 | — |**26.0** |**25.1** | — | — | — | — | none | — | — | — |
+| Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | 🟢**980** | 🟢**1297** | 🟢**1252** (262k ctx) |26.9 |22.8 | — | — | — | — |12/15 | — | — | — |
 | Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | — | — | — | — | 🟡**13/15** | — | — | — |
-| Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — | 🟡23.4 | 19.7 | 🟡10/12 [³¹](#fn31) | — | — | — | 🟡13/15 | — | — | — |
+| Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — |23.4 | 19.7 |10/12 [³¹](#fn31) | — | — | — | 🟡13/15 | — | — | — |
 
 Reading it honestly:
 
@@ -212,9 +212,10 @@ Reading it honestly:
 - **The cloud columns carry the format caveat** ([⁷](#fn7)): a cloud API that
   ignores the one-code-block answer contract scores a *format* failure —
   compatibility first, capability second.
-- **🟢 / 🟡 = the top-2 / next-2 distinct values per column** (ties share the
-  medal). Cloud speed cells and structural n/a do not compete; colored text
-  is impossible in GitHub markdown, so emoji carry the tiers.
+- **🟢 / 🟡 = the top-2 / next-2 values per column** — exactly two medals per
+  tier, more only where rows hold the identical boundary value (e.g. iten12's
+  seven 12/12). Cloud speed cells and structural n/a do not compete; colored
+  text is impossible in GitHub markdown, so emoji carry the tiers.
 - **What is still missing and doable**: the battery cells for the engine
   rows — gufo first (iten12/AIME/zebra/sli), then halogen, both vanilla
   builds and ROCmFPX; AIME-60 for Q6/27B/Muse; Muse's capped sli re-run
