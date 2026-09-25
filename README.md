@@ -158,8 +158,10 @@ live in [What we measured](#what-we-measured)):
 1. **#1 — Gufo + Qwen3.8 Flash-Next UD-Q4_K_XL (shared-Q8_0 MTP).** The open
    engine wins both speed axes at the fleet basis — prefill +39% (1200 vs
    865 t/s), tg128 +32% (44.1 vs 33.5), pp@128k **621 t/s** where vanilla
-   upstream dies — quality holds (fcb15 13/15), and one MIT binary covers
-   text + image + TTS + ASR. What still keeps it off the fleet's serving
+   upstream dies — quality holds (fcb15 13/15), and it is a whole model
+   stack in one MIT binary: the LLM plus Qwen-Image-2.1 image
+   generation/editing (measured on this box), Qwen3-ASR, Qwen3-TTS voice
+   cloning, and MiniMax-H3 text-to-video. What still keeps it off the fleet's serving
    port: robustness, concurrency and ops surface unproven
    ([Gufo — the open challenger](#gufo--the-open-challenger)).
 2. **#2 — our llama.cpp fork + Qwen3.8 Flash-Next UD-Q4_K_XL + MTP
@@ -494,8 +496,11 @@ same arm, same weights).
 ### Gufo — the open challenger
 The only engine beating the fork on both axes at the fleet basis (pp +39%,
 tg up to +32%), and deep prefill measured once the window opened (pp@128k
-621 t/s at c=192k — vanilla dies on the same request). Quality holds (13/15), one MIT binary covering text +
-Qwen-Image-2.1 + TTS + ASR, maintained by the Italian Strix-Halo community.
+621 t/s at c=192k — vanilla dies on the same request). Quality holds
+(13/15), and it ships a whole model stack in one MIT binary — Qwen3.8
+Flash-Next/27B and DeepSeek V4 Flash text, Qwen-Image-2.1 (the image
+modality this fleet already serves), Qwen3-ASR, Qwen3-TTS voice cloning,
+MiniMax-H3 text-to-video — maintained by the Italian Strix-Halo community.
 Cons: fleet robustness unproven (every cell <1 h fresh-load), concurrency
 unmeasured, operational surface (router/slots/eviction) unmapped, loader is
 UD-Q4-strict. Path: one-week probation as strixy2's resident default, Doctor
