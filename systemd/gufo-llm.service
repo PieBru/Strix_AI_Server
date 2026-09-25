@@ -1,0 +1,18 @@
+# gufo-llm — fleet champion arm (promoted 260925): gufo engine serving
+# Qwen3.8 Flash-Next UD-Q4_K_XL + shared-Q8_0 MTP draft (d3) at effort low,
+# c=196608 (measured: 90 GiB/125 GiB GTT, +1.7 GiB vs 131k — fn30/fn39).
+# Vision sidecar mmproj included. Replaces model-router-pwilkin.service.
+[Unit]
+Description=gufo serve llm — Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (champion) on 0.0.0.0:8080
+After=network.target
+
+[Service]
+WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server
+Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
+Environment=LD_LIBRARY_PATH=/opt/rocm/lib:
+ExecStart=/home/piero/Downloads/Git/gufo/build/release/gufo serve llm --model /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf --mmproj /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/mmproj-BF16.gguf --mtp-model /home/piero/Downloads/LLM/Qwen38/flash-next/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf --speculative mtp -d 3 --reasoning-effort low -c 196608 -i 0.0.0.0 -p 8080 --served-model-name default
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
