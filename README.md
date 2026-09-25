@@ -5,6 +5,7 @@
 <!-- toc -->
 
 - [In a hurry? Look here.](#in-a-hurry-look-here)
+- [Policy](#policy)
 - [Glossary](#glossary)
 - [Hardware](#hardware)
 - [Our podium](#our-podium)
@@ -17,7 +18,7 @@
   - [Why not vanilla upstream?](#why-not-vanilla-upstream)
   - [Why not Halogen?](#why-not-halogen)
   - [Why not ROCmFPX?](#why-not-rocmfpx)
-  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
+  - [Why not Q5? (the on-demand slot)](#why-not-q5-the-on-demand-slot)
   - [The fork (llama.cpp strix-halo) — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)
   - [Gufo — the open challenger](#gufo--the-open-challenger)
   - [DeepSeek V4.1 Flash (cloud)](#deepseek-v41-flash-cloud)
@@ -27,7 +28,6 @@
 - [Arch Linux minimal server — the base install](#arch-linux-minimal-server--the-base-install)
   - [Swap: answer **No** to zram — and why](#swap-answer-no-to-zram--and-why)
   - [After the install](#after-the-install)
-- [Policy](#policy)
 - [The "sharp" chat template](#the-sharp-chat-template)
 - [RAM accounting](#ram-accounting)
 - [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
@@ -68,6 +68,45 @@ default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
 evidence, method, or operations.
+
+## Policy
+
+1. **Quality first** — within acceptable speed
+2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
+ generation, then we measure wall-clock, not server-reported. See below,
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
+3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
+ (revised 2026-09-24). The floor comes from enterprise-level experience and
+ community expert consensus on MoE (mixture-of-experts) quantization
+ robustness, not from a 12-item battery alone; our battery *confirms* Q5
+ meets the quality gate. The deprecation is now **per-quant, not per-class**:
+ a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
+ paired census ties or beats the then-champion's cell, and (ii) it fits the
+ RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
+ swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
+ exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
+ weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
+ the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
+ See below,
+ [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
+4. **llama.cpp first** — preferably the vanilla build (upstream master,
+ easy updates); the tuned HIP fork is used where prefill speed demands.
+ *Measured exception:* for this model family the fork is
+ load-bearing — the MTP draft GGUF is fork-format (upstream rejects
+ it), and an eager-load vanilla census hard-crashed the lab box
+ (no lazy-PLE path). Vanilla stays preferred for models it can host;
+ see the engine-axis note in `configs/q5-flash-next-winner.md`.
+5. **Open source only** — closed engines are evaluated for reference,
+ never adopted
+6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+7. **Single model vs co-residency** — for the best quality at a
+ good-enough speed, the primary goal is to serve a single
+ all-purpose model on a single Strix-Halo, optionally routed by a
+ fast classifier service (e.g. Laya, from any LAN node). At the cost
+ of a service restart, one Halo node can be configured to serve
+ multiple models via `models.ini` — either by swapping the single
+ big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
+ Qwen Image 2.1).
 
 ## Glossary
 
@@ -179,9 +218,9 @@ Reading it honestly:
 **The standing decision (2026-09-24, reaffirmed by the 2026-09-25 quality
 census):** the champion is **Qwen3.8 Flash-Next UD-Q4_K_XL + the shared
 Q4_K_M MTP draft** at the promoted effort tier **low** (sharp-low) — the
-fleet's serving default on both boxes ([²⁶](#fn26)). The succession was
-arithmetic, not quality: Q5's 147.4 GiB of weights stopped fitting the
-124 GiB box (full story in [Why not Q5?](#why-not-q5-the-demoted-champion));
+fleet's serving default on both boxes ([²⁶](#fn26)). The choice is
+arithmetic, not quality: Q5's 147.4 GiB of weights does not fit the
+124 GiB box (full story in [Why not Q5?](#why-not-q5-the-on-demand-slot));
 Q4 is the tier that keeps the proven recipe — sharp-low, MTP draft, f16 KV
 @131k — resident with ~29 GiB to spare (111 GiB file / 91–95 GiB served).
 
@@ -375,8 +414,7 @@ outside engine we have measured — and the honest answer starts with what it
 **wins**: prefill. On the same weights, same box, same day as the fork's Q4
 cells it prefilled at **980/1297/1252 t/s** (4k/32k/128k) — +13–43% over the
 fork — and it is the only engine here that serves a **262k context** where
-our arm caps at 131k ([²⁹](#fn29)). The 260908 quality collapse (2/15,
-thinking-budget deaths) is fixed: 0.13.8 scores 12/15 greedy on fcb15.
+our arm caps at 131k ([²⁹](#fn29)). 0.13.8 scores 12/15 greedy on fcb15.
 
 So why is it reference-only? Four reasons, in order of weight:
 
@@ -425,38 +463,24 @@ worker, the fp4-27B at 25 GiB is the strongest candidate we have measured —
 re-run iten12 first; if it holds 12/12 on a newer checkpoint, this chapter
 gets revisited.
 
-### Why not Q5? (the demoted champion)
+### Why not Q5? (the on-demand slot)
 
-For three weeks Q5_K_XL + MTP was the answer to "which local model serves
-this fleet" — [iten12-v2](#italian-iten12) 12/12, AIME 0.833, every fcb15
-ladder rung, 34.8 t/s decode. Nothing in this chapter walks those cells
-back: they are why the podium still prints the Q5 row. What demoted it was
-not quality. It was arithmetic.
-
-**The weights stopped fitting the box.** UD-Q5_K_XL is 147.4 GiB of GGUF on
-a machine with 124 GiB of usable unified memory. For a while the recipe
-retreated around the problem — context 262144 → 200000 → 131072 — and each
-retreat bought weeks, not a fix (the retreat log lives in the serving
-config's own comments, `models.ini` on this box). At
-f16 KV @131k the arm held 116 GiB of GTT with ~30 GiB of weights faulting
-from disk on demand; on 260924 the failure finally presented in full:
-decode collapsed to **1.64 t/s at 3% GPU busy**, the host pushed **12.9 GiB
-into swap**, and memory-PSI sat near 20% for the duration (measured
-260924 10:50, artifacts in [²⁶](#fn26)'s A/B logs). That is the exact
-refault-storm class the sizing rule exists to prevent: **an arm that must
-leave ≥8 GiB of host headroom cannot be 147 GiB of weights on a 124 GiB
-box.**
-
-The same day's paired measurement settled the succession: UD-Q4_K_XL at
-111 GiB file / 91–95 GiB served keeps the proven recipe (sharp-low, MTP
-draft, f16 KV @131k) inside the envelope with ~29 GiB to spare, decodes
-within ~4% at tg128 and **+23% at tg2048**, prefills +25%, and matches the
-gate batteries (iten 12/12, fcb15 0.933 vs 0.867 same-day) — [²⁶](#fn26).
-Q5 did not lose; it ran out of room. Full-Q5 serving lives on strixy2's
-on-demand slot, and the podium's Q5 row stays as the quality reference the
-Q4 row is checked against.
-
-
+The family's quality reference: iten12 12/12, AIME 0.833, every fcb15
+ladder rung, 34.8 t/s decode — the podium's Q5 row stays as the reference
+the Q4 row is checked against. It is not the serving default for one
+reason: **the weights do not fit the box.** UD-Q5_K_XL is 147.4 GiB of
+GGUF on 124 GiB of usable unified memory. At f16 KV @131k the arm holds
+116 GiB of GTT with ~30 GiB of weights faulting from disk on demand, and
+under load the refault storm presents in full — decode at **1.64 t/s at 3%
+GPU busy**, **12.9 GiB into swap**, memory-PSI near 20% (measured 260924,
+A/B artifacts in [²⁶](#fn26)) — the exact failure class the sizing rule
+exists to prevent: **an arm that must leave ≥8 GiB of host headroom cannot
+be 147 GiB of weights on a 124 GiB box.** UD-Q4_K_XL (111 GiB file /
+91–95 GiB served) keeps the proven recipe (sharp-low, MTP draft, f16 KV
+@131k) inside the envelope with ~29 GiB to spare, decodes within ~4% at
+tg128 and +23% at tg2048, prefills +25%, and matches the gate batteries
+(iten 12/12, fcb15 0.933 vs 0.867 same-day paired) — [²⁶](#fn26).
+Full-Q5 serving lives on strixy2's on-demand slot.
 
 ### The fork (llama.cpp strix-halo) — why it still serves
 The load-bearing baseline: the only engine that hosts the family's MTP draft
@@ -863,45 +887,6 @@ Vulkan/ROCm build of llama.cpp — [the tooling chapter](#reproduce-our-tests)
 has the exact commands. Cockpit, if enabled, is the box's only web surface
 besides the model server itself.
 
-## Policy
-
-1. **Quality first** — within acceptable speed
-2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
- generation, then we measure wall-clock, not server-reported. See below,
- [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
-3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
- (revised 2026-09-24). The floor comes from enterprise-level experience and
- community expert consensus on MoE (mixture-of-experts) quantization
- robustness, not from a 12-item battery alone; our battery *confirms* Q5
- meets the quality gate. The deprecation is now **per-quant, not per-class**:
- a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
- paired census ties or beats the then-champion's cell, and (ii) it fits the
- RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
- swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
- exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
- weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
- the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
- See below,
- [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
-4. **llama.cpp first** — preferably the vanilla build (upstream master,
- easy updates); the tuned HIP fork is used where prefill speed demands.
- *Measured exception:* for this model family the fork is
- load-bearing — the MTP draft GGUF is fork-format (upstream rejects
- it), and an eager-load vanilla census hard-crashed the lab box
- (no lazy-PLE path). Vanilla stays preferred for models it can host;
- see the engine-axis note in `configs/q5-flash-next-winner.md`.
-5. **Open source only** — closed engines are evaluated for reference,
- never adopted
-6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
-7. **Single model vs co-residency** — for the best quality at a
- good-enough speed, the primary goal is to serve a single
- all-purpose model on a single Strix-Halo, optionally routed by a
- fast classifier service (e.g. Laya, from any LAN node). At the cost
- of a service restart, one Halo node can be configured to serve
- multiple models via `models.ini` — either by swapping the single
- big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
- Qwen Image 2.1).
-
 ## The "sharp" chat template
 
 The serve recipe doesn't use the stock Qwen3.8 template. It runs
@@ -932,7 +917,7 @@ One method, applied to every candidate. All figures GiB.
 The @262k columns are the *arithmetic* at the native ceiling — no tier
 serves it; the retreat ladder ended at **131k** for Q5 (its measured-stable
 value) and the Q4 fleet default serves 131k by recipe (see
-[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-demoted-champion)); Q6 ships at 64k (its sustained gate).
+[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-on-demand-slot)); Q6 ships at 64k (its sustained gate).
 
 | component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
 |---|---:|---:|---:|---:|---:|
@@ -1252,15 +1237,10 @@ the counterexample (0.500→0.833 at low), so the effort lever is
 family-specific, not coding-specific. The n=60 bank also contains harder unsolved-era items
 that both tiers miss, which is why its level sits below the yearsplit cell.
 
-**Retired — the original stratified-random cut.** Its local cells were Q5
-0.833, Q6 0.727, IQ4_NL 0.667, 27B-Q8 0.667 and Muse 0.583. They are no longer
-tabulated, for two measured reasons: four of the five ran under the **v1
-grader** (exec-namespace bug — structured solutions raised `NameError` inside
-the checker and were scored FAIL, so they skew low), and 8 of its 12 items came
-from AIME 2025 (~18 months public at test time, contamination-likely for
-locals). The year-stratified cut above fixes both, so that is the number to
-quote. History and per-item artifacts: `grading_changelog` and
-`aime_selection_split` in [results.json](benchmarks/results.json).
+Quote only the year-stratified cut above — earlier
+stratified cuts ran a flawed v1 grader and are superseded (per-item
+artifacts: `aime_selection_split` in
+[results.json](benchmarks/results.json)).
 
 ## sli — structured-list integrity (GBench)
 
@@ -1542,9 +1522,7 @@ silently on a port transition, re-run clean), and the champion's shipped-default
 cell matches it exactly (0.65 at n=20, overlapping CIs throughout). The full-bank
 re-score is the tighter measurement and the honest one to quote for the effort
 axis: **sharp-low 0.567 vs sharp-medium 0.533** at n=30 both — low still leads,
-but by one item, where the looser n=20-vs-n=12 pairing had suggested +0.15. An
-earlier n=12 champion cell (0.50) is no longer listed: its template basis was
-never recorded, so it is not comparable to any row above. Zebra remains
+but by one item, where the looser n=20-vs-n=12 pairing had suggested +0.15. Zebra remains
 everyone's weakest battery — the CSP ladder is where headroom lives. The
 27B's sharp-low cell (2026-09-23) lands on the same 0.65 as the champion
 and the BF16 anchor — a three-way tie at the top, fully overlapping CIs.
@@ -1707,7 +1685,7 @@ night — see `benchmarks/logs-260925/` and the marathon driver
 parity within battery resolution with nominal deficits on AIME/zebra,
 recorded not hidden.
 
-<a id="fn34"></a>³⁴ **Champion column re-based on UD-Q4_K_XL (2026-09-25).** The column
+<a id="fn34"></a>³⁴ **Champion column basis: UD-Q4_K_XL, measured 2026-09-25.** The column
 follows the fleet's serving default ([²⁶](#fn26), [Why Q4 wins](#why-q4-wins)):
 same arm, same batteries, same probe harness as the Q5 column before it.
 Cells: iten12 12/12; AIME-12 **0.667 [0.39–0.86]**; zebra n=20 **0.55
@@ -1805,9 +1783,7 @@ lives in [configs/halogen-eval.md](configs/halogen-eval.md). The 0.13.8 cells ar
 own kernel layouts and takes the draft head from its own 1.4 GiB file — same weights,
 same box, same day as the fork's [²⁶](#fn26) cells. Prefill 980/1297/1252 t/s at
 4k/32k/128k (+13–43%; it serves a 262k context where our arm caps at 131k), decode
-26.9/22.8 (−20/−28% vs the fork), fcb15 12/15 greedy — the 260908 collapse (2/15,
-thinking-budget deaths, see [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait))
-is fixed. Practical caveat: its default `reasoning_effort: xhigh` burned 99–165 s per
+26.9/22.8 (−20/−28% vs the fork), fcb15 12/15 greedy . Practical caveat: its default `reasoning_effort: xhigh` burned 99–165 s per
 fcb15 item vs our 36–58 s at sharp-low — budget your defaults before comparing
 wall-clock. Temperature-0 output is byte-identical to serial greedy (their guarantee,
 re-verified per release).
