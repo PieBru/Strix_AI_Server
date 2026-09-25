@@ -507,7 +507,7 @@ unreachable" was a router-era constraint).
 Winner on both speed axes at the fleet basis (pp +39%, tg128 +32%), deep
 prefill measured once the window opened (pp@128k **621 t/s** at c=192k —
 vanilla dies on the same request), quality holding on every battery
-([³⁹](#fn39, v6): iten 12/12, sli 10/10, zebra 0.500 [0.25–0.75], AIME-12 0.583
+([³⁹](#fn39) (v6): iten 12/12, sli 10/10, zebra 0.500 [0.25–0.75], AIME-12 0.583
 [0.47–0.91] — nominally above the fork's 0.667), and it ships a whole model
 stack in one MIT binary — Qwen3.8 Flash-Next/27B and DeepSeek V4 Flash
 text, Qwen-Image-2.1 (the image modality this fleet already served),
