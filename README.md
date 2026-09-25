@@ -203,7 +203,7 @@ live in [Footnotes](#footnotes).
 | Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 |476 | 395 | dies [³⁸](#fn38) | 20.7 |21.7 | — | — | — | — | none | — | — | — |
 | Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 |407 | — |**26.0** |**25.1** | — | — | — | — | none | — | — | — |
 | Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | 🟢**980** | 🟢**1297** | 🟢**1252** (262k ctx) |26.9 |22.8 | — | — | — | — |12/15 | — | — | — |
-| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | — | — | — | — | 🟡**13/15** | — | — | — |
+| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | 🔴 11/12 [³⁹](#fn39) | 🟡 0.750 [0.47–0.91] [³⁹](#fn39) | — | 0.42 [0.19–0.68] [³⁹](#fn39) | 🟡**13/15** | — | 10/10 [³⁹](#fn39) | — |
 | Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — |23.4 | 19.7 | 🔴10/12 [³¹](#fn31) | — | — | — | 🟡13/15 | — | — | — |
 
 Reading it honestly:
@@ -222,10 +222,10 @@ Reading it honestly:
   rows that saturate (12/12, 10/10) carry no medal — 🔴 marks the rows that
   do not. Cloud speed cells and structural n/a do not compete; colored text
   is impossible in GitHub markdown, so emoji carry the tiers.
-- **What is still missing and doable**: the battery cells for the engine
-  rows — Gufo first (iten12/AIME/zebra/sli), then halogen, both vanilla
-  builds and ROCmFPX; AIME-60 for Q6/27B/Muse; Muse's capped sli re-run
-  [³⁶](#fn36); and vanilla-VK pp@128k at a 262k window.
+- **What is still missing and doable**: battery cells for halogen, both
+  vanilla builds and ROCmFPX (Gufo's landed [³⁹](#fn39)); AIME-60 for
+  Q6/27B/Muse; Muse's capped sli re-run [³⁶](#fn36); and vanilla-VK
+  pp@128k at a 262k window.
 
 
 ## Analysis — every measured solution
@@ -523,7 +523,9 @@ tg up to +32%), and deep prefill measured once the window opened (pp@128k
 Flash-Next/27B and DeepSeek V4 Flash text, Qwen-Image-2.1 (the image
 modality this fleet already serves), Qwen3-ASR, Qwen3-TTS voice cloning,
 MiniMax-H3 text-to-video — maintained by the Italian Strix-Halo community.
-Cons: fleet robustness unproven (every cell <1 h fresh-load), concurrency
+Battery cells landed same-day [³⁹](#fn39): iten 11/12, sli 10/10, zebra 0.42,
+AIME-12 0.750 — quality holds on every axis within CI overlap. Cons: fleet
+robustness unproven (every cell <1 h fresh-load), concurrency
 unmeasured, operational surface (router/slots/eviction) unmapped, loader is
 UD-Q4-strict. Path: one-week probation as strixy2's resident default, Doctor
 watching, fork one systemd unit away. Missing cells: iten12, AIME, zebra, sli
@@ -1781,6 +1783,16 @@ stays fork territory (log `/tmp/vhip-q4.log` era, driver
 vanilla HIP (+26% tg128) replicates on Q4, same direction as fn35's Q5 finding.
 (Upstream moved on to b11181 `d028c697b` the same morning; the cells above
 remain b11168 — re-pin on the next engine pass.)
+
+<a id="fn39"></a>³⁹ **Gufo battery cells (2026-09-25) — the engine's own
+quality row**, same window as its speed cells (UD-Q4_K_XL + shared-Q8_0 MTP,
+`-d 3`, c 131072, effort low, strixy2 :8096; probe.py seed 1300, greedy):
+iten12 **11/12** (item 2 fails — the fork runs 12/12 on identical weights:
+a one-item engine effect, within battery noise at n=12); sli **10/10**
+(saturates); zebra **0.417 [0.19–0.68]** (n=12; CI overlaps the champion's
+0.55 — no ranking claim); AIME-12 **0.750 [0.47–0.91]** (n=12 yearsplit;
+nominally above the champion's same-day 0.667, CIs overlap). Artifacts:
+`benchmarks/logs-260925/probe-gufo-q4-{iten12,sli,zebra,aime}.json`.
 
 <a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
 owed (the served c=131072 refuses the probe's ~160k-token window). The
