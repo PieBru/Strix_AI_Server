@@ -11,7 +11,7 @@
 - [Hardware](#hardware)
 - [What we measured](#what-we-measured)
 - [Analysis — every measured solution](#analysis--every-measured-solution)
-  - [Why Q4 wins](#why-q4-wins)
+  - [Why gufo wins — and why its weights are Q4](#why-gufo-wins--and-why-its-weights-are-q4)
   - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
   - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
   - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
@@ -19,8 +19,8 @@
   - [Why not Halogen?](#why-not-halogen)
   - [Why not ROCmFPX?](#why-not-rocmfpx)
   - [Why not Q5? (the on-demand slot)](#why-not-q5-the-on-demand-slot)
-  - [The fork (llama.cpp strix-halo) — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)
-  - [Gufo — the open challenger](#gufo--the-open-challenger)
+  - [The fork (llama.cpp strix-halo) — the proven fallback](#the-fork-llamacpp-strix-halo--the-proven-fallback)
+  - [Gufo — the champion](#gufo--the-champion)
   - [DeepSeek V4.1 Flash (cloud)](#deepseek-v41-flash-cloud)
   - [GLM-5.3 (cloud)](#glm-53-cloud)
   - [GLM-5.3-flash (cloud)](#glm-53-flash-cloud)
@@ -64,7 +64,7 @@ The whole README distils into two tables:
 [**What we measured**](#what-we-measured) — every solution with a number on it
 (speed × quality × RAM, every cell wall-clock and re-measured; the fleet
 default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
-[Why Q4 wins](#why-q4-wins)), and
+[Why gufo wins](#why-gufo-wins--and-why-its-weights-are-q4)), and
 [**Analysis**](#analysis--every-measured-solution) — the same batteries run
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
@@ -81,14 +81,16 @@ live in [What we measured](#what-we-measured)):
    upstream dies — quality holds (fcb15 13/15), and it is a whole model
    stack in one MIT binary: the LLM plus Qwen-Image-2.1 image
    generation/editing (measured on this box), Qwen3-ASR, Qwen3-TTS voice
-   cloning, and MiniMax-H3 text-to-video. What still keeps it off the fleet's serving
-   port: robustness, concurrency and ops surface unproven
-   ([Gufo — the open challenger](#gufo--the-open-challenger)).
+   cloning, and MiniMax-H3 text-to-video. Promoted to fleet champion
+   2026-09-25; the honest caveats (robustness, concurrency, ops surface —
+   every cell <1 h fresh-load) live in
+   [Gufo — the champion](#gufo--the-champion).
 2. **#2 — our llama.cpp fork + Qwen3.8 Flash-Next UD-Q4_K_XL + MTP
-   (Q4_K_M draft) · sharp-low.** The fleet serving default and the
-   load-bearing baseline: months of resident-serving robustness, the
-   deep-prefill patches, and the router + systemd fleet around it
-   ([The fork — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)).
+   (Q4_K_M draft) · sharp-low.** The proven fallback (and serving
+   default until the gufo probation ends): months of resident-serving
+   robustness, the deep-prefill patches, and the router + systemd fleet
+   around it
+   ([The fork — the proven fallback](#the-fork-llamacpp-strix-halo--the-proven-fallback)).
    The exit plan is upstream: vanilla llama.cpp is our privileged citizen,
    and we adopt it the day [PR #27836](https://github.com/ggml-org/llama.cpp/pull/27836)
    (qwen4exp NextN/MTP draft head, still open) merges and vanilla can host
@@ -211,50 +213,47 @@ Reading it honestly:
 
 ## Analysis — every measured solution
 
-### Why Q4 wins
+### Why gufo wins — and why its weights are Q4
 
-**The standing decision (2026-09-24, reaffirmed by the 2026-09-25 quality
-census):** the champion is **Qwen3.8 Flash-Next UD-Q4_K_XL + the shared
-Q4_K_M MTP draft** at the promoted effort tier **low** (sharp-low) — the
-fleet's serving default on both boxes ([²⁶](#fn26)). The choice is
-arithmetic, not quality: Q5's 147.4 GiB of weights does not fit the
-124 GiB box (full story in [Why not Q5?](#why-not-q5-the-on-demand-slot));
-Q4 is the tier that keeps the proven recipe — sharp-low, MTP draft, f16 KV
-@131k — resident with ~29 GiB to spare (111 GiB file / 91–95 GiB served).
+**The standing decision (2026-09-25):** the champion is **gufo** (MIT,
+single binary) serving **Qwen3.8 Flash-Next UD-Q4_K_XL with its shared-Q8_0
+MTP draft**. The 2026-09-25 engine census put it ahead of the fleet's fork
+arm on every measured axis — speed first, quality holding — and the
+operator promoted it the same day. The fork's Q4 sharp-low arm, the serving
+default since 2026-09-24, becomes **#2: the proven fallback**, one systemd
+unit away
+([The fork — the proven fallback](#the-fork-llamacpp-strix-halo--the-proven-fallback)).
 
-**The winner:** llama.cpp (fork engine) + Qwen3.8 Flash-Next UD-Q4_K_XL
-+ its shared-Q4_K_M MTP draft, on a single 128 GB Strix Halo.
+**Why the engine verdict flipped** (all same weights, same box, same day):
 
-- Passes the quality gate **and** holds the speed floor: iten12 **12/12**,
-  sli **10/10** (canary-saturated like every measured local row), fcb15
-  **0.933** same-day paired vs the incumbent's 0.800 greedy / 0.867 retry
-  ([²⁶](#fn26)); decode within ~4% of Q5 at tg128, **+23% at tg2048**
-  (31.7 vs 25.7), prefill +25% (865 vs 689 @4k)
-- The 2026-09-25 census completes the quality row: AIME-12 **0.667
-  [0.39–0.86]** and zebra **0.55 [0.34–0.74]** — both nominally under Q5's
-  0.833/0.65, both CIs overlapping at these n. In plain terms: quality
-  parity within these batteries' resolution, with the nominal deficits
-  recorded, not hidden
-- Serves a **131k-token context** — whole codebases, no chunking — with
-  real headroom ([the math](#ram-accounting)); the native 262k ceiling is
-  not reachable for this family on this box at any tier (retreat log
-  262k→200k→131k, per-arm comments in the serving config)
-- A 32k-token prompt prefills in ~44 s (**909 t/s** probe) — the axis that
-  matters for coding
-- One main model + 1.9 GiB draft = zero swap overhead, simplest operations
-- All **quality** scores are reproducible from this repo — serve commands,
-  checksums, unit files, the batteries, and the champion's raw JSONL runs
-  in [benchmarks/](benchmarks/), [configs/](configs/), and
-  [systemd/](systemd/). The wall-clock speed probe is committed as
-  [benchmarks/speed_probe.py](benchmarks/speed_probe.py) — see
-  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
+- Wins **both speed axes** at the fleet basis: prefill **+39%** (1200 vs
+  865 t/s @4k), decode **+32% at tg128** (44.1 vs 33.5) — the fork had held
+  both since the fleet began
+- Deep prefill **621 t/s @128k context** (c=192k; +1.7 GiB was a choice,
+  not a RAM wall) — where vanilla upstream dies outright
+- Quality holds on every battery within CI overlap
+  ([³⁹](#fn39)): fcb15 **13/15**, iten **11/12**, sli **10/10** (saturates
+  like every local row), zebra **0.417** [0.19–0.68], AIME-12
+  **0.750** [0.47–0.91] — nominally *above* the fork arm's 0.667
+- Not just an engine: one MIT binary ships the LLM **plus** the stack this
+  fleet already served piecemeal — Qwen-Image-2.1 generation/editing
+  (measured on this box), Qwen3-ASR, Qwen3-TTS voice cloning, MiniMax-H3
+  text-to-video. The single-model-vs-co-residency tradeoff dissolved with
+  it: the champion *is* the multi-model stack
 
-**The template confound is measured, not hypothetical:** IQ4_NL scored **0.333 on its stock template** overnight and
-**0.667 with the sharp template** — same quant, battery, protocol,
-hardware class; the template alone doubled the score. The
-uniform-template re-cut of the Qwen-family cells is complete (every local row
-now has a sharp cell; the flash family and the 27B were re-cut at sharp-low
-2026-09-23); Muse runs its stock template by family design.
+**Why the weights are still Q4 — arithmetic no engine escapes:**
+UD-Q5_K_XL is 147.4 GiB of weights on 124 GiB of usable unified memory; it
+does not fit ([Why not Q5?](#why-not-q5-the-on-demand-slot)). Q4 keeps the
+whole recipe — 131k context, MTP draft, f16 KV — resident at 111 GiB file /
+91–95 GiB served, ~29 GiB to spare. And gufo's loader is UD-Q4-strict: it
+hosts exactly this tier — engine choice and quant choice point the same way.
+
+**The caveats, carried with the crown** (why the fork stays warm): every
+gufo cell was measured <1 h fresh-load — the months-long resident-serving
+robustness the fork has proven is still unproven here; concurrency is
+unmeasured; the operational surface (router, slots, eviction) is unmapped.
+The promotion is a bet on measured speed and openness, with a fallback one
+`systemctl` away.
 
 ### Why not IQ4_NL? (also 12/12, faster decode, less RAM)
 
@@ -287,7 +286,7 @@ re-run chain on a dedicated process — iten12 12/12 under the hardened
 grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GiB** —
 no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
 pool is pre-allocated and cannot outgrow the margin. Q5 ships at 200k for
-the same measured reason (see *Why Q4 wins*); Q6 at 131k is a
+the same measured reason (see *Why gufo wins*); Q6 at 131k is a
 demonstrated fallback tier, not a hope.
 
 **A second, slower disease, also measured:** sustained
@@ -373,7 +372,7 @@ untested as a serving configuration.
 
 ### Why not vanilla upstream?
 
-Policy [4](#policy) prefers upstream, so this chapter is the running
+Policy [3](#policy) prefers upstream, so this chapter is the running
 answer to "why does a fork still serve the fleet?" — with the 260924/25
 verification evidence, not vibes.
 
@@ -487,30 +486,32 @@ tg128 and +23% at tg2048, prefills +25%, and matches the gate batteries
 (iten 12/12, fcb15 0.933 vs 0.867 same-day paired) — [²⁶](#fn26).
 Full-Q5 serving lives on strixy2's on-demand slot.
 
-### The fork (llama.cpp strix-halo) — why it still serves
-The load-bearing baseline: the only engine that hosts the family's MTP draft
-(`--spec-type draft-mtp`), the deep-prefill patches (pp128k 761 t/s where
-vanilla dies), months of resident-serving robustness, and the models.ini
-router + systemd fleet around it. Cons: closed-ish pace (fork maintenance),
-decode behind Gufo (33.5 vs 44.3 tg128), no modality beyond text+vision.
-Missing cells: its own iten/AIME/zebra census rows (they are the champion's —
-same arm, same weights).
+### The fork (llama.cpp strix-halo) — the proven fallback
+The fleet's serving default from 2026-09-24, now #2: the only engine with
+**months of resident-serving robustness**, the `models.ini` router +
+systemd fleet around it, the deep-prefill patches (pp@128k **761 t/s** at
+c=262k — the best deep-pp number on the box), and the only other engine
+that hosts the family's MTP draft (`--spec-type draft-mtp`). Behind gufo on
+both speed axes (865 vs 1200 pp@4k; 33.5 vs 44.1 tg128); no modality beyond
+text+vision. Its census rows (iten 12/12, AIME-12 0.667, zebra 0.55, fcb15
+0.933 same-day paired) remain the quality reference the gufo cells are
+checked against — and the fleet falls back here without a reinstall.
 
-### Gufo — the open challenger
-The only engine beating the fork on both axes at the fleet basis (pp +39%,
-tg up to +32%), and deep prefill measured once the window opened (pp@128k
-621 t/s at c=192k — vanilla dies on the same request). Quality holds
-(13/15), and it ships a whole model stack in one MIT binary — Qwen3.8
-Flash-Next/27B and DeepSeek V4 Flash text, Qwen-Image-2.1 (the image
-modality this fleet already serves), Qwen3-ASR, Qwen3-TTS voice cloning,
-MiniMax-H3 text-to-video — maintained by the Italian Strix-Halo community.
-Battery cells landed same-day [³⁹](#fn39): iten 11/12, sli 10/10, zebra 0.42,
-AIME-12 0.750 — quality holds on every axis within CI overlap. Cons: fleet
-robustness unproven (every cell <1 h fresh-load), concurrency
-unmeasured, operational surface (router/slots/eviction) unmapped, loader is
-UD-Q4-strict. Path: one-week probation as strixy2's resident default, Doctor
-watching, fork one systemd unit away. Missing cells: iten12, AIME, zebra, sli
-— all doable in one bench window.
+### Gufo — the champion
+Winner on both speed axes at the fleet basis (pp +39%, tg128 +32%), deep
+prefill measured once the window opened (pp@128k **621 t/s** at c=192k —
+vanilla dies on the same request), quality holding on every battery
+([³⁹](#fn39): iten 11/12, sli 10/10, zebra 0.417 [0.19–0.68], AIME-12 0.750
+[0.47–0.91] — nominally above the fork's 0.667), and it ships a whole model
+stack in one MIT binary — Qwen3.8 Flash-Next/27B and DeepSeek V4 Flash
+text, Qwen-Image-2.1 (the image modality this fleet already served),
+Qwen3-ASR, Qwen3-TTS voice cloning, MiniMax-H3 text-to-video — maintained
+by the Italian Strix-Halo community. **Promoted to champion 2026-09-25.**
+Cons, carried openly: fleet robustness unproven (every cell <1 h
+fresh-load), concurrency unmeasured, operational surface
+(router/slots/eviction) unmapped, loader is UD-Q4-strict. The fork stays one
+systemd unit away; if probation finds a wall, the fleet falls back without
+a reinstall.
 
 ### DeepSeek V4.1 Flash (cloud)
 The cheapest strong cloud: AIME-12 parity with the champion (0.667), iten
@@ -934,7 +935,7 @@ One method, applied to every candidate. All figures GiB.
 The @262k columns are the *arithmetic* at the native ceiling — no tier
 serves it; the retreat ladder ended at **131k** for Q5 (its measured-stable
 value) and the Q4 fleet default serves 131k by recipe (see
-[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-on-demand-slot)); Q6 ships at 64k (its sustained gate).
+[Why gufo wins](#why-gufo-wins--and-why-its-weights-are-q4) and [Why not Q5?](#why-not-q5-the-on-demand-slot)); Q6 ships at 64k (its sustained gate).
 
 | component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
 |---|---:|---:|---:|---:|---:|
@@ -1747,7 +1748,7 @@ parity within battery resolution with nominal deficits on AIME/zebra,
 recorded not hidden.
 
 <a id="fn34"></a>³⁴ **Champion column basis: UD-Q4_K_XL, measured 2026-09-25.** The column
-follows the fleet's serving default ([²⁶](#fn26), [Why Q4 wins](#why-q4-wins)):
+follows the fleet's serving default ([²⁶](#fn26), [Why gufo wins](#why-gufo-wins--and-why-its-weights-are-q4)):
 same arm, same batteries, same probe harness as the Q5 column before it.
 Cells: iten12 12/12; AIME-12 **0.667 [0.39–0.86]**; zebra n=20 **0.55
 [0.34–0.74]**; sli 10/10; fcb15 census **0.933 [0.70–0.99]** (greedy 14/15,
@@ -1872,7 +1873,7 @@ messages, instant reboot — the repro of the six 260923 night crashes). Quality
 aborted with the suite, so the fcb15 cell is empty by measurement, not by omission.
 
 <a id="fn29"></a>²⁹ **halogen-flash-server** (peonist-ai) — closed engine, container-only,
-so [policy 5](#policy) keeps it at reference distance; the 0.11.0 closed-format eval
+so [policy 4](#policy) keeps it at reference distance; the 0.11.0 closed-format eval
 lives in [configs/halogen-eval.md](configs/halogen-eval.md). The 0.13.8 cells are the
 **BYO-GGUF** path (since 0.7.0): it repacks unsloth's UD-Q4_K_XL losslessly into its
 own kernel layouts and takes the draft head from its own 1.4 GiB file — same weights,
