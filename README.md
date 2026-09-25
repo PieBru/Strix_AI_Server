@@ -59,7 +59,7 @@
 ## In a hurry? Look here.
 
 The whole README distils into two tables:
-[**Our podium**](#our-podium) — the ranked shortlist: gufo #1, the fork + Q4 #2
+[**Our podium**](#our-podium) — the ranked shortlist: Gufo #1, the fork + Q4 #2
 [**What we measured**](#what-we-measured) — every solution with a number on it
 (speed × quality × RAM, every cell wall-clock and re-measured; the fleet
 default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
@@ -123,6 +123,10 @@ tables, so they are worth one screen.
 | **nm** | n-max: how many draft tokens one speculation step proposes (`nm6` = 6) |
 | **KV cache** | the attention key/value store the context lives in; grows with context length and quantisation (f16 here) |
 | **arm** | one model instance in the router (`models.ini`); one arm is resident at a time |
+| **champion** | the arm promoted as best all-round; cells dated before 2026-09-24 mean Q5, later cells mean Q4 |
+| **fleet default vs. reference** | *fleet default* = what is resident and serving traffic; *reference* = Q5_K_XL, the fixed quality yardstick rows are checked against |
+| **headroom** | free RAM before something breaks — three senses in this file: *theoretical* (sum-of-parts, [RAM accounting](#ram-accounting)), *observed* (under real load), *razor* (theoretical < ~3 GiB). The surrounding sentence says which |
+| **GBench** | this project's coding/CSP benchmark harness (vendored in [gbench/](gbench/)), built on the [GEFC](https://github.com/PieBru/Good-Enough-For-Coding) corpus; runs fcb15 (coding) and zebra (CSP) |
 | **row / cell** | a *row* is one model in a table; a *cell* is one measured number in it — a row holds one cell per battery |
 | **tier** | a serving configuration's context size (`c=65536`, `c=131072`, …) — "the 64k tier". *Effort tiers* (low/medium) and *quant levels* are different axes |
 | **UD- / Q5_K_XL / IQ4_NL / Q8** | quantisation levels; `UD-` is the unsloth dynamic quant |
@@ -179,7 +183,7 @@ live in [What we measured](#what-we-measured)):
 
 One table, every solution this fleet has put a number on — local LLMs, cloud
 APIs, and the engines that serve them. The champion slot is open to any class:
-today it is a local LLM on our fork, but an engine (see gufo) can win it too.
+today it is a local LLM on our fork, but an engine (see Gufo) can win it too.
 Empty cells are **doable but not yet measured** — they are not zeros, and the
 [Analysis](#analysis--every-measured-solution) sub-chapters name each row's
 missing cells. Cells keep their footnote markers: bases, CIs and protocols
@@ -205,7 +209,7 @@ live in [Footnotes](#footnotes).
 Reading it honestly:
 
 - **Bases are heterogeneous by design** — engines were measured on the
-  weights noted in their row (the fork, halogen, gufo and both vanilla builds
+  weights noted in their row (the fork, halogen, Gufo and both vanilla builds
   on UD-Q4_K_XL; ROCmFPX on its own fp4 format), clouds at vendor defaults,
   locals at the fleet basis. Only cells that share weights and day compare
   head-to-head; footnote markers say which.
@@ -219,7 +223,7 @@ Reading it honestly:
   do not. Cloud speed cells and structural n/a do not compete; colored text
   is impossible in GitHub markdown, so emoji carry the tiers.
 - **What is still missing and doable**: the battery cells for the engine
-  rows — gufo first (iten12/AIME/zebra/sli), then halogen, both vanilla
+  rows — Gufo first (iten12/AIME/zebra/sli), then halogen, both vanilla
   builds and ROCmFPX; AIME-60 for Q6/27B/Muse; Muse's capped sli re-run
   [³⁶](#fn36); and vanilla-VK pp@128k at a 262k window.
 
@@ -247,7 +251,7 @@ Q4 is the tier that keeps the proven recipe — sharp-low, MTP draft, f16 KV
   (31.7 vs 25.7), prefill +25% (865 vs 689 @4k)
 - The 2026-09-25 census completes the quality row: AIME-12 **0.667
   [0.39–0.86]** and zebra **0.55 [0.34–0.74]** — both nominally under Q5's
-  0.833/0.65, both CIs overlapping at these n. The honest read: quality
+  0.833/0.65, both CIs overlapping at these n. In plain terms: quality
   parity within these batteries' resolution, with the nominal deficits
   recorded, not hidden
 - Serves a **131k-token context** — whole codebases, no chunking — with
@@ -273,6 +277,9 @@ now has a sharp cell; the flash family and the 27B were re-cut at sharp-low
 
 ### Why not IQ4_NL? (also 12/12, faster decode, less RAM)
 
+**Short answer:** it lost the 2026-09-24 paired census to
+UD-Q4_K_XL — a tier decision, not a rejection; read on for the numbers.
+
 The 2026-09-24 paired census settled it as a *tier* decision rather than a
 policy one: same day, same protocol, same box — IQ4_NL **10/15 greedy /
 13/15 retry** vs UD-Q4_K_XL's **14/15 / 14/15** ([²⁶](#fn26)). At ~3.9 bpw
@@ -286,19 +293,23 @@ n-max + binary differ), not pure quants.
 
 ### Why not Q6_K_XL? (also 12/12 — our preferred tier)
 
+**Short answer: it serves — at 64k (sustained), 131k (validated),
+192k (production, memory-capped) — it just never reaches its native
+262k ceiling on this box.** Read on for which tier fits which workload.
+
 RAM arithmetic: 107 GiB resident + KV + draft ≈ 124 GiB on a 124 GiB box —
 zero margin. We tested it: it loaded, passed the gate, then **died under
 sustained load** when KV growth exceeded the remaining headroom
 ([the math](#ram-accounting)). **The reduced-context path is now measured,
 not planned:** the catalog's 131k arm (`c = 131072`) ran the full overnight
 re-run chain on a dedicated process — iten12 12/12 under the hardened
-grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GB** —
+grader, then 3 h 04 m of continuous service at **GTT 125.0/133.1 GiB** —
 no MemoryMax crutch. The death was a 262k-config problem; at 131k the KV
 pool is pre-allocated and cannot outgrow the margin. Q5 ships at 200k for
 the same measured reason (see *Why Q4 wins*); Q6 at 131k is a
 demonstrated fallback tier, not a hope.
 
-**But there is a second, slower disease — measured:** sustained
+**A second, slower disease, also measured:** sustained
 decode *degrades* even at 131k. With n-gram speculation off (MTP-only,
 `spec-type = draft-mtp`), fresh-load Q6 bursts at **35 t/s** — then decays
 to **~2 t/s** once cumulative activated expert rows cross the ~14 GiB GTT
@@ -323,7 +334,7 @@ under 64k tokens gets Q6 quality at 27 t/s. But the threshold is still there,
 just further out: the 2026-09-23 zebra leg at this same tier generated long
 enough to cross it and stormed the box (388 MB/s swap-out, `avail` 2.0 GB,
 decode stalled), while the fcb15 census (~6k-token items) and the sli canary
-both completed cleanly. So 64k's honest ceiling is *generation length*, not
+both completed cleanly. So 64k's real ceiling is *generation length*, not
 context size — see [¹¹](#fn11).
 
 **Context ladder — measured end to end on 2026-09-22** (Q6 + MTP, lazy
@@ -356,7 +367,7 @@ decodes at 25.1 t/s, with the reply demonstrably reading the prompt
   `resolve_fused_ops`); with `fa = off` it fails to create the context
   and the router then retry-loops. KV quantisation cannot buy the room
   back — the same assert demands `k/v == F16`, so `ctk/ctv = q8_0` aborts
-  the load. **Q6's honest ceiling today is 192k, validated in
+  the load. **Q6's ceiling today is 192k, validated in
   production** — wired as the `deep` arm on 2026-09-22 under
   `MemoryMax=120G`, where a **150,247-token prompt prefilled at
   472.8 t/s** end-to-end with the reply demonstrably reading it. The cap
@@ -367,14 +378,14 @@ decodes at 25.1 t/s, with the reply demonstrably reading the prompt
 - **The GPU page faults are a teardown/reclaim race, not a load killer.**
   Across every run in that table: **zero** `[gfxhub] page fault` events.
   The three seen on 2026-09-22 all hit lab servers *during teardown* or an
-  uncapped census; under the cap `avail` held 2.5–3 GB where the uncapped
-  run drove it to 71–112 MB. The driver is already the inbox `amdgpu` AMD
+  uncapped census; under the cap `avail` held 2.5–3 GiB where the uncapped
+  run drove it to 71–112 MiB. The driver is already the inbox `amdgpu` AMD
   recommends for gfx1151 (no DKMS installed).
 
 ### Why not the 27B + Muse pair?
 
-Both components fail the speed floor (15.8 and ~18 t/s decode). And an
-honest caveat: the pair was never benchmarked as a co-resident serving
+Both components fail the speed floor (15.8 and ~18 t/s decode). One
+caveat: the pair was never benchmarked as a co-resident serving
 unit — this is a component-level comparison. The pair's theoretical
 advantage (62 GiB total weights, more room for context) is real but
 untested as a serving configuration.
@@ -471,7 +482,7 @@ Three things keep it out of the fleet today:
    vanilla, ROCmFPX) for exactly one model card — the maintenance tail is
    the cost, not the binary.
 
-The honest door-left-open: if a 2-arm future wants a lean co-resident
+The door we're leaving open: if a 2-arm future wants a lean co-resident
 worker, the fp4-27B at 25 GiB is the strongest candidate we have measured —
 re-run iten12 first; if it holds 12/12 on a newer checkpoint, this chapter
 gets revisited.
@@ -500,7 +511,7 @@ The load-bearing baseline: the only engine that hosts the family's MTP draft
 (`--spec-type draft-mtp`), the deep-prefill patches (pp128k 761 t/s where
 vanilla dies), months of resident-serving robustness, and the models.ini
 router + systemd fleet around it. Cons: closed-ish pace (fork maintenance),
-decode behind gufo (33.5 vs 44.3 tg128), no modality beyond text+vision.
+decode behind Gufo (33.5 vs 44.3 tg128), no modality beyond text+vision.
 Missing cells: its own iten/AIME/zebra census rows (they are the champion's —
 same arm, same weights).
 
@@ -540,6 +551,9 @@ blocking.
 
 ## Footnotes
 
+*(Numbers 9, 13 and 15 are intentionally absent — retired during earlier
+edits; renumbering everything after them would have meant re-checking every
+citation in the body. Nothing is missing; the gap is on purpose.)*
 
 <a id="fn1"></a>¹ **How "quality" is measured:** the iten12 battery — 12 Italian↔English
 bidirectional translation items, graded deterministically by a Python
@@ -551,8 +565,11 @@ longer passes). The Q5 cell is re-scored under v3.1 — still 12/12;
 other models' re-runs are owed. A 12/12 is a **pass/fail gate** —
 "meets our floor," not "best in class."
 
-<a id="fn2"></a>² Q6's AIME cell is 8/11 (one item errored when the server died
-mid-battery — the denominator silently changed). See [⁴](#fn4).
+<a id="fn2"></a>² **The 0.750 shown on the podium is from the clean re-run in
+[²⁵](#fn25).** The number this footnote originally tracked — 8/11 (one
+item errored when the server died mid-battery, silently shrinking the
+denominator) — is superseded; it's kept here only because [⁴](#fn4)
+still discusses it.
 
 <a id="fn3"></a>³ Fails the 20 t/s decode floor at depth: Muse's tg2048 15.2 [¹⁷](#fn17)
 (its tg128 34.5 clears it, as does the 27B's re-measured 20.5 [¹⁴](#fn14)), so
@@ -592,7 +609,7 @@ measured template effect is 2–3×, so template-uniform columns are the
 only comparable ones. CIs and caveats live in
 [the coding section](#coding--gbench-fcb15-deterministic-unit-tested).
 Overlapping CIs throughout: no ranking claims.
- The champion's podium cell is its **promoted default tier (low,
+ The then-champion's (Q5's) podium cell is its **promoted default tier (low,
  0.867)**; the medium-basis cell (0.667) for uniform-template ranking
  lives in the fcb15 chapter. Effort tiers are per-cell — see the census
  table: the 27B now has both censuses (medium and low both 0.800, failing
@@ -611,7 +628,7 @@ Overlapping CIs throughout: no ranking claims.
   serves sharp-low), per [¹⁰](#fn10)'s rule.
 - **sli:** 10/10 [0.72–1.0] — the canary saturates here too.
 - **zebra is not obtainable at any tier WITH the MTP draft resident; no-MTP it is.** The 20 long-CSP items
-  stormed the box at 64k (swap-out 388 MB/s, `avail` 2.0 GB, decode stalled, no timing
+  stormed the box at 64k (swap-out 388 MB/s, `avail` 2.0 GiB, decode stalled, no timing
   prints for 4+ min) and had to be SIGKILLed. An operator-requested retry at the
   **192k tier** (2026-09-23) stormed the same way within minutes — Doctor-observed
   continuous swap storm, RAM at 100%, manual SIGKILL; the ad-hoc local guard died
@@ -619,7 +636,7 @@ Overlapping CIs throughout: no ranking claims.
   watchdogs — the next guard is a systemd unit with `Restart=always`). An 86k attempt
   (`ub=1024`) sat on the ridge ~8 min then tipped. **Dropping the MTP draft (+2.6 GiB
   weights + draft KV/buffers) is what finally fits**: the no-MTP arm at 86k
-  (`b=1024 ub=512`) rode the ridge to 87 M avail and completed the census clean —
+  (`b=1024 ub=512`) rode the ridge to 87 MiB avail and completed the census clean —
   **zebra 0.65 (13/20) [0.43–0.82]**, a three-way tie with the champion and the 27B.
   The draft is speed-only (greedy spec-decode is output-preserving), so this is a
   legitimate Q6-row cell at a no-draft basis; decode measured 20.2 (tg128) /
@@ -789,15 +806,16 @@ cells (689/672/25.7), tg128 −4%. pp@128k is `n/a`: the arm serves
 as Muse's [¹⁶](#fn16)). **RAM: 111.3 GiB of weights (4 shards); observed
 serving footprint 95.4 of 127.4 GiB RAM, GTT 91–93 GiB** — the only
 Flash-Next tier measured inside the 2026-09-24 envelope with ~29 GiB to
-spare, which is why it replaced the 147.4 GiB Q5 arm as the resident
-default on both boxes (strixy2 `q5-serve.service`; strixy runs the IQ4_NL
-arm, [below](#why-not-iq4_nl-also-1212-faster-decode-less-ram)). AIME-12, sli,
+spare, which is why it replaced the 147.4 GiB Q5 arm as **strixy2's**
+resident default (the unit is still named `q5-serve.service` — the name
+predates the swap). AIME-12, sli,
 zebra and iten12 landed the next night ([³³](#fn33)); the fcb15 ladder cell
 is the same night's marathon tail. The row earned its place on the paired
 census + speed + RAM axes, and the quality census confirmed it within
 battery resolution. Artifacts:
 `benchmarks/q4-vs-q5-report-260924.md`, `benchmarks/results.json`
-(`q4_xl_mtp_260924`), raw logs in `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/`.
+(`q4_xl_mtp_260924`); raw logs live outside this repo
+(`~/Piero/Work/Qwen38/reruns-260919/q6-low-row/` on the box).
 
 
 ## Arch Linux minimal server — the base install
@@ -937,7 +955,7 @@ value) and the Q4 fleet default serves 131k by recipe (see
 
 | component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
 |---|---:|---:|---:|---:|---:|
-| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | 111.3 file (GTT 91–93 incl. KV+draft) |
+| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | ~87 (111.3 GiB file; ~24 GiB PLE-streamed) |
 | KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 | 3.0 |
 | MTP draft | 2.6 | 2.6 | 2.6 | 2.6 | 1.8 (Q4_K_M) |
 | mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 | — |
@@ -946,6 +964,13 @@ value) and the Q4 fleet default serves 131k by recipe (see
 | **total** | **114.2** | **124.7** | **121.7** | **83.7** | **95.4 measured RAM in use** |
 | box limit | 124 | 124 | 124 | 124 | 124 |
 | **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** | **~29 (measured)** |
+
+**A note on the Q4 column's arithmetic:** the other four columns are sums
+of their rows; the UD-Q4_K_XL column's 95.4 GiB is a **direct RAM
+measurement** (its ~87 resident-weight figure is backed out of the observed
+91–93 GiB GTT window, which already bundles KV and draft). Summing its
+itemized rows gives ~99.8 — treat 95.4 as authoritative and the breakdown
+as approximate.
 
 **Observed in practice:** with the full 262k KV pool allocated and the
 server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
@@ -1035,7 +1060,8 @@ Any OpenAI-compatible chat endpoint works, and all the commands below take
 
 ```bash
 # (a) add it as an arm to the router (one arm resident at a time)
-#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
+#     models.ini — the live one is ~/Piero/Work/Qwen38/models.ini on the
+#     box (snapshot copy in this repo's root); copy the champion's block, swap the
 #     model/model-draft paths, set load-on-startup = false, reload the service
 # (b) a one-off server on the lab box
 llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
@@ -1062,7 +1088,7 @@ config you edited: `curl -s localhost:8080/v1/models`.
 ### 2. Quality — the batteries, with a confidence interval
 
 ```bash
-cd ~/Piero/Work/Qwen38/gbench
+cd gbench   # vendored in this repo (~/Piero/Work/Qwen38/gbench on the box)
 
 # the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
 uv run python3 scripts/probe.py --battery iten12 --budget 12 \
@@ -1210,7 +1236,7 @@ Muse-Glimmer moved 11/12 (v2) → **12/12** under the hardened grader. The
 10/12 and 11/12 (differing on one item — run sensitivity, not basis), so
 the effort dial cannot be credited for the single-item gap here.
 
-**Honest caveat:** at n=12, a one-item difference is within sampling noise
+**Caveat:** at n=12, a one-item difference is within sampling noise
 (Fisher's exact p ≈ 0.49 for 12/12 vs 10/12). The battery is a floor
 check, not a top-tier discriminator. Coding is now covered separately
 ([GBench fcb15](#coding--gbench-fcb15-deterministic-unit-tested) and
@@ -1347,7 +1373,7 @@ copies live in `benchmarks/`.
 **How to read it (uniform-template re-cut):** the disentangling runs are done —
 IQ4-with-sharp doubled (0.333 → 0.667) and 27B-with-sharp tripled
 (0.267 → 0.800), so the table above is uniform-template for the Qwen
-family, and what remains is the honest residue: overlapping CIs and
+family, and what remains is this residue: overlapping CIs and
 2–3-item gaps at n=15 (no model is crowned by this), Muse runs its own family's
 template by design, and fcb15 measures short, deterministic,
 unit-tested tasks — not the agentic/real-world coding the community's
@@ -1426,7 +1452,7 @@ pp4k 348 / pp32k 297 / pp128k 197 / tg128 25.1 / tg2048 16.1. Tested,
 parked: the Q8 trunk dominates it at every depth, and it misses the gate
 the champion clears.
 
-Three honest notes: tier depth is *not* monotone (the champion scored
+Three notes: tier depth is *not* monotone (the champion scored
 higher on D+E than on D, and one unchanged item flipped fail→pass between
 rungs at temperature 0 — treat single-rung deltas of ±1 as noise, the
 per-rung CI is wider than n=15 suggests); the table is greedy-primary with
@@ -1438,7 +1464,8 @@ the full retry protocol in the artifacts; and the raw rows are
 ### Reasoning effort — measured
 
 The sharp template's effort dial is a real quality axis, not just a
-speed knob. Champion Q5, same batteries, greedy census, only the
+speed knob. Q5 (the quality reference — champion before the 2026-09-24
+Q4 swap), same batteries, greedy census, only the
 template default changed:
 
 | effort | fcb15 | CI95 | iten12 | AIME yearsplit |
@@ -1474,9 +1501,8 @@ AIME **0.583 → 0.833**. The disentangler result first seen on IQ4 and
 27B generalizes: the sharp template is worth +0.40 coding / +0.25
 reasoning — larger than any quant-tier step we measured.
 
-**Promotion question for the :** with no measured downside,
-making `low` the default effort level is a live decision — the
-remaining caution is generalization (n = 12–15 per battery, CIs wide;
+**Settled (2026-09-21):** `low` **is** the promoted default effort
+tier — the remaining caution is generalization (n = 12–15 per battery, CIs wide;
 fcb15 replication cross-box in flight).
 
 ### Quantization and coding/agentic quality — the honest note
@@ -1819,13 +1845,13 @@ outright): `gufo serve llm` with the fleet basis — Q4 + the shared-Q8_0 MTP
 sidecar, `-d 3`, c 131072, effort low — loads in **16 s** and measures
 **pp4k 1200 / pp32k 1100 t/s, tg128 44.3 / tg2048 35.3 t/s** (probe:
 `benchmarks/logs-260925/gufo-q4-probe.log`). **192k window (same day, operator question):** the 131k was our
-basis choice, not a gufo cap — `-c 196608` loads +1.7 GiB (90.2/125 GiB GPU)
+basis choice, not a Gufo cap — `-c 196608` loads +1.7 GiB (90.2/125 GiB GPU)
 and the full probe re-ran: pp4k 1200 / pp32k 1109 / **pp@128k 621 t/s**
 (159,738 realized tokens, where the 131k window returned HTTP 400), tg128
 44.1 / tg2048 37.3 (`benchmarks/logs-260925/gufo-q4-192k-probe.log`).
 That is +39% prefill and
 +11–32% decode over the fork's same-day, same-weights cells — the only
-engine measured to beat the fork on both axes at the fleet basis; gufo's
+engine measured to beat the fork on both axes at the fleet basis; Gufo's
 own headline (pp 1628 / tg 59) is a best-case workload, our numbers are
 corpus-real. Caveats: single session, pp128k n/a (probe window 160k >
 131k ctx, same as vanilla HIP), Q8 draft is 2.6 GiB vs the fork's lighter

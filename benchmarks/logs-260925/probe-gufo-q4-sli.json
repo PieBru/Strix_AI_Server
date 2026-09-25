@@ -1,0 +1,38 @@
+{
+ "answered": 10,
+ "artifact": "/tmp/gufo-batt-results/fcb15-probe-gufo-q4-sli.jsonl",
+ "budget": 10,
+ "candidate": {
+  "battery": "sli",
+  "hardware": null,
+  "model": "default",
+  "ts": "2026-09-25"
+ },
+ "ci95": [
+  0.7225,
+  1.0
+ ],
+ "estimate": 1.0,
+ "k": 10,
+ "method": "Wilson score interval (implemented; not the FAQ factor model)",
+ "mode": "census",
+ "n": 10,
+ "selection": {
+  "items": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "mode": "census (budget >= battery size)",
+  "rationale": "full battery",
+  "seed": 1300
+ },
+ "spent": 10
+}

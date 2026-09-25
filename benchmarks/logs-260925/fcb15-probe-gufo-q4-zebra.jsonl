@@ -1,0 +1,12 @@
+{"model": "default", "item": 0, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 1, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 3, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 8, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 10, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 11, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 12, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 13, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": true, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 17, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 18, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 20, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
+{"model": "default", "item": 25, "phase": "probe", "hardware": null, "ts": "2026-09-25", "ok": false, "budget": 12, "selection": "stratified-random (seed 1300)"}
