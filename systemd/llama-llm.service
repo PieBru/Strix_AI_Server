@@ -1,0 +1,30 @@
+# llama-llm — llama-server (fork, Vulkan build) with native WebUI + MCP proxy
+# + all built-in agent tools (operator 260925: replaces Open WebUI, which is
+# retired). Same champion recipe the router served: Q4 UD-K-XL + shared-Q8_0
+# MTP (d5) sharp-low, kvu, f16 KV @131k — server sampling defaults are the
+# producer-recommended 1.0/0.95/20 (models.ini parity).
+# Mutual exclusion: Conflicts with gufo arms + image stack (operator verdict).
+[Unit]
+Description=llama-server Q4+MTP sharp-low — WebUI + MCP + tools on 0.0.0.0:8080
+After=network.target
+Conflicts=gufo-llm.service gufo-serve.service qwen-image-web.service
+
+[Service]
+MemoryMax=120G
+ExecStart=/home/piero/.local/share/qwen3.8-strix-halo/build/llama.cpp/bin/llama-server \
+  -m /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf \
+  --model-draft /home/piero/Downloads/LLM/Qwen38/flash-next/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf \
+  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 5 \
+  --chat-template-file /home/piero/Piero/Work/Qwen38/templates/sharp-v22.5.0-low.jinja \
+  --mmproj /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/mmproj-BF16.gguf \
+  --reasoning-effort low \
+  -dev ROCm0 --load-mode none --lazy-mode on-direct \
+  --kv-unified --jinja -c 131072 -b 8192 --ubatch-size 4096 --cache-type-k f16 --cache-type-v f16 \
+  --temp 1.0 --top-p 0.95 --top-k 20 \
+  --alias default --host 0.0.0.0 --port 8080 \
+  --tools all --ui-mcp-proxy
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=default.target

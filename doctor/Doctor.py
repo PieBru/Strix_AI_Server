@@ -264,8 +264,11 @@ def boxinfo():
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
     _eps = []
-    if CACHE.get("gufo") and _svc("gufo-llm"):
-        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health")
+    _llm_up = CACHE.get("gufo") and _svc("gufo-llm")
+    if not _llm_up:
+        _llm_up = _svc("llama-llm")
+    if _llm_up:
+        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health · webui/MCP at /")
     else:
         _eps.append(_btn("/svcllm", "▶ start LLM (:8080)"))
     if _svc("gufo-serve"):
@@ -589,8 +592,13 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
         elif self.path == "/svcllm":
-            subprocess.run(["systemctl", "--user", "start", "gufo-llm.service"], timeout=60)
-            body, ct = "starting gufo-llm (image stack auto-stops)…", "text/plain"
+            # 260925: llama-llm (fork webui+MCP arm) preferred; gufo-llm fallback
+            try:
+                subprocess.run(["systemctl", "--user", "cat", "llama-llm.service"], capture_output=True, timeout=4)
+                subprocess.run(["systemctl", "--user", "start", "llama-llm.service"], timeout=60)
+            except Exception:
+                subprocess.run(["systemctl", "--user", "start", "gufo-llm.service"], timeout=60)
+            body, ct = "starting llm arm (other arms auto-stop)…", "text/plain"
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
