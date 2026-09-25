@@ -202,7 +202,7 @@ live in [Footnotes](#footnotes).
 | Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | 🔴**11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) |0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 🟡9/15 [²²](#fn22) | 🔴0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
 | Engine | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) — UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26); quality cells = the champion row (same arm, same weights) | 🟡**865** | 🟡**909** | 🟢**761** [³⁷](#fn37) |33.5 | 🟢**31.7** | **12/12** [³⁴](#fn34) | 🟡**0.667** [³⁴](#fn34) | 🟢**0.533** [³⁴](#fn34) | 🟡**0.55** [³⁴](#fn34) | 🟢**14/15** | 🟢**all rungs (13/15)** [³³](#fn33) | **10/10** [³³](#fn33) | — |
 | Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 |476 | 395 | dies [³⁸](#fn38) | 20.7 |21.7 | — | — | — | — | none | — | — | — |
-| Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 |407 | — |**26.0** |**25.1** | — | — | — | — | none | — | — | — |
+| Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 |407 | dies [⁴⁰](#fn40) |**26.0** |**25.1** | — | — | — | — | none | — | — | — |
 | Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | 🟢**980** | 🟢**1297** | 🟢**1252** (262k ctx) |26.9 |22.8 | — | — | — | — |12/15 | — | — | — |
 | Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | 🔴 11/12 [³⁹](#fn39) | 🟡 0.750 [0.47–0.91] [³⁹](#fn39) | — | 0.42 [0.19–0.68] [³⁹](#fn39) | 🟡**13/15** | — | 10/10 [³⁹](#fn39) | — |
 | Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — |23.4 | 19.7 | 🔴10/12 [³¹](#fn31) | — | — | — | 🟡13/15 | — | — | — |
@@ -225,8 +225,7 @@ Reading it honestly:
   is impossible in GitHub markdown, so emoji carry the tiers.
 - **What is still missing and doable**: battery cells for halogen, both
   vanilla builds and ROCmFPX (Gufo's landed [³⁹](#fn39)); AIME-60 for
-  Q6/27B/Muse; Muse's capped sli re-run [³⁶](#fn36); and vanilla-VK
-  pp@128k at a 262k window.
+  Q6/27B/Muse; Muse's capped sli re-run [³⁶](#fn36).
 
 
 ## Analysis — every measured solution
@@ -1829,6 +1828,16 @@ a one-item engine effect, within battery noise at n=12); sli **10/10**
 0.55 — no ranking claim); AIME-12 **0.750 [0.47–0.91]** (n=12 yearsplit;
 nominally above the champion's same-day 0.667, CIs overlap). Artifacts:
 `benchmarks/logs-260925/probe-gufo-q4-{iten12,sli,zebra,aime}.json`.
+
+<a id="fn40"></a>⁴⁰ **Vanilla-VK at a 262k window (2026-09-25): two device
+losses.** Attempt 1 (with mmproj) lost the Vulkan device at load
+(`vk::Queue::submit: ErrorDeviceLost`); attempt 2 (no mmproj) loaded clean
+and served, then lost the device **mid-deep-prefill at ~82k of 160k tokens**
+(12.5 min in, ~109 t/s mean on the leg — itself a collapse vs its own 407
+t/s pp@32k). The fork serves the identical request at 761 t/s on the same
+GPU ([³⁷](#fn37)) — surviving deep prefill at 262k is a fork-patch
+property, not a hardware one. Logs: `/tmp/vvk-262k{,-retry}.log` (same-day
+bench session).
 
 <a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
 owed (the served c=131072 refuses the probe's ~160k-token window). The
