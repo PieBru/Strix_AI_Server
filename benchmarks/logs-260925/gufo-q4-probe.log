@@ -1,0 +1,7 @@
+gufo-pp4k: 5702 tokens in 4.7s -> 1200 t/s
+gufo-pp32k: 39409 tokens in 35.8s -> 1100 t/s
+gufo-pp128k: n/a (HTTP 400 — window exceeds the served context)
+gufo-tg128: 128 tokens, first 0.3s, span 2.9s -> 44.3 t/s
+gufo-tg2048: 2047 tokens, first 0.0s, span 58.1s -> 35.3 t/s
+2026-09-25 08:31:52 [INFO] [loader] event=load_completed kind=text elapsed_ms=16276 model=default sessions=1 context_tokens=131072 speculative=mtp draft_limit=3 disk_cache=off rss_mib=486 host_available_mib=32225 gpu_device_used_mib=88457 gpu_device_total_mib=125000
+2026-09-25 08:31:52 [INFO] [server] event=listening address=http://0.0.0.0:8096 auth=off max_connections=16 max_body_bytes=8388608

@@ -184,7 +184,7 @@ keeps closed engines at reference distance; both bite here.
 | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) | preferred by policy — cannot host this family safely | Q5_K_XL, draftless, dio+on (same box, 260925) | **266** f16 / **530** q8-KV | 21.0 f16 / 21.7 q8-KV | 20.9 / 21.0 | none (suite aborted) | q8-KV loads *only* upstream (+99% pp4k over f16); the old 36.6 q8-KV decode claim was a draft artifact [³⁵](#fn35); detached-draft configs hard-crash the box |
 | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) | upstream tracking — `llama-vulkan.service` | Q5_K_XL, draftless, dio+on (260925) | **257** | **24.6** | **23.5** | none (see [²⁸](#fn28)) | quality identical to HIP; decode **beats vanilla HIP f16** (+17%); deep prefill ~3.5× slower than the *fork's* HIP at 128k |
 | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
-| Gufo (open, native HIP) [³⁰](#fn30) | lab — **image modality** | Qwen-Image-2.1 official BF16 (260924) | — | — | — | — (image) | generation 111 s / 2-reference edit 200 s @1024[²](#fn2), RSS 31 GiB; text-LLM cells owed |
+| Gufo (open, native HIP) [³⁰](#fn30) | lab — text + image | UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **44.3** | **35.3** | (in flight) | text pp +39% and tg +11–32% over the fork at the same MTP basis; also the image modality [²](#fn2) |
 | ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
 
 Reading it honestly: only two rows share weights and day — the fork and halogen on
@@ -1763,10 +1763,19 @@ uploaded on demand (RSS 31 GiB, 79 GiB host-available, PSI 0). Build notes for t
 Arch + `rocm-nightly-gfx1151-bin` host (ROCm clang host+HIP, a one-line GCC-16-git
 header patch, `GUFO_SKIP_DS4=1` around an lld-24 LTO crash) in
 [benchmarks/lab-260924-halogen-gufo-image.md](benchmarks/lab-260924-halogen-gufo-image.md).
-Text-LLM cells are still owed (2026-09-25 note: its flash-next loader is
-**UD-Q4_K_XL-strict** — a Q5 shard set is rejected outright, so the text
-window needs strixy2's Q4 and a free GPU after the fleet ladder; deferred,
-not forgotten); it also serves 27B/DeepSeek/TTS/ASR modalities we have not
+Text-LLM cells **measured 2026-09-25 on strixy2** (window opened after the
+fleet census; loader is **UD-Q4_K_XL-strict** — a Q5 shard set is rejected
+outright): `gufo serve llm` with the fleet basis — Q4 + the shared-Q8_0 MTP
+sidecar, `-d 3`, c 131072, effort low — loads in **16 s** and measures
+**pp4k 1200 / pp32k 1100 t/s, tg128 44.3 / tg2048 35.3 t/s** (probe:
+`benchmarks/logs-260925/gufo-q4-probe.log`). That is +39% prefill and
++11–32% decode over the fork's same-day, same-weights cells — the only
+engine measured to beat the fork on both axes at the fleet basis; gufo's
+own headline (pp 1628 / tg 59) is a best-case workload, our numbers are
+corpus-real. Caveats: single session, pp128k n/a (probe window 160k >
+131k ctx, same as vanilla HIP), Q8 draft is 2.6 GiB vs the fork's lighter
+Q4_K_M, no draft-format moat left if it holds. It also serves
+27B/DeepSeek/TTS/ASR modalities we have not
 measured. The community "uncensored" GGUFs are ComfyUI packaging and do not load here.
 
 <a id="fn31"></a>³¹ **ROCmFPX** ([charlie12345](https://huggingface.co/kingjones777),
