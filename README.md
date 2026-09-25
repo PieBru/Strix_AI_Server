@@ -184,7 +184,7 @@ live in [Footnotes](#footnotes).
 | Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 |476 | 395 | dies [³⁸](#fn38) | 20.7 |21.7 | — | — | — | — | none | — | — | — |
 | Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 |407 | dies [⁴⁰](#fn40) |**26.0** |**25.1** | — | — | — | — | none | — | — | — |
 | Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | 🟢**980** | 🟢**1297** | 🟢**1252** (262k ctx) |26.9 |22.8 | — | — | — | — |12/15 | — | — | — |
-| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy2, 260925) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | 🔴 11/12 [³⁹](#fn39) | 🟡 0.750 [0.47–0.91] [³⁹](#fn39) | — | 0.42 [0.19–0.68] [³⁹](#fn39) | 🟡**13/15** | — | 10/10 [³⁹](#fn39) | — |
+| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c192k (strixy, 260925 v6) | 🟢**1200** | 🟢**1109** | 🟡**621** [³⁰](#fn30) | 🟢**44.1** | 🟢**37.3** | 🟢 **12/12** (v6) [³⁹](#fn39) | 🔴 0.583 [0.32–0.81] (v6) [³⁹](#fn39) | — | 🟡 0.500 [0.25–0.75] (v6) [³⁹](#fn39) | 🟡**13/15** (v6, n=2 samples) | — | 10/10 [³⁹](#fn39) | — |
 | Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — |23.4 | 19.7 | 🔴10/12 [³¹](#fn31) | — | — | — | 🟡13/15 | — | — | — |
 
 Reading it honestly:
@@ -232,9 +232,11 @@ unit away
 - Deep prefill **621 t/s @128k context** (c=192k; +1.7 GiB was a choice,
   not a RAM wall) — where vanilla upstream dies outright
 - Quality holds on every battery within CI overlap
-  ([³⁹](#fn39)): fcb15 **13/15**, iten **11/12**, sli **10/10** (saturates
-  like every local row), zebra **0.417** [0.19–0.68], AIME-12
-  **0.750** [0.47–0.91] — nominally *above* the fork arm's 0.667
+  ([³⁹](#fn39), v6 producer params temp 1.0/top_p 0.95/top_k 20, 260925):
+  fcb15 **13/15** (two independent samples: 9→13 and 12→13 with retry),
+  iten **12/12**, sli **10/10** (speed protocol, greedy — unchanged), zebra
+  **0.500** [0.25–0.75], AIME-12 **0.583** [0.32–0.81] — sampling drops
+  AIME precision vs its greedy-era 0.750 (and below the fork's 0.667)
 - Not just an engine: one MIT binary ships the LLM **plus** the stack this
   fleet already served piecemeal — Qwen-Image-2.1 generation/editing
   (measured on this box), Qwen3-ASR, Qwen3-TTS voice cloning, MiniMax-H3
@@ -505,7 +507,7 @@ unreachable" was a router-era constraint).
 Winner on both speed axes at the fleet basis (pp +39%, tg128 +32%), deep
 prefill measured once the window opened (pp@128k **621 t/s** at c=192k —
 vanilla dies on the same request), quality holding on every battery
-([³⁹](#fn39): iten 11/12, sli 10/10, zebra 0.417 [0.19–0.68], AIME-12 0.750
+([³⁹](#fn39, v6): iten 12/12, sli 10/10, zebra 0.500 [0.25–0.75], AIME-12 0.583
 [0.47–0.91] — nominally above the fork's 0.667), and it ships a whole model
 stack in one MIT binary — Qwen3.8 Flash-Next/27B and DeepSeek V4 Flash
 text, Qwen-Image-2.1 (the image modality this fleet already served),
