@@ -17,8 +17,13 @@ from urllib.parse import unquote
 # model-router-pwilkin / model-router-vanilla. This repo's units: llama-hip, llama-vulkan.
 # Per-box override: DOCTOR_UNITS env (comma-separated) set in the unit — keeps the
 # checkout pristine, no re-edits on git pull (strixy2: q5-serve, q6-serve-192k, ...).
+# Fleet units this panel watches (journal + is-active). Gufo era (260925):
+# gufo-llm (champion engine, :8080) + gufo-serve (image, :8081); the llama.cpp
+# router names stay as fallback. Per-box override: DOCTOR_UNITS env (comma-
+# separated) set in the unit — keeps the checkout pristine, no re-edits on
+# git pull.
 ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
-    "model-router-pwilkin,model-router-vanilla").split(",") if u)
+    "gufo-llm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
 def _router_ini():
@@ -110,18 +115,26 @@ def _models_max():
 MODELS_MAX = _models_max()
 
 def _resident():
-    # live truth from /proc: child llama-server procs carry --alias (router main doesn't)
+    # live truth from /proc: child llama-server procs carry --alias (router
+    # main doesn't); gufo era: gufo serve llm procs → "gufo:QUANT·MTPdN·cC"
     out = []
     for c in glob.glob("/proc/[0-9]*/cmdline"):
         try: s = open(c, "rb").read().decode(errors="ignore").replace("\0", " ")
         except Exception: continue
+        if "gufo serve llm" in s:
+            def _f(f, d="?"):
+                m = re.search(rf"{f} (\S+)", s)
+                return m.group(1) if m else d
+            q = os.path.basename(os.path.dirname(_f("--model"))) or "?"
+            out.append(f"gufo:{q}\u00b7MTPd{_f('-d')}\u00b7c{_f('-c')}")
+            continue
         if "llama-server" in s and "--alias" in s:
             a = s.split("--alias")[1].split()[0].strip()
             if a and a not in out: out.append(a)
     return out
 
 def _loads_recent():
-    # time-window (6h) load events — the 300-line window floods during sweeps
+    # time-window (6h) load events — llama router spawns + gufo load_completed
     try:
         out = subprocess.run(["journalctl","--user"]+_JU+["--since","-6h","--no-pager"],
                              capture_output=True, text=True, timeout=10).stdout.splitlines()
@@ -134,6 +147,9 @@ def _loads_recent():
         ts = _sec(m.group(1)) if m else None
         if (s := re.search(r"spawning server instance with name=(\S+) on port (\d+)", l)):
             p2a[s.group(2)] = s.group(1); pt[s.group(2)] = ts
+        elif (g := re.search(r"gufo\[\d+\].*load_completed.*elapsed_ms=(\d+)", l)):
+            if ts is not None:
+                loads.append({"arm": CACHE.get("arm", "gufo"), "s": max(int(g.group(1))//1000, 0), "t": ts, "i": len(loads)})
         elif (r := re.search(r".*\[(\d+)\].*llama_server: model loaded", l)) and r.group(1) in pt:
             a0, t0, t1 = p2a.get(r.group(1), "?"), pt.pop(r.group(1)), ts
             if t0 is not None and t1 is not None:
@@ -163,8 +179,12 @@ def refresh():
     if CACHE.get("swio"): track("SWAP rate", sum(CACHE["swio"]))
     if CACHE.get("tg"): track("LIVE tg", CACHE["tg"][2])
     if CACHE.get("acc"): track("DRAFT acc", CACHE["acc"][0])
-    try: h = json.load(urlopen("http://127.0.0.1:8080/health", timeout=4))["status"]
+    try: h = json.load(urlopen("http://127.0.0.1:8080/health", timeout=4))["status"]  # gufo and llama-router share the contract
     except Exception: h = "unreachable"
+    try:
+        _gufo = subprocess.run(["systemctl", "--user", "is-active", "gufo-llm"],
+                               capture_output=True, text=True, timeout=4).stdout.strip() == "active"
+    except Exception: _gufo = False
     try: svc = next((s for s in (
                 subprocess.run(["systemctl","--user","is-active",u],
                                capture_output=True, text=True, timeout=4).stdout.strip()
@@ -177,7 +197,11 @@ def refresh():
     for a in reversed(spawned):            # newest first, distinct, resident = last MODELS_MAX
         if a not in seen: arms.append(a); seen.add(a)
     arms = arms[:MODELS_MAX]
-    arm = arms[0] if arms else "?"
+    res = CACHE.get("res") or []
+    if _gufo:
+        arm = next((a for a in res if a.startswith("gufo:")), "gufo")   # gufo era: arm = live proc truth
+    else:
+        arm = arms[0] if arms else "?"
     if time.time() - CACHE.get("loads_t", 0) > 30:
         CACHE["loads"] = _loads_recent(); CACHE["loads_t"] = time.time()
     CACHE["res"] = _resident()
@@ -194,7 +218,7 @@ def refresh():
         dmesg = subprocess.run(["dmesg","--since","-5min"], capture_output=True, text=True, timeout=4).stdout
         gpu_err = [l for l in dmesg.splitlines() if "amdgpu" in l and re.search(r"error|fault|timeout|hang", l, re.I)][-3:]
     except Exception: gpu_err = []
-    CACHE.update(h=h, svc=svc, arm=arm, arms=arms, tg=tg, acc=acc, jn=jn, errs=errs, gpu_err=gpu_err)
+    CACHE.update(h=h, svc=svc, arm=arm, arms=arms, gufo=_gufo, tg=tg, acc=acc, jn=jn, errs=errs, gpu_err=gpu_err)
     sig = (arm, tg[:2] if tg else None)          # append chart point only when journal advanced
     if sig != CACHE["sig"]:
         CACHE["sig"] = sig
@@ -316,7 +340,8 @@ def stats():
               + svc_h + hlt_h)
     charts = ''  # chart shells are static in the page (outside htmx swap)
     probs = []
-    if not sok: probs.append(f"model-router service: {svc}")
+    _eng = "gufo" if CACHE.get("gufo") else "model-router"
+    if not sok: probs.append(f"{_eng} service: {svc}")
     if not hok: probs.append(f"/health: {h}")
     probs += [f"journal: {html.escape(e[-160:])}" for e in errs]
     probs += [f"dmesg: {html.escape(e[-160:])}" for e in gpu_err]
@@ -327,9 +352,34 @@ def stats():
         if not t.strip() or "ensure_model: waiting" in t or BENIGN.search(t): continue
         cls = "e" if re.search(r"\bERROR\b|error:|failed|fatal", t, re.I) else ("a" if re.search(r"spawn|loaded|unloaded", t) else ("d" if "print_timing" in t else ""))
         act.append(f'<div class="l {cls}">{html.escape(t[-150:])}</div>')
-    log = (f'<div class="card log"><b>ACTIVITY — model-router (tail-f, 2s)'
+    log = (f'<div class="card log"><b>ACTIVITY — {_eng} (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
-    return (banner + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
+    # box strip (operator 260925): network name, LAN IP, ports + API endpoints
+    try:
+        _ip = next((i for i in subprocess.run(["hostname", "-I"], capture_output=True, text=True,
+                    timeout=4).stdout.split() if i.startswith("192.168.")), "?")
+    except Exception: _ip = "?"
+    try:
+        _img = subprocess.run(["systemctl", "--user", "is-active", "gufo-serve"],
+                              capture_output=True, text=True, timeout=4).stdout.strip() == "active"
+    except Exception: _img = False
+    _eps = []
+    if CACHE.get("gufo"):
+        _eps.append(":8080 llm — /v1/chat/completions · /v1/models · /health")
+    if _img:
+        _eps.append(":8081 image — /v1/images/generations")
+    try:
+        _web = subprocess.run(["systemctl", "--user", "is-active", "qwen-image-web"],
+                              capture_output=True, text=True, timeout=4).stdout.strip() == "active"
+    except Exception: _web = False
+    if _web:
+        _eps.append(":7860 image web UI — / (gradio)")
+    _eps.append(":8667 doctor — /")
+    box = (f'<div style="margin:2px 0 8px;font-size:1.28em;color:#9ab;'
+           f'border:1px solid #234;border-radius:8px;padding:4px 10px">'
+           f'<b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
+           + " · ".join(_eps) + "</div>")
+    return (banner + box + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
             f'{log}')
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
