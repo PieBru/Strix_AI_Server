@@ -1,0 +1,5 @@
+vvk-q4-131k-pp4k: 5853 tokens in 12.5s -> 468 t/s
+vvk-q4-131k-pp32k: 39560 tokens in 97.2s -> 407 t/s
+vvk-q4-131k-pp128k: n/a (HTTP 400 — window exceeds the served context)
+vvk-q4-131k-tg128: 128 tokens, first 1.8s, span 4.9s -> 26.0 t/s
+vvk-q4-131k-tg2048: 2046 tokens, first 0.6s, span 81.4s -> 25.1 t/s

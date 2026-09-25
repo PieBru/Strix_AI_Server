@@ -1,0 +1,40 @@
+vhip-q4-pp4k: 5853 tokens in 7.7s -> 762 t/s
+vhip-q4-pp32k: 39560 tokens in 46.7s -> 848 t/s
+Traceback (most recent call last):
+  File "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/speed_probe.py", line 166, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/speed_probe.py", line 158, in main
+    pp_cell(url, args.model, text, target, offset, f"{args.label}-{cell}")
+  File "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/speed_probe.py", line 68, in pp_cell
+    body = json.load(_post(url, payload, timeout, False))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/Piero/Work/Strix_AI_Server/benchmarks/speed_probe.py", line 57, in _post
+    return urllib.request.urlopen(req, timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 1348, in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/http/client.py", line 1478, in getresponse
+    response.begin()
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/http/client.py", line 343, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/home/piero/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/http/client.py", line 312, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response

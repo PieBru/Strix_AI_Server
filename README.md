@@ -182,8 +182,8 @@ keeps closed engines at reference distance; both bite here.
 | engine | status | measured on | pp@4k | tg128 | tg2048 | fcb15 greedy | one-line read |
 |---|---|---|---:|---:|---:|---:|---|
 | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) | **adopted — serves every fleet arm** | UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26) | 865 | **33.5** | **31.7** | **14/15** | the load-bearing baseline: fork-format MTP draft, lazy PLE, fast deep-pp |
-| llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) | preferred by policy — cannot host this family safely | Q5_K_XL, draftless, dio+on (same box, 260925) | **266** f16 / **530** q8-KV | 21.0 f16 / 21.7 q8-KV | 20.9 / 21.0 | none (suite aborted) | q8-KV loads *only* upstream (+99% pp4k over f16); the old 36.6 q8-KV decode claim was a draft artifact [³⁵](#fn35); detached-draft configs hard-crash the box |
-| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) | upstream tracking — `llama-vulkan.service` | Q5_K_XL, draftless, dio+on (260925) | **257** | **24.6** | **23.5** | none (see [²⁸](#fn28)) | quality identical to HIP; decode **beats vanilla HIP f16** (+17%); deep prefill ~3.5× slower than the *fork's* HIP at 128k |
+| llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) | preferred by policy — cannot host this family safely | **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 | **476** | 20.7 | 21.7 | none (suite aborted) | at the champion's own weights+options: pp 45–55% of the fork, tg ~62%; the family's MTP draft is *structurally* unavailable upstream (PR #27836 unmerged) [³⁸](#fn38); Q5-era q8-KV cells in [³⁵](#fn35) |
+| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) | upstream tracking — `llama-vulkan.service` | **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | **468** | **26.0** | **25.1** | none (see [²⁸](#fn28)) | on the champion's weights the Vulkan-decode-beats-HIP pattern replicates (26.0 vs 20.7, +26%); deep prefill ~2× slower than the fork |
 | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
 | Gufo (open, native HIP) [³⁰](#fn30) | lab — text + image | UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **44.3** | **35.3** | **13/15** | text pp +39% and tg +11–32% over the fork at the same MTP basis; also the image modality [²](#fn2) |
 | ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
@@ -1742,6 +1742,21 @@ capability (greedy answers often stay buried in `reasoning_content`);
 artifact `benchmarks/fcb15-muse-ladder-260925.jsonl`. Also observed:
 measured decode rate on this arm swings with draft acceptance and request
 mix; grade these cells by artifact, not by server logs.
+
+<a id="fn38"></a>³⁸ **Vanilla re-measured on the champion's exact weights and options
+(2026-09-25, operator-mandated)** — UD-Q4_K_XL + sharp-low + f16 KV + b8192/ub4096
++ fa on + `--load-mode dio`, at the fleet's served ctx 131072 (HIP: 476/395 pp,
+20.7/21.7 tg; Vulkan: 468/407 pp, 26.0/25.1 tg — probe logs
+`benchmarks/logs-260925/v{hip,vk}-q4-131k-probe.log`). Three structural findings:
+(i) **the champion's MTP draft cannot exist on vanilla** — qwen4exp/Flash-Next MTP
+speculative decode is PR #27836, unmerged upstream, so "same draft" has nothing
+to attach to (the fork's `--spec-type draft-mtp` has no vanilla equivalent);
+(ii) at c=262144 vanilla HIP **died silently mid-160k-token prefill** (process
+gone, no kernel message, box fine; pp4k 244 / pp32k 475 survived first) while the
+fork served the identical request three times — deep-prefill at doubled ctx
+stays fork territory (log `/tmp/vhip-q4.log` era, driver
+`benchmarks/bench-samebasis-260925.sh`); (iii) the Vulkan decode win over
+vanilla HIP (+26% tg128) replicates on Q4, same direction as fn35's Q5 finding.
 
 <a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
 owed (the served c=131072 refuses the probe's ~160k-token window). The
