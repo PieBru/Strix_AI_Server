@@ -101,31 +101,17 @@ live in [What we measured](#what-we-measured)):
 2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
  generation, then we measure wall-clock, not server-reported. See below,
  [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
-3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
- (revised 2026-09-24). The floor comes from enterprise-level experience and
- community expert consensus on MoE (mixture-of-experts) quantization
- robustness, not from a 12-item battery alone; our battery *confirms* Q5
- meets the quality gate. The deprecation is now **per-quant, not per-class**:
- a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
- paired census ties or beats the then-champion's cell, and (ii) it fits the
- RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
- swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
- exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
- weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
- the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
- See below,
- [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
-4. **llama.cpp first** — preferably the vanilla build (upstream master,
+3. **llama.cpp first** — preferably the vanilla build (upstream master,
  easy updates); the tuned HIP fork is used where prefill speed demands.
  *Measured exception:* for this model family the fork is
  load-bearing — the MTP draft GGUF is fork-format (upstream rejects
  it), and an eager-load vanilla census hard-crashed the lab box
  (no lazy-PLE path). Vanilla stays preferred for models it can host;
  see the engine-axis note in `configs/q5-flash-next-winner.md`.
-5. **Open source only** — closed engines are evaluated for reference,
+4. **Open source only** — closed engines are evaluated for reference,
  never adopted
-6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
-7. **Single model vs co-residency** — for the best quality at a
+5. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+6. **Single model vs co-residency** — for the best quality at a
  good-enough speed, the primary goal is to serve a single
  all-purpose model on a single Strix-Halo, optionally routed by a
  fast classifier service (e.g. Laya, from any LAN node). At the cost
