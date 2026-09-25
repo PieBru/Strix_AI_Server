@@ -4,12 +4,25 @@
 
 <!-- toc -->
 
-- [In a hurry? Look at these 2 tables](#in-a-hurry-look-at-these-2-tables)
+- [In a hurry? Look at this table](#in-a-hurry-look-at-this-table)
 - [Glossary](#glossary)
 - [Hardware](#hardware)
-- [Podium](#podium)
-- [Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53)
-- [Inference stacks — the engine axis](#inference-stacks--the-engine-axis)
+- [What we measured](#what-we-measured)
+- [Analysis — every measured solution](#analysis--every-measured-solution)
+  - [Why Q4 wins](#why-q4-wins)
+  - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
+  - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
+  - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
+  - [Why not vanilla upstream?](#why-not-vanilla-upstream)
+  - [Why not Halogen?](#why-not-halogen)
+  - [Why not ROCmFPX?](#why-not-rocmfpx)
+  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
+  - [The fork (llama.cpp strix-halo) — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)
+  - [Gufo — the open challenger](#gufo--the-open-challenger)
+  - [DeepSeek V4.1 Flash (cloud)](#deepseek-v41-flash-cloud)
+  - [GLM-5.3 (cloud)](#glm-53-cloud)
+  - [GLM-5.3-flash (cloud)](#glm-53-flash-cloud)
+- [Footnotes](#footnotes)
 - [Arch Linux minimal server — the base install](#arch-linux-minimal-server--the-base-install)
   - [Swap: answer **No** to zram — and why](#swap-answer-no-to-zram--and-why)
   - [After the install](#after-the-install)
@@ -23,16 +36,6 @@
   - [3. Speed — wall-clock, on this box](#3-speed--wall-clock-on-this-box)
   - [4. Compare](#4-compare)
 - [Reproduce our tests](#reproduce-our-tests)
-- [Podium — the details](#podium--the-details)
-  - [Why Q4 wins](#why-q4-wins)
-  - [Why not IQ4_NL? (also 12/12, faster decode, less RAM)](#why-not-iq4_nl-also-1212-faster-decode-less-ram)
-  - [Why not Q6_K_XL? (also 12/12 — our preferred tier)](#why-not-q6_k_xl-also-1212--our-preferred-tier)
-  - [Why not the 27B + Muse pair?](#why-not-the-27b--muse-pair)
-  - [Why not vanilla upstream?](#why-not-vanilla-upstream)
-  - [Why not Halogen?](#why-not-halogen)
-  - [Why not ROCmFPX?](#why-not-rocmfpx)
-  - [Why not Q5? (the demoted champion)](#why-not-q5-the-demoted-champion)
-- [Footnotes](#footnotes)
 - [Italian (iten12)](#italian-iten12)
 - [AIME-12 (reasoning)](#aime-12-reasoning)
 - [sli — structured-list integrity (GBench)](#sli--structured-list-integrity-gbench)
@@ -52,14 +55,14 @@
 
 <!-- /toc -->
 
-## In a hurry? Look at these 2 tables
+## In a hurry? Look at this table
 
 The whole README distils into two tables:
-[**the podium**](#podium) — which local model this fleet serves and why
+[**What we measured**](#what-we-measured) — every solution with a number on it
 (speed × quality × RAM, every cell wall-clock and re-measured; the fleet
 default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
 [Why Q4 wins](#why-q4-wins)), and
-[**the champion vs the cloud**](#champion-vs-cloud-models--deepseek-v41-flash-and-glm-53) — the same batteries run
+[**Analysis**](#analysis--every-measured-solution) — the same batteries run
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
 evidence, method, or operations.
@@ -106,537 +109,49 @@ browser-based monitoring. If you reproduce this, a headless setup keeps
 ~5 GiB of RAM free that a desktop would otherwise consume — that margin
 is counted in the [RAM accounting](#ram-accounting) table.
 
-## Podium
+## What we measured
 
-All wall-clock. Higher pp/tg is better; the Italian gate (iten12) is
-pass/fail at 12 — not an overall quality verdict. The quality columns
-(AIME / fcb15 / ladder / sli / zebra) are pointers: bases, CIs and
-caveats live in [²⁵](#fn25), [¹⁰](#fn10) and each battery's chapter.
-Each model cell names the **template · effort** its quality cells were
-produced with (the as-served arm's basis, per [¹⁰](#fn10); Muse runs
-its stock template by family design).
+One table, every solution this fleet has put a number on — local LLMs, cloud
+APIs, and the engines that serve them. The champion slot is open to any class:
+today it is a local LLM on our fork, but an engine (see gufo) can win it too.
+Empty cells are **doable but not yet measured** — they are not zeros, and the
+[Analysis](#analysis--every-measured-solution) sub-chapters name each row's
+missing cells. Cells keep their footnote markers: bases, CIs and protocols
+live in [Footnotes](#footnotes).
 
-| model | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | Italian (iten12)[¹](#fn1) | AIME [²⁵](#fn25) | fcb15 [¹⁰](#fn10) | ladder [²⁵](#fn25) | sli [²⁵](#fn25) | zebra [²⁵](#fn25) | RAM (weights) | draft (size) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | **761** [³⁷](#fn37) | 33.5 | **31.7** | **12/12** | **0.667** [0.39–0.86] [³³](#fn33) | **0.933** [²⁶](#fn26) | **all rungs** (13/15) [³³](#fn33) | **10/10** [³³](#fn33) | **0.55** [0.34–0.74] [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) | MTP shared-Q4_K_M · 1.8 GiB |
-| **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 97 GiB | MTP shared-Q8_0 · 2.6 GiB |
-| Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | **0.65** [¹¹](#fn11) | 107 GiB | MTP shared-Q8_0 · 2.6 GiB |
-| Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | **0.65** | 30 GiB | DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | 0.733 [¹⁰](#fn10) | 7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 0.45 | 32 GiB | DFlash2 · 1.5 GiB |
-
-## Champion vs cloud models — DeepSeek V4.1 Flash and GLM-5.3
-
-The same batteries that grade our locals, run against commercial APIs
-through the same probe harness (same items, same graders, same strict
-format contract). Two caveats decide how to read this table, both from
-footnote [⁷](#fn7): a cloud API that does not obey the one-code-block answer
-contract scores as a *format* failure, so cloud cells are compatibility
-checks first and capability signals second; and empty cells are
-model/battery pairs **we have not measured** — they are not zeros.
-Cloud cells were probed 2026-09-16 at the vendor default API config (no
-effort/thinking tuning on our side).
-
-| metric (battery) | **UD-Q4_K_XL + MTP** (local, sharp-low) [³⁴](#fn34) | DeepSeek V4.1 Flash (cloud) | GLM-5.3 (cloud) | GLM-5.3-flash (cloud) |
-|---|---|---|---|---|
-| Italian gate (iten12) | **12/12** (passes) [³⁴](#fn34) | **12/12** (passes) [¹⁹](#fn19) | **12/12** (passes) [¹⁹](#fn19) | **11/12** (passes) [²⁰](#fn20) |
-| AIME yearsplit-12 | **0.667** [0.39–0.86] [³⁴](#fn34) | 0.667 [0.39–0.86] | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.333 [0.14–0.61] [²⁰](#fn20) |
-| AIME-60 census | **0.533** [0.41–0.65] [³⁴](#fn34) | 0.483 [0.36–0.61] [⁸](#fn8) | 0.433 [0.32–0.56] [²³](#fn23) | 0.367 [0.26–0.49] [²³](#fn23) |
-| Zebra CSP ladder | **0.55** [0.34–0.74] (n=20) [³⁴](#fn34) | 0.42 [0.19–0.68] | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.417 [0.19–0.68] [²⁰](#fn20) |
-| fcb15 coding | **0.933** low [0.70–0.99] (n=15 census) [³⁴](#fn34) | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) |
-| fcb15 ladder (all rungs, greedy) | **all rungs — 13/15** [³³](#fn33) | 7/15 [²²](#fn22) | 11/15 [²²](#fn22) | 9/15 [²²](#fn22) |
-| sli structured-list | **10/10** | 0.8 [0.49–0.94] [²²](#fn22) | 10/10 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) |
-| decode tg128 / weights RAM | **33.5 t/s / 111 GiB file · 91–95 GiB served, local** [³⁴](#fn34) | n/a (API) | n/a (API) | n/a (API) |
+| class | solution | pp @4k | pp @32k | pp @128k | tg128 | tg2048 | iten12 [¹](#fn1) | AIME-12 [²⁵](#fn25) | AIME-60 | zebra [²¹](#fn21) | fcb15 | ladder | sli | RAM / draft |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Local LLM | **Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (Q4_K_M draft)** · sharp-low — fleet serving default [²⁶](#fn26) | **865** | **909** | **761** [³⁷](#fn37) | 33.5 | **31.7** | **12/12** | **0.667** [0.39–0.86] [³³](#fn33) | **0.533** [0.41–0.65] [³⁴](#fn34) | **0.55** [0.34–0.74] [³³](#fn33) | **0.933** [²⁶](#fn26) | **all rungs** (13/15) [³³](#fn33) | **10/10** [³³](#fn33) | 111 GiB file / 91 GiB served [²⁶](#fn26) · draft MTP shared-Q4_K_M · 1.8 GiB |
+| Local LLM | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) | **689** | **672** | **605** | **34.8** | **25.7** | **12/12** | **0.833** | 0.533 [³⁴](#fn34) | **0.65** | **0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | 97 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
+| Local LLM | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) | **730** | **699** | 199 [¹⁸](#fn18) | **34.3** | **22.3** | **12/12** | 0.750 | — | **0.65** [¹¹](#fn11) | **0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | 107 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
+| Local LLM | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) | 486 | 409 | 192 | 20.5 | **28.0** | 11/12 | **0.833** | — | **0.65** | 0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | 30 GiB · draft DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
+| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock | 499 | 470 | — [¹⁶](#fn16) | 34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | — | 0.45 | 0.733 [¹⁰](#fn10) | 7/15 greedy · 13/15 retry [³⁶](#fn36) | — [³⁶](#fn36) | 32 GiB · draft DFlash2 · 1.5 GiB |
+| Cloud | DeepSeek V4.1 Flash (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) | 0.667 [0.39–0.86] | 0.483 [0.36–0.61] [⁸](#fn8) | 0.42 [0.19–0.68] | 0.533 [0.30–0.75] (n=15) [²²](#fn22) | 7/15 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
+| Cloud | GLM-5.3 (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) | 0.583 [0.32–0.81] [¹⁹](#fn19) | 0.433 [0.32–0.56] [²³](#fn23) | 0.50 [0.25–0.75] [¹⁹](#fn19) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 11/15 [²²](#fn22) | 10/10 [²²](#fn22) | n/a (API) |
+| Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | **11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) | 0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 9/15 [²²](#fn22) | 0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
+| Engine | **llama.cpp fork** (strix-halo build) [²⁷](#fn27) — UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26) | **865** | **909** | **761** [³⁷](#fn37) | 33.5 | **31.7** | — | — | — | — | **14/15** | — | — | — |
+| Engine | llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 | 476 | 395 | dies [³⁸](#fn38) | 20.7 | 21.7 | — | — | — | — | none | — | — | — |
+| Engine | llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) — **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | 468 | 407 | — | **26.0** | **25.1** | — | — | — | — | none | — | — | — |
+| Engine | halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) — UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | — | 262k-capable | 26.9 | 22.8 | — | — | — | — | 12/15 | — | — | — |
+| Engine | Gufo (open, native HIP) [³⁰](#fn30) — UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **1100** | n/a [³⁰](#fn30) | **44.3** | **35.3** | — | — | — | — | **13/15** | — | — | — |
+| Engine | ROCmFPX (`charlie12345` fork) [³¹](#fn31) — Q4_0_ROCMFP4 27B (260924) | 336 | — | — | 23.4 | 19.7 | — | — | — | — | 13/15 | — | — | — |
 
 Reading it honestly:
 
-- **No cell here is a verdict.** Every shared cell has overlapping CIs at
-these n, and the cloud column carries the format caveat. What the data
-supports is "at least level, nominally ahead" — not "beats the frontier".
-- **The heaviest shared cell is the AIME-60 census** (n=60, the only cell
-  where both sides have a tight interval): the Q4 champion's **0.533
-  [0.41–0.65]** (2026-09-25) vs DeepSeek's 0.483 — a three-item gap, i.e.
-  a tie at this n — and a dead tie with the incumbent Q5's own 0.533: the
-  quant step down moved nothing measurable at the cell that matters most.
-- **The Italian gate no longer discriminates cloud from local.** Redone
-2026-09-22 with artifacts on disk, both full cloud models **pass at 12/12**
-(DeepSeek V4.1 Flash gated for the first time; GLM-5.3 corrected from the
-stale 7/12 cell, which had no surviving artifact and was most plausibly a
-format artifact of the kind footnote [⁷](#fn7) warns about). Only the
-flash variant drops an item (11/12). The gate's remaining value is as a
-regression tripwire, not a cloud separator.
-- Cloud cells are cheap to add and cheap to keep: an API key and a probe
-run per model. The table can grow a row per model without touching the
-local test rig.
-
-## Inference stacks — the engine axis
-
-The podium ranks *models*; this chapter ranks the *engines* that serve them.
-Same silicon, same probes ([speed_probe](benchmarks/speed_probe.py), fcb15), same
-rule as everywhere else: a cell is wall-clock on this box, and two cells compare only
-on the same weights and day — which is why the **measured-on** column is part of the
-table, not a footnote. Two orthogonal axes live here: *which engine* (fork vs upstream
-vs the outsiders) and *which GPU backend* (HIP/ROCm vs Vulkan — [³²](#fn32); every
-adopted arm runs a HIP build). [Policy 4](#policy) keeps llama.cpp first and [policy 5](#policy)
-keeps closed engines at reference distance; both bite here.
-
-| engine | status | measured on | pp@4k | tg128 | tg2048 | fcb15 greedy | one-line read |
-|---|---|---|---:|---:|---:|---:|---|
-| **llama.cpp fork** (strix-halo build) [²⁷](#fn27) | **adopted — serves every fleet arm** | UD-Q4_K_XL + Q4_K_M draft [²⁶](#fn26) | 865 | **33.5** | **31.7** | **14/15** | the load-bearing baseline: fork-format MTP draft, lazy PLE, fast deep-pp |
-| llama.cpp upstream (vanilla, `b11168`) [²⁸](#fn28) [³⁵](#fn35) [³⁸](#fn38) | preferred by policy — cannot host this family safely | **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)**; Q5-era cells in fn35 | **476** | 20.7 | 21.7 | none (suite aborted) | at the champion's own weights+options: pp 45–55% of the fork, tg ~62%; the family's MTP draft is *structurally* unavailable upstream (PR #27836 unmerged) [³⁸](#fn38); Q5-era q8-KV cells in [³⁵](#fn35) |
-| llama.cpp upstream (vanilla, **Vulkan** build) [³²](#fn32) [³⁵](#fn35) [³⁸](#fn38) | upstream tracking — `llama-vulkan.service` | **UD-Q4_K_XL, draftless, dio, same-weights same-day (260925)** | **468** | **26.0** | **25.1** | none (see [²⁸](#fn28)) | on the champion's weights the Vulkan-decode-beats-HIP pattern replicates (26.0 vs 20.7, +26%); deep prefill ~2× slower than the fork |
-| halogen-flash-server 0.13.8 (closed, container) [²⁹](#fn29) | reference only ([policy 5](#policy)) | UD-Q4_K_XL BYO-GGUF (same box, 260924) | **980** | 26.9 | 22.8 | 12/15 | prefill king (+13–43%, and the only 262k-context server); decode −30%; quality collapse of 260908 is fixed |
-| Gufo (open, native HIP) [³⁰](#fn30) | lab — text + image | UD-Q4_K_XL + shared-Q8_0 MTP d3 c131k (strixy2, 260925) | **1200** | **44.3** | **35.3** | **13/15** | text pp +39% and tg +11–32% over the fork at the same MTP basis; also the image modality [²](#fn2) |
-| ROCmFPX (`charlie12345` fork) [³¹](#fn31) | lab — the fp4-27B card's engine | Q4_0_ROCMFP4 27B (260924) | 336 | 23.4 | 19.7 | 13/15 | statistical tie with the Q8 27B at ¼ memory; needs its own engine for type-105 files |
-
-Reading it honestly: only two rows share weights and day — the fork and halogen on
-UD-Q4_K_XL (260924) — and they split the axes cleanly: **halogen prefill, fork decode,
-fork quality by two items** (14/15 vs 12/15, overlapping CIs). The vanilla row is a
-special case: its headline cell (q8-KV 36.6 t/s, the fastest decode measured on this
-box) exists *only* upstream because the fork's QSA indexer asserts on non-f16 KV —
-but vanilla cannot safely load this family's draft, so the cell is a fork-fix TODO,
-not a serving option. Gufo is the newest axis and the only one that changes *modality*:
-it is how this fleet serves images.
-
-**Gufo as the overall engine (operator question, 2026-09-25):** the case is
-real — open (MIT), Italian group, the only engine that beats the fork on
-*both* speed axes at the fleet basis (pp +39%, tg +11–32%), quality holding
-(13/15), one binary covering text + Qwen-Image-2.1 + TTS + ASR. What still
-gates a cutover, in order: (1) **fleet robustness is unproven** — every
-measured cell is a fresh-load, single-session, <1 h window; the fork's cells
-come from months of resident serving incl. multi-hour censuses, and the one
-long-run pathology we know (Muse KV-poisoning decay) took hours to show;
-(2) **concurrency** — 8-request aggregate decode is claimed but unmeasured
-here, and the pi workload is bursty multi-client; (3) **operational
-surface** — the fork's models.ini router, systemd units, slot eviction at
-131k and --spec-draft knobs have no gufo equivalents mapped yet. A honest
-path: run gufo as the resident `default` arm on strixy2 for a one-week
-probation (same batteries nightly, Doctor watching RAM/decay), keep the
-fork on strixy as fallback — the engines are one systemd unit apart.
-
-## Arch Linux minimal server — the base install
-
-Everything in this file runs on a plain Arch install with **no desktop
-environment**; the [hardware section](#hardware) already priced that choice
-(~5 GiB of RAM a desktop session would hold, counted in the [RAM
-accounting](#ram-accounting) table). This chapter is the reproducible
-recipe, driven by [archinstall](https://github.com/archlinux/archinstall) in
-its **guided ("human") mode** — the option names below are the labels the
-installer puts in front of you, so the table can be followed in the menu.
-
-| guided prompt | our answer | why |
-|---|---|---|
-| **Profile** → `Minimal`, or `Server` → `sshd` | Minimal (+ `sshd`) | headless; the Server profile adds nothing we want beyond `openssh` + `sshd.service` |
-| **Kernels** | `linux` | the AMD/ROCm stack tracks current kernels — no LTS fallback to keep in sync |
-| **Bootloader** | `Systemd-boot` | one EFI partition, no GRUB config to maintain |
-| **Disk configuration** → best-effort default layout | single `ext4` root on the NVMe | one 1.9 TB disk with one job; snapshots buy nothing here |
-| **Would you like to use swap on zram?** | **No** | measured — see below |
-| **Network configuration** → copy the ISO configuration | `systemd-networkd` | no desktop, so no NetworkManager; `/etc/systemd/network/*.network` is a few lines per NIC |
-| **Audio** | none | no `pipewire`/`wireplumber`/`alsa-firmware` on either box |
-| **Additional packages** | `openssh`, `cockpit` | Cockpit (optional) is the browser dashboard for an otherwise GUI-less box |
-| **Time zone / locale / keymap** | `Europe/Rome`, `en_US.UTF-8`, `it` | |
-| **NTP** | enabled | `systemd-timesyncd` — the Doctor's timeline is only as good as the clock |
-
-The same decisions as config JSON, for an `archinstall --config` run:
-`"profile_config": {"profile": {"main": "Minimal"}}`,
-`"bootloader_config": {"bootloader": "Systemd-boot"}`,
-`"kernels": ["linux"]`, `"audio_config": {"audio": "none"}`,
-`"swap": {"enabled": false}`, `"disk_config": {"config_type": "default_layout"}`.
-
-### Swap: answer **No** to zram — and why
-
-archinstall asks *"Would you like to use swap on zram?"* and its sample
-config ships `"swap": {"enabled": true}`; both nodes came up with `zram0`
-(zstd, priority `100`) from install day. We switched it off on both. The
-reason is worth writing down, because that default is a good one — for a
-different workload.
-
-**What zram is for.** It is a compressed swap *device backed by RAM*: pages
-the kernel evicts are compressed and kept in memory, so a later fault-in
-costs a decompress instead of a disk read. On the workload it was designed
-for — desktop anon, browsers, editors, build jobs, where pages are full of
-text, pointers and repetition — it compresses 2–4× and turns slow paging
-into cheap paging. The ordinary anon on our own box measures 2.1×, exactly
-as advertised.
-
-**Why it inverts here.** Under pressure, an inference server does not hand
-the kernel ordinary anon. What floods out is model- and KV-class memory —
-weights, their shmem-backed GPU mappings, activation buffers — high-entropy
-data that measured **1.09×** (4.5 GiB of real storm content stored in
-4.1 GiB of RAM). For this class the premise "swap is compressible" is
-simply false, and every consequence of zram turns against us:
-
-- **The reclaim target cannot be met, so reclaim never stops.** The kernel
-  reclaims *bytes of RAM*. If evicting a page frees 9 % of it, it must evict
-  roughly eleven pages to bank one, at full per-page cost. That is a
-  treadmill rather than a one-way drain: `si≈so≈250 MB/s`, sustained, with
-  decode collapsing from ~37 t/s to 1.7 t/s at the same tier. A disk swap
-  frees 100 % per page, so the same pressure resolves and *ends*.
-- **The wrong tier is used first.** `zram0` carries priority `100` against
-  the swapfile's `-1`, so every squeeze hits the ~9 % device before the
-  100 % device is touched at all — the effective tier only engages after
-  zram is full (16–32 GiB of stored pages).
-- **Every fault-in costs twice.** A zstd decompress on the way back, *plus*
-  the amdgpu userptr restore stall for any page a GPU mapping needs — so the
-  pages that stall inference are exactly the expensive ones to restore. On
-  disk the same page is one read, and the kernel can page-cluster it.
-- **It stays resident.** The compressed store keeps holding its RAM after
-  the storm (4.5 GiB still held hours later), so the memory zram "freed" is
-  not free, `avail` stays depressed, and the next pressure event arrives
-  sooner.
-
-| | zram, as the installer ships it | plain 32 GiB swapfile, what we run |
-|---|---:|---:|
-| compression on the pages that actually got swapped | **1.09×** (4.5 GiB → 4.1 GiB of RAM still held) | n/a |
-| RAM freed per page swapped out | **≈9 %** | 100 % |
-| price of a fault-in | zstd decompress **+** amdgpu userptr restore stall | one SSD read |
-| behaviour under sustained pressure | 250 MB/s treadmill, decode 37 → 1.7 t/s | makes progress, then ends |
-
-**What we run instead.** `swapoff /dev/zram0`; the zram generator disabled
-in `/etc/systemd/zram-generator.conf`; a 32 GiB `swapfile` in `/etc/fstab`
-(guided mode's swap step is zram-only — a swapfile is three commands
-afterwards, or a swap partition in the manual disk layout); `vm.swappiness =
-10` in `/etc/sysctl.d/`, so the kernel prefers dropping cache over pushing a
-working set to swap. The number to watch is not swap *use* but swap *rate*:
-`si`/`so` at zero with 106 GiB of GTT (the GPU-visible memory window) is healthy, either one pinned at
-hundreds of MB/s is the failure mode this chapter exists to prevent.
-`swapon --show` plus `cat /sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the
-real ratio) is the whole diagnosis: if that ratio is near 1, zram is a pure
-cost on that box.
-
-**Not a verdict on the default.** On a laptop or a general-purpose server
-archinstall's answer is *yes* — compressible anon is the common case, and
-none of the above applies. This is specifically a RAM-resident-model box,
-where the pages that get swapped *are* the model, that should answer **No**.
-
-### After the install
-
-ROCm and the rest of the serving stack are one AUR package
-(`rocm-nightly-gfx1151-bin`), a `uv` install for the harness, and a
-Vulkan/ROCm build of llama.cpp — [the tooling chapter](#reproduce-our-tests)
-has the exact commands. Cockpit, if enabled, is the box's only web surface
-besides the model server itself.
-
-## Policy
-
-1. **Quality first** — within acceptable speed
-2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
- generation, then we measure wall-clock, not server-reported. See below,
- [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
-3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
- (revised 2026-09-24). The floor comes from enterprise-level experience and
- community expert consensus on MoE (mixture-of-experts) quantization
- robustness, not from a 12-item battery alone; our battery *confirms* Q5
- meets the quality gate. The deprecation is now **per-quant, not per-class**:
- a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
- paired census ties or beats the then-champion's cell, and (ii) it fits the
- RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
- swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
- exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
- weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
- the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
- See below,
- [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
-4. **llama.cpp first** — preferably the vanilla build (upstream master,
- easy updates); the tuned HIP fork is used where prefill speed demands.
- *Measured exception:* for this model family the fork is
- load-bearing — the MTP draft GGUF is fork-format (upstream rejects
- it), and an eager-load vanilla census hard-crashed the lab box
- (no lazy-PLE path). Vanilla stays preferred for models it can host;
- see the engine-axis note in `configs/q5-flash-next-winner.md`.
-5. **Open source only** — closed engines are evaluated for reference,
- never adopted
-6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
-7. **Single model vs co-residency** — for the best quality at a
- good-enough speed, the primary goal is to serve a single
- all-purpose model on a single Strix-Halo, optionally routed by a
- fast classifier service (e.g. Laya, from any LAN node). At the cost
- of a service restart, one Halo node can be configured to serve
- multiple models via `models.ini` — either by swapping the single
- big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
- Qwen Image 2.1).
-
-## The "sharp" chat template
-
-The serve recipe doesn't use the stock Qwen3.8 template. It runs
-[configs/templates/sharp-v22.5.0.jinja](configs/templates/sharp-v22.5.0.jinja)
-(`qwen3.8-froggeric-v22.5.0`, from
-[froggeric/Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates)
-on Hugging Face — attributed to its author and subject to their terms)
-because it is the control surface for thinking:
-
-- `enable_thinking` — default **true**: reasoning streams before the
- answer, which is why the champion runs as a thinking model in our cells
-- `reasoning_effort` — `none`/`off` disables thinking outright;
- `low`/`medium`/`xhigh` pick a tier (default `medium`)
-- `auto_disable_thinking_with_tools`, `preserve_reasoning` across turns,
- an XML tool-call format, and vision plumbing
-
-Two honesty notes: every measured quality and speed cell ran through
-this template — the numbers are template-specific, we have not run a
-stock-vs-sharp battery A/B, and none of the published cells ran with
-thinking off. `sha256 cdff39fb26b60dc90faa292e726655c6b21f62db497846e02e4c4bbab942a84a`.
-The stock template is a drop-in swap of the `chat-template-file` line if
-you prefer upstream-default behavior.
-
-## RAM accounting
-
-One method, applied to every candidate. All figures GiB.
-
-The @262k columns are the *arithmetic* at the native ceiling — no tier
-serves it; the retreat ladder ended at **131k** for Q5 (its measured-stable
-value) and the Q4 fleet default serves 131k by recipe (see
-[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-demoted-
-champion)); Q6 ships at 64k (its sustained gate).
-
-| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
-|---|---:|---:|---:|---:|---:|
-| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | 111.3 file (GTT 91–93 incl. KV+draft) |
-| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 | 3.0 |
-| MTP draft | 2.6 | 2.6 | 2.6 | 2.6 | 1.8 (Q4_K_M) |
-| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 | — |
-| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
-| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
-| **total** | **114.2** | **124.7** | **121.7** | **83.7** | **95.4 measured RAM in use** |
-| box limit | 124 | 124 | 124 | 124 | 124 |
-| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** | **~29 (measured)** |
-
-**Observed in practice:** with the full 262k KV pool allocated and the
-server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
-page cache and streaming working sets consume most of the theoretical
-margin. The `MemoryMax=118G` systemd cap sits between: enough room for
-the ~114 GiB footprint, tight enough that an OOM kill (which is what
-killed the Q6 bench chain) is the failure mode, not silent swap.
-
-This accounting assumes the
-[no-zram swap layout](#swap-answer-no-to-zram--and-why) both nodes run:
-a plain 32 GiB swapfile, `vm.swappiness = 10`, and no compressed RAM
-device competing for the pool. zram0 was stripped from both boxes
-(2026-09-23, verified after: `/proc/swaps` lists only the swapfile on
-each) — with zram present, up to 16–32 GiB of "swapped" pages were
-still RAM-resident, silently shrinking the headroom this table grants.
-
-Where the numbers come from:
-- **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
- (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
- The model is **hybrid-attention** (GGUF metadata: 48 layers,
- `full_attention_interval = 4` — only every 4th layer retains full KV;
- the rest are sparse/indexed with a bounded window), which is why the
- KV is so light for a 262k context.
-- **PLE row-reader** is bounded by `-ub 4096`; larger micro-batches scale
- it linearly, and without the bound, 32k+ prefills amplify row reads past
- the RAM ceiling.
-- **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
- versions used a looser estimate — this table is the corrected one).
-
-## Speed at depth — how much wall-time you actually wait
-
-Real-text prompts actually filled (no synthetic filler). These are the
-seconds from "send" to "reply complete."
-
-**Why seconds, not tokens/second:** most speed talk quotes pp/tg —
-tokens/second while filling or draining the context. Fine as kernel
-diagnostics, but they say next to nothing about what you actually wait:
-the wall-clock time to complete a task **successfully** — prefill at
-real depth, retries, and re-generating artifacts that failed QA all
-included. (An independent DeepSeek run posted healthy-looking completion
-rates across 83 minutes of model wall time and delivered zero accepted
-artifacts — the t/s looked fine, the task failed.) Reasoning models
-sharpen the point further: our champion thinks before it answers, so a
-task's token count is reasoning + answer, and decode t/s alone can't
-tell you how many tokens you'll wait through. This table is in seconds
-for that reason.
-
-| prompt size | Q5 | Halogen | who wins |
-|---|---:|---:|---|
-| 4k | 6.4 s | 5.5 s | Halogen, slightly |
-| 32k | **40.6 s** | 9.1 min | **Q5, 13.5×** |
-| 128k | **3.3 min** | 29.5 min | **Q5, 8.9×** |
-
-For context: a 32k prompt is roughly "a medium codebase plus your task."
-A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
-the deciding axis for coding.
-
-**Credit where due** (these wall-clock cells are the Q5-era Halogen
-measurement; the engine table's same-day Q4 cells live in
-<a id="fn29"></a>²⁹ — two epochs, do not mix them): Halogen wins decode at depth
-(27.3/25.6 t/s at 2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
-short decode (**34.8 t/s** tg128) now edges its 32.4. For
-short-prompt chat it remains the faster engine; the collapse at depth
-is what kills it for our workload. Its 128k cell completed at 1770s —
-30s under our client timeout — real but with a thin margin; the
-non-monotonic throughput
-(60 → 71 t/s) is unexplained — the 32k cell matches nominal-size
-arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
-74, not 71; the probe's raw token counts will settle it.
-
-**Evidence note:** the wall-clock probe behind this table — and the
-pp/tg podium cells — is committed as
-[benchmarks/speed_probe.py](benchmarks/speed_probe.py), and quality cells
-reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
-per-cell console logs behind the individual podium numbers.
-
-## Got a new model? Test it, then compare it to the podium
-
-Everything the podium rows are made of is reproducible from this repo with
-two committed tools. A full row takes about an hour of unattended GPU time
-on this box; a first read on a new model takes ten minutes.
-
-### 1. Serve it
-
-Any OpenAI-compatible chat endpoint works, and all the commands below take
-`--host`. Three common shapes:
-
-```bash
-# (a) add it as an arm to the router (one arm resident at a time)
-#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
-#     model/model-draft paths, set load-on-startup = false, reload the service
-# (b) a one-off server on the lab box
-llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
-    -c 65536 -ctk f16 -ctv f16 --jinja -fa on -ngl all
-# (c) a remote or vendor endpoint
-#     uv run python3 scripts/probe.py --host https://api.example.com --model <vendor-id>
-#     (needs GEFC_API_KEY in the env; refuses before sending a byte without it)
-```
-
-Ask the endpoint what it is actually serving — never infer it from the
-config you edited: `curl -s localhost:8080/v1/models`.
-
-**Two settings decide whether the numbers mean anything**
-
-- **Chat template.** The measured template effect on this family is 2–3×
-  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
-  template run is a valid measurement *of the stock template*, and is not
-  comparable to the podium's sharp-family rows. State which one you ran.
-- **Context.** Serve the context you intend to claim. Some models are
-  trained short (Muse-Glimmer: 131072) and the server silently caps the
-  slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
-  would be a fiction.
-
-### 2. Quality — the batteries, with a confidence interval
-
-```bash
-cd ~/Piero/Work/Qwen38/gbench
-
-# the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
-uv run python3 scripts/probe.py --battery iten12 --budget 12 \
-    --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
-
-# coding: the 15-item deterministically-graded bank (census for a podium row)
-uv run python3 scripts/probe.py --battery fcb15 --budget 15 \
-    --tag mymodel-fcb15 --model <arm> --host 127.0.0.1:8080
-
-# the pre-registered harder rungs — the threshold layer, where a saturating
-# model stops being measurable (see docs/FCB15-CALIBRATION.md in GEFC)
-uv run python3 scripts/fcb15_run.py --tag mymodel-v3d --model <arm> \
-    --items-file batteries/fcb15_v3d.py
-uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
-    --items-file batteries/fcb15_v3de.py
-uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
-
-# reasoning tiers
-uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
-uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
-```
-
-Grading is deterministic and machine-only — a Python harness per item, no
-LLM judge, no rubric prose. A wrong answer fails on an `assert`, so a
-sabotaged grader shows up as a wrong number, not a loud bug.
-
-Read the **CI**, not the point estimate. `--budget` below the battery size
-spends exactly that many items and gives a Wilson 95% interval; a census is
-labelled as such. Two rows whose intervals overlap are **not** ranked by
-this suite — that is the whole reason the podium reports intervals.
-
-### 3. Speed — wall-clock, on this box
-
-```bash
-uv run python3 benchmarks/speed_probe.py --model <arm>          # all five cells
-uv run python3 benchmarks/speed_probe.py --model <arm> --tg-only # decode only
-```
-
-This is the probe the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns
-come from, and it measures the clock, not the server's own counters:
-
-- **prefill** — one request per window, timed send → complete, distinct
-  corpus offsets so no prompt cache flatters a cell
-- **decode** — streamed, timed first content delta → last, so prompt
-  processing is excluded; reasoning deltas count as output
-
-Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
-same offsets, temperature 0, **one client**. A cell measured while another
-job shares the GPU is not a cell — rerun it.
-
-Two traps that cost us a whole measurement pass, both worth knowing before
-you trust a number:
-
-- **Serve the context the cell needs, or read the refusal honestly.** A
-  pp@128k request sends a ~160k-token window on code-dense text, so an arm
-  served at `c=131072` refuses it with HTTP 400 — the probe prints
-  `n/a`, which is the correct cell, not a zero. The probe prints the
-  realised token count; that is the number to quote.
-- **Keep the box quiet, including its disk.** The champion's serving
-  config leaves ~1 GiB of host headroom, so any large file I/O evicts the
-  model's cached weights and decode collapses: a 26 GiB transfer running
-  beside one battery item took the arm from **34 t/s to 0.93 t/s** and
-  produced a 291 s "failure" that was pure page-cache thrash. We threw
-  that run away and re-ran it. Copy files *between* measurement passes,
-  never during one.
-
-### 4. Compare
-
-| what | where |
-|---|---|
-| the podium table | [above](#podium) — the row format to match |
-| the raw rows behind every cell | [benchmarks/results.json](benchmarks/results.json) |
-| the per-item runs (resume-safe JSONL) | `gbench/results/fcb15-<tag>.jsonl` |
-| how a claim gets promoted or retired | [Policy](#policy) |
-
-A model earns a podium row when it clears: the Italian gate (12/12), a
-fcb15 census, a real speed sweep, and a RAM figure — **all at the same
-template and context you are claiming**. Until then it belongs in the
-prose of the chapter it is challenging, with its CI, not in the table.
-
-Before trusting any number — yours or ours — read
-[benchmarks/measuring.md](benchmarks/measuring.md): the ways this project
-measured itself wrong (template confounds, the quiet-box rule, noise
-floors, and the tooling that lies). Two honest outcomes worth writing
-down when you do this:
-
-- **Saturation is a result too.** If a model caps the battery, that rung
-  has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
-  says nothing the previous model's row didn't.
-- **A negative A/B is a result.** This suite's most reused findings are
-  negative: the draft-length setting that lifted the 27B did **not** lift
-  Muse (14.4 vs 15.0 t/s), and a Strix-Halo neighbour project's best MTP
-  tuning (3 draft tokens, n-gram off, +62% on their box) **tied** our
-  production config here (35.8/26.4 vs 36.0/25.7). A knob win does not
-  transfer between trunks or setups until it is measured on yours.
-
-## Reproduce our tests
-
-Everything is in the repo:
-
-- [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
- tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
- results (`results.json`). Three commands reproduce a score — see
- [benchmarks/README.md](benchmarks/README.md). The 2026-09-25 Q4 census
- ran end-to-end from one script against the live serving arm:
- `benchmarks/q4-marathon-260925.sh` (iten12 → sli → zebra → AIME-12 →
- AIME-60 → fcb15 ladder; per-battery JSONL + reports land beside it)
-- [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
- batteries, Wilson-CI runner) behind the
- [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
- [zebra](#zebra--csp-logic-ladder-gbench) tables
-- [configs/](configs/) — exact serve commands, binary provenance (commits,
- digests, build recipes), full sha256 checksums, flag-by-flag explanations
-- [models.ini](models.ini) — the single source of truth for all serving
- options
-- [systemd/](systemd/) — the two unit files (HIP fast-prefill and Vulkan
- vanilla), switchable with one command
-- [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
- the nightly auto-improve loop (see the chapter below)
-
-## Podium — the details
+- **Bases are heterogeneous by design** — engines were measured on the
+  weights noted in their row (the fork, halogen, gufo and both vanilla builds
+  on UD-Q4_K_XL; ROCmFPX on its own fp4 format), clouds at vendor defaults,
+  locals at the fleet basis. Only cells that share weights and day compare
+  head-to-head; footnote markers say which.
+- **The cloud columns carry the format caveat** ([⁷](#fn7)): a cloud API that
+  ignores the one-code-block answer contract scores a *format* failure —
+  compatibility first, capability second.
+- **What is still missing and doable**: iten12/AIME/zebra/sli for the engine
+  rows (gufo first — it is the only engine that could take the champion slot),
+  AIME-60 for Q6/Muse, and the fork's own census cells beyond fcb15/AIME-12.
+
+
+## Analysis — every measured solution
 
 ### Why Q4 wins
 
@@ -834,7 +349,7 @@ upstream — at which point this chapter inverts.
 
 ### Why not Halogen?
 
-[halogen-flash-server](#inference-stacks--the-engine-axis) is the strongest
+[halogen-flash-server](#what-we-measured) is the strongest
 outside engine we have measured — and the honest answer starts with what it
 **wins**: prefill. On the same weights, same box, same day as the fork's Q4
 cells it prefilled at **980/1297/1252 t/s** (4k/32k/128k) — +13–43% over the
@@ -919,6 +434,47 @@ gate batteries (iten 12/12, fcb15 0.933 vs 0.867 same-day) — [²⁶](#fn26).
 Q5 did not lose; it ran out of room. Full-Q5 serving lives on strixy2's
 on-demand slot, and the podium's Q5 row stays as the quality reference the
 Q4 row is checked against.
+
+
+
+### The fork (llama.cpp strix-halo) — why it still serves
+The load-bearing baseline: the only engine that hosts the family's MTP draft
+(`--spec-type draft-mtp`), the deep-prefill patches (pp128k 761 t/s where
+vanilla dies), months of resident-serving robustness, and the models.ini
+router + systemd fleet around it. Cons: closed-ish pace (fork maintenance),
+decode behind gufo (33.5 vs 44.3 tg128), no modality beyond text+vision.
+Missing cells: its own iten/AIME/zebra census rows (they are the champion's —
+same arm, same weights).
+
+### Gufo — the open challenger
+The only engine beating the fork on both axes at the fleet basis (pp +39%,
+tg +11–32%), quality holding (13/15), one MIT binary covering text +
+Qwen-Image-2.1 + TTS + ASR, maintained by the Italian Strix-Halo community.
+Cons: fleet robustness unproven (every cell <1 h fresh-load), concurrency
+unmeasured, operational surface (router/slots/eviction) unmapped, loader is
+UD-Q4-strict. Path: one-week probation as strixy2's resident default, Doctor
+watching, fork one systemd unit away. Missing cells: iten12, AIME, zebra, sli
+— all doable in one bench window.
+
+### DeepSeek V4.1 Flash (cloud)
+The cheapest strong cloud: AIME-12 parity with the champion (0.667), iten
+12/12. Cons: fcb15 7/15 greedy (9/15 with retry — below every local), zebra
+0.42, format-contract failures; API cost and data egress vs any local row.
+Missing cells: pp128k-class deep context (meaningless for an API), sli tied
+0.8.
+
+### GLM-5.3 (cloud)
+The strongest cloud on the ladder (11/15 greedy, 14/15 with retry) and
+AIME-60 0.433; sli 10/10. Cons: fcb15 census 0.60, zebra 0.50, the same
+format caveat; per-token cost scales with thinking. Missing cells: none
+blocking — it is a complete cloud row.
+
+### GLM-5.3-flash (cloud)
+The value pick: ladder 9/15 greedy but **15/15 with retry** (its greedy
+misses are format, not capability), AIME-60 0.367. Cons: AIME-12 0.333 —
+the reasoning floor of the cloud set; iten 11/12. Missing cells: none
+blocking.
+
 
 ## Footnotes
 
@@ -1180,6 +736,430 @@ census + speed + RAM axes, and the quality census confirmed it within
 battery resolution. Artifacts:
 `benchmarks/q4-vs-q5-report-260924.md`, `benchmarks/results.json`
 (`q4_xl_mtp_260924`), raw logs in `~/Piero/Work/Qwen38/reruns-260919/q6-low-row/`.
+
+
+## Arch Linux minimal server — the base install
+
+Everything in this file runs on a plain Arch install with **no desktop
+environment**; the [hardware section](#hardware) already priced that choice
+(~5 GiB of RAM a desktop session would hold, counted in the [RAM
+accounting](#ram-accounting) table). This chapter is the reproducible
+recipe, driven by [archinstall](https://github.com/archlinux/archinstall) in
+its **guided ("human") mode** — the option names below are the labels the
+installer puts in front of you, so the table can be followed in the menu.
+
+| guided prompt | our answer | why |
+|---|---|---|
+| **Profile** → `Minimal`, or `Server` → `sshd` | Minimal (+ `sshd`) | headless; the Server profile adds nothing we want beyond `openssh` + `sshd.service` |
+| **Kernels** | `linux` | the AMD/ROCm stack tracks current kernels — no LTS fallback to keep in sync |
+| **Bootloader** | `Systemd-boot` | one EFI partition, no GRUB config to maintain |
+| **Disk configuration** → best-effort default layout | single `ext4` root on the NVMe | one 1.9 TB disk with one job; snapshots buy nothing here |
+| **Would you like to use swap on zram?** | **No** | measured — see below |
+| **Network configuration** → copy the ISO configuration | `systemd-networkd` | no desktop, so no NetworkManager; `/etc/systemd/network/*.network` is a few lines per NIC |
+| **Audio** | none | no `pipewire`/`wireplumber`/`alsa-firmware` on either box |
+| **Additional packages** | `openssh`, `cockpit` | Cockpit (optional) is the browser dashboard for an otherwise GUI-less box |
+| **Time zone / locale / keymap** | `Europe/Rome`, `en_US.UTF-8`, `it` | |
+| **NTP** | enabled | `systemd-timesyncd` — the Doctor's timeline is only as good as the clock |
+
+The same decisions as config JSON, for an `archinstall --config` run:
+`"profile_config": {"profile": {"main": "Minimal"}}`,
+`"bootloader_config": {"bootloader": "Systemd-boot"}`,
+`"kernels": ["linux"]`, `"audio_config": {"audio": "none"}`,
+`"swap": {"enabled": false}`, `"disk_config": {"config_type": "default_layout"}`.
+
+### Swap: answer **No** to zram — and why
+
+archinstall asks *"Would you like to use swap on zram?"* and its sample
+config ships `"swap": {"enabled": true}`; both nodes came up with `zram0`
+(zstd, priority `100`) from install day. We switched it off on both. The
+reason is worth writing down, because that default is a good one — for a
+different workload.
+
+**What zram is for.** It is a compressed swap *device backed by RAM*: pages
+the kernel evicts are compressed and kept in memory, so a later fault-in
+costs a decompress instead of a disk read. On the workload it was designed
+for — desktop anon, browsers, editors, build jobs, where pages are full of
+text, pointers and repetition — it compresses 2–4× and turns slow paging
+into cheap paging. The ordinary anon on our own box measures 2.1×, exactly
+as advertised.
+
+**Why it inverts here.** Under pressure, an inference server does not hand
+the kernel ordinary anon. What floods out is model- and KV-class memory —
+weights, their shmem-backed GPU mappings, activation buffers — high-entropy
+data that measured **1.09×** (4.5 GiB of real storm content stored in
+4.1 GiB of RAM). For this class the premise "swap is compressible" is
+simply false, and every consequence of zram turns against us:
+
+- **The reclaim target cannot be met, so reclaim never stops.** The kernel
+  reclaims *bytes of RAM*. If evicting a page frees 9 % of it, it must evict
+  roughly eleven pages to bank one, at full per-page cost. That is a
+  treadmill rather than a one-way drain: `si≈so≈250 MB/s`, sustained, with
+  decode collapsing from ~37 t/s to 1.7 t/s at the same tier. A disk swap
+  frees 100 % per page, so the same pressure resolves and *ends*.
+- **The wrong tier is used first.** `zram0` carries priority `100` against
+  the swapfile's `-1`, so every squeeze hits the ~9 % device before the
+  100 % device is touched at all — the effective tier only engages after
+  zram is full (16–32 GiB of stored pages).
+- **Every fault-in costs twice.** A zstd decompress on the way back, *plus*
+  the amdgpu userptr restore stall for any page a GPU mapping needs — so the
+  pages that stall inference are exactly the expensive ones to restore. On
+  disk the same page is one read, and the kernel can page-cluster it.
+- **It stays resident.** The compressed store keeps holding its RAM after
+  the storm (4.5 GiB still held hours later), so the memory zram "freed" is
+  not free, `avail` stays depressed, and the next pressure event arrives
+  sooner.
+
+| | zram, as the installer ships it | plain 32 GiB swapfile, what we run |
+|---|---:|---:|
+| compression on the pages that actually got swapped | **1.09×** (4.5 GiB → 4.1 GiB of RAM still held) | n/a |
+| RAM freed per page swapped out | **≈9 %** | 100 % |
+| price of a fault-in | zstd decompress **+** amdgpu userptr restore stall | one SSD read |
+| behaviour under sustained pressure | 250 MB/s treadmill, decode 37 → 1.7 t/s | makes progress, then ends |
+
+**What we run instead.** `swapoff /dev/zram0`; the zram generator disabled
+in `/etc/systemd/zram-generator.conf`; a 32 GiB `swapfile` in `/etc/fstab`
+(guided mode's swap step is zram-only — a swapfile is three commands
+afterwards, or a swap partition in the manual disk layout); `vm.swappiness =
+10` in `/etc/sysctl.d/`, so the kernel prefers dropping cache over pushing a
+working set to swap. The number to watch is not swap *use* but swap *rate*:
+`si`/`so` at zero with 106 GiB of GTT (the GPU-visible memory window) is healthy, either one pinned at
+hundreds of MB/s is the failure mode this chapter exists to prevent.
+`swapon --show` plus `cat /sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the
+real ratio) is the whole diagnosis: if that ratio is near 1, zram is a pure
+cost on that box.
+
+**Not a verdict on the default.** On a laptop or a general-purpose server
+archinstall's answer is *yes* — compressible anon is the common case, and
+none of the above applies. This is specifically a RAM-resident-model box,
+where the pages that get swapped *are* the model, that should answer **No**.
+
+### After the install
+
+ROCm and the rest of the serving stack are one AUR package
+(`rocm-nightly-gfx1151-bin`), a `uv` install for the harness, and a
+Vulkan/ROCm build of llama.cpp — [the tooling chapter](#reproduce-our-tests)
+has the exact commands. Cockpit, if enabled, is the box's only web surface
+besides the model server itself.
+
+## Policy
+
+1. **Quality first** — within acceptable speed
+2. **Speed floor** — gate: at least ~200 t/s prefill and ~20 t/s
+ generation, then we measure wall-clock, not server-reported. See below,
+ [Speed at depth](#speed-at-depth--how-much-wall-time-you-actually-wait)
+3. **Q5+ quants by default — a sub-Q5 quant serves only on a measured pass**
+ (revised 2026-09-24). The floor comes from enterprise-level experience and
+ community expert consensus on MoE (mixture-of-experts) quantization
+ robustness, not from a 12-item battery alone; our battery *confirms* Q5
+ meets the quality gate. The deprecation is now **per-quant, not per-class**:
+ a sub-Q5 quant earns serving rights when (i) a same-day, same-protocol
+ paired census ties or beats the then-champion's cell, and (ii) it fits the
+ RAM envelope the then-champion does not (the 2026-09-24 sizing rule: RAM <100%,
+ swap <0.5 GiB, no refault storms). **UD-Q4_K_XL is the first earned
+ exception** — 14/15 fcb15 vs the champion's same-day 12/15, at 36 GiB less
+ weight ([²⁶](#fn26)) — and is now the fleet's serving default; Q5 remains
+ the on-demand quality tier. Unmeasured Q4-class quants stay deprecated.
+ See below,
+ [Why not IQ4_NL](#why-not-iq4_nl-also-1212-faster-decode-less-ram).
+4. **llama.cpp first** — preferably the vanilla build (upstream master,
+ easy updates); the tuned HIP fork is used where prefill speed demands.
+ *Measured exception:* for this model family the fork is
+ load-bearing — the MTP draft GGUF is fork-format (upstream rejects
+ it), and an eager-load vanilla census hard-crashed the lab box
+ (no lazy-PLE path). Vanilla stays preferred for models it can host;
+ see the engine-axis note in `configs/q5-flash-next-winner.md`.
+5. **Open source only** — closed engines are evaluated for reference,
+ never adopted
+6. **Solo-coder optimized** — one user, one GPU, no multi-tenant overhead
+7. **Single model vs co-residency** — for the best quality at a
+ good-enough speed, the primary goal is to serve a single
+ all-purpose model on a single Strix-Halo, optionally routed by a
+ fast classifier service (e.g. Laya, from any LAN node). At the cost
+ of a service restart, one Halo node can be configured to serve
+ multiple models via `models.ini` — either by swapping the single
+ big model, or by co-hosting smaller models (e.g. Qwen 27B-Q8 +
+ Qwen Image 2.1).
+
+## The "sharp" chat template
+
+The serve recipe doesn't use the stock Qwen3.8 template. It runs
+[configs/templates/sharp-v22.5.0.jinja](configs/templates/sharp-v22.5.0.jinja)
+(`qwen3.8-froggeric-v22.5.0`, from
+[froggeric/Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates)
+on Hugging Face — attributed to its author and subject to their terms)
+because it is the control surface for thinking:
+
+- `enable_thinking` — default **true**: reasoning streams before the
+ answer, which is why the champion runs as a thinking model in our cells
+- `reasoning_effort` — `none`/`off` disables thinking outright;
+ `low`/`medium`/`xhigh` pick a tier (default `medium`)
+- `auto_disable_thinking_with_tools`, `preserve_reasoning` across turns,
+ an XML tool-call format, and vision plumbing
+
+Two honesty notes: every measured quality and speed cell ran through
+this template — the numbers are template-specific, we have not run a
+stock-vs-sharp battery A/B, and none of the published cells ran with
+thinking off. `sha256 cdff39fb26b60dc90faa292e726655c6b21f62db497846e02e4c4bbab942a84a`.
+The stock template is a drop-in swap of the `chat-template-file` line if
+you prefer upstream-default behavior.
+
+## RAM accounting
+
+One method, applied to every candidate. All figures GiB.
+
+The @262k columns are the *arithmetic* at the native ceiling — no tier
+serves it; the retreat ladder ended at **131k** for Q5 (its measured-stable
+value) and the Q4 fleet default serves 131k by recipe (see
+[Why Q4 wins](#why-q4-wins) and [Why not Q5?](#why-not-q5-the-demoted-champion)); Q6 ships at 64k (its sustained gate).
+
+| component | Q5 @262k | Q6 @262k | Q6 @131k | IQ4_NL @262k | UD-Q4_K_XL @131k (observed) |
+|---|---:|---:|---:|---:|---:|
+| resident weights (file − PLE streamed to SSD) | 96.5 | 107.0 | 107.0 | 66.0 | 111.3 file (GTT 91–93 incl. KV+draft) |
+| KV cache, full-attention layers (f16) | 6.0 | 6.0 | 3.0 | 6.0 | 3.0 |
+| MTP draft | 2.6 | 2.6 | 2.6 | 2.6 | 1.8 (Q4_K_M) |
+| mmproj vision projector (enabled in models.ini) | 0.9 | 0.9 | 0.9 | 0.9 | — |
+| compute buffers + PLE row-reader (bounded by `-ub 4096`) | ~3.0 | ~3.0 | ~3.0 | ~3.0 | ~3.0 |
+| OS + system services | ~5.0 | ~5.0 | ~5.0 | ~5.0 | ~5.0 |
+| **total** | **114.2** | **124.7** | **121.7** | **83.7** | **95.4 measured RAM in use** |
+| box limit | 124 | 124 | 124 | 124 | 124 |
+| **headroom (theoretical)** | **9.8** | **−0.7 (doesn't fit)** | **2.3 (razor)** | **40.3** | **~29 (measured)** |
+
+**Observed in practice:** with the full 262k KV pool allocated and the
+server idle, the box reports ~121 of 124 GiB used (~3 GiB available) —
+page cache and streaming working sets consume most of the theoretical
+margin. The `MemoryMax=118G` systemd cap sits between: enough room for
+the ~114 GiB footprint, tight enough that an OOM kill (which is what
+killed the Q6 bench chain) is the failure mode, not silent swap.
+
+This accounting assumes the
+[no-zram swap layout](#swap-answer-no-to-zram--and-why) both nodes run:
+a plain 32 GiB swapfile, `vm.swappiness = 10`, and no compressed RAM
+device competing for the pool. zram0 was stripped from both boxes
+(2026-09-23, verified after: `/proc/swaps` lists only the swapfile on
+each) — with zram present, up to 16–32 GiB of "swapped" pages were
+still RAM-resident, silently shrinking the headroom this table grants.
+
+Where the numbers come from:
+- **KV cache** at 262k = 12 full-attention layers × 2 KV heads ×
+ (256 key + 256 value) dims × 2 bytes × 262144 positions ≈ 6.0 GiB.
+ The model is **hybrid-attention** (GGUF metadata: 48 layers,
+ `full_attention_interval = 4` — only every 4th layer retains full KV;
+ the rest are sparse/indexed with a bounded window), which is why the
+ KV is so light for a 262k context.
+- **PLE row-reader** is bounded by `-ub 4096`; larger micro-batches scale
+ it linearly, and without the bound, 32k+ prefills amplify row reads past
+ the RAM ceiling.
+- **OS + buffers** = 5 GiB, applied uniformly to every candidate (earlier
+ versions used a looser estimate — this table is the corrected one).
+
+## Speed at depth — how much wall-time you actually wait
+
+Real-text prompts actually filled (no synthetic filler). These are the
+seconds from "send" to "reply complete."
+
+**Why seconds, not tokens/second:** most speed talk quotes pp/tg —
+tokens/second while filling or draining the context. Fine as kernel
+diagnostics, but they say next to nothing about what you actually wait:
+the wall-clock time to complete a task **successfully** — prefill at
+real depth, retries, and re-generating artifacts that failed QA all
+included. (An independent DeepSeek run posted healthy-looking completion
+rates across 83 minutes of model wall time and delivered zero accepted
+artifacts — the t/s looked fine, the task failed.) Reasoning models
+sharpen the point further: our champion thinks before it answers, so a
+task's token count is reasoning + answer, and decode t/s alone can't
+tell you how many tokens you'll wait through. This table is in seconds
+for that reason.
+
+| prompt size | Q5 | Halogen | who wins |
+|---|---:|---:|---|
+| 4k | 6.4 s | 5.5 s | Halogen, slightly |
+| 32k | **40.6 s** | 9.1 min | **Q5, 13.5×** |
+| 128k | **3.3 min** | 29.5 min | **Q5, 8.9×** |
+
+For context: a 32k prompt is roughly "a medium codebase plus your task."
+A 128k prompt is "the whole monorepo." This is why prefill-at-depth is
+the deciding axis for coding.
+
+**Credit where due** (these wall-clock cells are the Q5-era Halogen
+measurement; the engine table's same-day Q4 cells live in
+<a id="fn29"></a>²⁹ — two epochs, do not mix them): Halogen wins decode at depth
+(27.3/25.6 t/s at 2k/128k vs our 25.7 sustained) and wins prefill at 4k. Our re-measured
+short decode (**34.8 t/s** tg128) now edges its 32.4. For
+short-prompt chat it remains the faster engine; the collapse at depth
+is what kills it for our workload. Its 128k cell completed at 1770s —
+30s under our client timeout — real but with a thin margin; the
+non-monotonic throughput
+(60 → 71 t/s) is unexplained — the 32k cell matches nominal-size
+arithmetic (32768/546 = 60.0) while the 128k cell reads 131072/1770 =
+74, not 71; the probe's raw token counts will settle it.
+
+**Evidence note:** the wall-clock probe behind this table — and the
+pp/tg podium cells — is committed as
+[benchmarks/speed_probe.py](benchmarks/speed_probe.py), and quality cells
+reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
+per-cell console logs behind the individual podium numbers.
+
+## Got a new model? Test it, then compare it to the podium
+
+Everything the podium rows are made of is reproducible from this repo with
+two committed tools. A full row takes about an hour of unattended GPU time
+on this box; a first read on a new model takes ten minutes.
+
+### 1. Serve it
+
+Any OpenAI-compatible chat endpoint works, and all the commands below take
+`--host`. Three common shapes:
+
+```bash
+# (a) add it as an arm to the router (one arm resident at a time)
+#     ~/Piero/Work/Qwen38/models.ini — copy the champion's block, swap the
+#     model/model-draft paths, set load-on-startup = false, reload the service
+# (b) a one-off server on the lab box
+llama-server -m <model.gguf> -md <draft.gguf> --host 0.0.0.0 --port 8080 \
+    -c 65536 -ctk f16 -ctv f16 --jinja -fa on -ngl all
+# (c) a remote or vendor endpoint
+#     uv run python3 scripts/probe.py --host https://api.example.com --model <vendor-id>
+#     (needs GEFC_API_KEY in the env; refuses before sending a byte without it)
+```
+
+Ask the endpoint what it is actually serving — never infer it from the
+config you edited: `curl -s localhost:8080/v1/models`.
+
+**Two settings decide whether the numbers mean anything**
+
+- **Chat template.** The measured template effect on this family is 2–3×
+  (IQ4_NL: 0.333 stock → 0.667 sharp, same quant, same battery). A stock
+  template run is a valid measurement *of the stock template*, and is not
+  comparable to the podium's sharp-family rows. State which one you ran.
+- **Context.** Serve the context you intend to claim. Some models are
+  trained short (Muse-Glimmer: 131072) and the server silently caps the
+  slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
+  would be a fiction.
+
+### 2. Quality — the batteries, with a confidence interval
+
+```bash
+cd ~/Piero/Work/Qwen38/gbench
+
+# the Italian pass/fail gate (the podium's Italian column) — a census, 12 items
+uv run python3 scripts/probe.py --battery iten12 --budget 12 \
+    --tag mysmodel-iten --model <arm> --host 127.0.0.1:8080 --hardware "Strix Halo (gfx1151)"
+
+# coding: the 15-item deterministically-graded bank (census for a podium row)
+uv run python3 scripts/probe.py --battery fcb15 --budget 15 \
+    --tag mymodel-fcb15 --model <arm> --host 127.0.0.1:8080
+
+# the pre-registered harder rungs — the threshold layer, where a saturating
+# model stops being measurable (see docs/FCB15-CALIBRATION.md in GEFC)
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3d --model <arm> \
+    --items-file batteries/fcb15_v3d.py
+uv run python3 scripts/fcb15_run.py --tag mymodel-v3de --model <arm> \
+    --items-file batteries/fcb15_v3de.py
+uv run python3 scripts/threshold_scorer.py   # -> tier pass rates + break point
+
+# reasoning tiers
+uv run python3 scripts/probe.py --battery zebra --budget 20 --tag mymodel-zebra --model <arm>
+uv run python3 scripts/probe.py --battery aime  --budget 30 --tag mymodel-aime  --model <arm>
+```
+
+Grading is deterministic and machine-only — a Python harness per item, no
+LLM judge, no rubric prose. A wrong answer fails on an `assert`, so a
+sabotaged grader shows up as a wrong number, not a loud bug.
+
+Read the **CI**, not the point estimate. `--budget` below the battery size
+spends exactly that many items and gives a Wilson 95% interval; a census is
+labelled as such. Two rows whose intervals overlap are **not** ranked by
+this suite — that is the whole reason the podium reports intervals.
+
+### 3. Speed — wall-clock, on this box
+
+```bash
+uv run python3 benchmarks/speed_probe.py --model <arm>          # all five cells
+uv run python3 benchmarks/speed_probe.py --model <arm> --tg-only # decode only
+```
+
+This is the probe the podium's `pp @4k/32k/128k` and `tg128/tg2048` columns
+come from, and it measures the clock, not the server's own counters:
+
+- **prefill** — one request per window, timed send → complete, distinct
+  corpus offsets so no prompt cache flatters a cell
+- **decode** — streamed, timed first content delta → last, so prompt
+  processing is excluded; reasoning deltas count as output
+
+Comparability rules: same corpus (`benchmarks/corpus/speed-corpus.txt`),
+same offsets, temperature 0, **one client**. A cell measured while another
+job shares the GPU is not a cell — rerun it.
+
+Two traps that cost us a whole measurement pass, both worth knowing before
+you trust a number:
+
+- **Serve the context the cell needs, or read the refusal honestly.** A
+  pp@128k request sends a ~160k-token window on code-dense text, so an arm
+  served at `c=131072` refuses it with HTTP 400 — the probe prints
+  `n/a`, which is the correct cell, not a zero. The probe prints the
+  realised token count; that is the number to quote.
+- **Keep the box quiet, including its disk.** The champion's serving
+  config leaves ~1 GiB of host headroom, so any large file I/O evicts the
+  model's cached weights and decode collapses: a 26 GiB transfer running
+  beside one battery item took the arm from **34 t/s to 0.93 t/s** and
+  produced a 291 s "failure" that was pure page-cache thrash. We threw
+  that run away and re-ran it. Copy files *between* measurement passes,
+  never during one.
+
+### 4. Compare
+
+| what | where |
+|---|---|
+| the podium table | [above](#what-we-measured) — the row format to match |
+| the raw rows behind every cell | [benchmarks/results.json](benchmarks/results.json) |
+| the per-item runs (resume-safe JSONL) | `gbench/results/fcb15-<tag>.jsonl` |
+| how a claim gets promoted or retired | [Policy](#policy) |
+
+A model earns a podium row when it clears: the Italian gate (12/12), a
+fcb15 census, a real speed sweep, and a RAM figure — **all at the same
+template and context you are claiming**. Until then it belongs in the
+prose of the chapter it is challenging, with its CI, not in the table.
+
+Before trusting any number — yours or ours — read
+[benchmarks/measuring.md](benchmarks/measuring.md): the ways this project
+measured itself wrong (template confounds, the quiet-box rule, noise
+floors, and the tooling that lies). Two honest outcomes worth writing
+down when you do this:
+
+- **Saturation is a result too.** If a model caps the battery, that rung
+  has stopped measuring it — run the next tier (`fcb15_v3d.py`) or the row
+  says nothing the previous model's row didn't.
+- **A negative A/B is a result.** This suite's most reused findings are
+  negative: the draft-length setting that lifted the 27B did **not** lift
+  Muse (14.4 vs 15.0 t/s), and a Strix-Halo neighbour project's best MTP
+  tuning (3 draft tokens, n-gram off, +62% on their box) **tied** our
+  production config here (35.8/26.4 vs 36.0/25.7). A knob win does not
+  transfer between trunks or setups until it is measured on yours.
+
+## Reproduce our tests
+
+Everything is in the repo:
+
+- [benchmarks/](benchmarks/) — **the batteries and runner behind our quality
+ tables**: ITEN-12 v2, AIME-60, a deterministic runner, and our measured
+ results (`results.json`). Three commands reproduce a score — see
+ [benchmarks/README.md](benchmarks/README.md). The 2026-09-25 Q4 census
+ ran end-to-end from one script against the live serving arm:
+ `benchmarks/q4-marathon-260925.sh` (iten12 → sli → zebra → AIME-12 →
+ AIME-60 → fcb15 ladder; per-battery JSONL + reports land beside it)
+- [gbench/](gbench/) — the GBench coding/CSP probe (fcb15 + zebra
+ batteries, Wilson-CI runner) behind the
+ [coding](#coding--gbench-fcb15-deterministic-unit-tested) and
+ [zebra](#zebra--csp-logic-ladder-gbench) tables
+- [configs/](configs/) — exact serve commands, binary provenance (commits,
+ digests, build recipes), full sha256 checksums, flag-by-flag explanations
+- [models.ini](models.ini) — the single source of truth for all serving
+ options
+- [systemd/](systemd/) — the two unit files (HIP fast-prefill and Vulkan
+ vanilla), switchable with one command
+- [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
+ the nightly auto-improve loop (see the chapter below)
+
 
 ## Italian (iten12)
 
@@ -1757,6 +1737,8 @@ fork served the identical request three times — deep-prefill at doubled ctx
 stays fork territory (log `/tmp/vhip-q4.log` era, driver
 `benchmarks/bench-samebasis-260925.sh`); (iii) the Vulkan decode win over
 vanilla HIP (+26% tg128) replicates on Q4, same direction as fn35's Q5 finding.
+(Upstream moved on to b11181 `d028c697b` the same morning; the cells above
+remain b11168 — re-pin on the next engine pass.)
 
 <a id="fn37"></a>³⁷ **pp@128k at 262k context, 2026-09-25** — the cell fn26
 owed (the served c=131072 refuses the probe's ~160k-token window). The
@@ -1854,3 +1836,4 @@ loading since master `b23701f77` (PR #28136). Its measured cost is **deep prefil
 fast deep-prefill on the gfx1151-only ROCm 10.2 nightly (`rocm-nightly-gfx1151-bin`,
 AUR) with `GGML_HIP_ENABLE_UNIFIED_MEMORY=1`. Rule of thumb on this fleet: HIP for
 anything that serves, Vulkan for tracking upstream behaviour.
+
