@@ -5,10 +5,10 @@
 <!-- toc -->
 
 - [In a hurry? Look here.](#in-a-hurry-look-here)
+- [Our podium](#our-podium)
 - [Policy](#policy)
 - [Glossary](#glossary)
 - [Hardware](#hardware)
-- [Our podium](#our-podium)
 - [What we measured](#what-we-measured)
 - [Analysis — every measured solution](#analysis--every-measured-solution)
   - [Why Q4 wins](#why-q4-wins)
@@ -69,6 +69,31 @@ default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
 evidence, method, or operations.
+
+## Our podium
+
+The ranked shortlist — judgment on top of the measurements (the numbers
+live in [What we measured](#what-we-measured)):
+
+1. **#1 — Gufo + Qwen3.8 Flash-Next UD-Q4_K_XL (shared-Q8_0 MTP).** The open
+   engine wins both speed axes at the fleet basis — prefill +39% (1200 vs
+   865 t/s), tg128 +32% (44.1 vs 33.5), pp@128k **621 t/s** where vanilla
+   upstream dies — quality holds (fcb15 13/15), and it is a whole model
+   stack in one MIT binary: the LLM plus Qwen-Image-2.1 image
+   generation/editing (measured on this box), Qwen3-ASR, Qwen3-TTS voice
+   cloning, and MiniMax-H3 text-to-video. What still keeps it off the fleet's serving
+   port: robustness, concurrency and ops surface unproven
+   ([Gufo — the open challenger](#gufo--the-open-challenger)).
+2. **#2 — our llama.cpp fork + Qwen3.8 Flash-Next UD-Q4_K_XL + MTP
+   (Q4_K_M draft) · sharp-low.** The fleet serving default and the
+   load-bearing baseline: months of resident-serving robustness, the
+   deep-prefill patches, and the router + systemd fleet around it
+   ([The fork — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)).
+   The exit plan is upstream: vanilla llama.cpp is our privileged citizen,
+   and we adopt it the day [PR #27836](https://github.com/ggml-org/llama.cpp/pull/27836)
+   (qwen4exp NextN/MTP draft head, still open) merges and vanilla can host
+   the champion's draft ([³⁸](#fn38)).
+3. *#3 — reserved: a row joins when a solution earns it.*
 
 ## Policy
 
@@ -154,31 +179,6 @@ server** — no desktop environment. We access it mainly via SSH; a
 browser-based monitoring. If you reproduce this, a headless setup keeps
 ~5 GiB of RAM free that a desktop would otherwise consume — that margin
 is counted in the [RAM accounting](#ram-accounting) table.
-
-## Our podium
-
-The ranked shortlist — judgment on top of the measurements (the numbers
-live in [What we measured](#what-we-measured)):
-
-1. **#1 — Gufo + Qwen3.8 Flash-Next UD-Q4_K_XL (shared-Q8_0 MTP).** The open
-   engine wins both speed axes at the fleet basis — prefill +39% (1200 vs
-   865 t/s), tg128 +32% (44.1 vs 33.5), pp@128k **621 t/s** where vanilla
-   upstream dies — quality holds (fcb15 13/15), and it is a whole model
-   stack in one MIT binary: the LLM plus Qwen-Image-2.1 image
-   generation/editing (measured on this box), Qwen3-ASR, Qwen3-TTS voice
-   cloning, and MiniMax-H3 text-to-video. What still keeps it off the fleet's serving
-   port: robustness, concurrency and ops surface unproven
-   ([Gufo — the open challenger](#gufo--the-open-challenger)).
-2. **#2 — our llama.cpp fork + Qwen3.8 Flash-Next UD-Q4_K_XL + MTP
-   (Q4_K_M draft) · sharp-low.** The fleet serving default and the
-   load-bearing baseline: months of resident-serving robustness, the
-   deep-prefill patches, and the router + systemd fleet around it
-   ([The fork — why it still serves](#the-fork-llamacpp-strix-halo--why-it-still-serves)).
-   The exit plan is upstream: vanilla llama.cpp is our privileged citizen,
-   and we adopt it the day [PR #27836](https://github.com/ggml-org/llama.cpp/pull/27836)
-   (qwen4exp NextN/MTP draft head, still open) merges and vanilla can host
-   the champion's draft ([³⁸](#fn38)).
-3. *#3 — reserved: a row joins when a solution earns it.*
 
 ## What we measured
 
