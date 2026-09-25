@@ -355,10 +355,16 @@ def stats():
     log = (f'<div class="card log"><b>ACTIVITY — {_eng} (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
     # box strip (operator 260925): network name, LAN IP, ports + API endpoints
+    _ip = "?"
     try:
-        _ip = next((i for i in subprocess.run(["hostname", "-I"], capture_output=True, text=True,
+        import subprocess as _sp
+        _ip = next((i for i in _sp.run(["hostname", "-I"], capture_output=True, text=True,
                     timeout=4).stdout.split() if i.startswith("192.168.")), "?")
-    except Exception: _ip = "?"
+    except Exception:
+        try:
+            _ip = next((a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
+                        if a[4][0].startswith("192.168.")), "?")
+        except Exception: pass
     try:
         _img = subprocess.run(["systemctl", "--user", "is-active", "gufo-serve"],
                               capture_output=True, text=True, timeout=4).stdout.strip() == "active"
