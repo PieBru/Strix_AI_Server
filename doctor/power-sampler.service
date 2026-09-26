@@ -1,0 +1,32 @@
+# power-sampler — forensic line-of-record across HARD power cuts (:none, log only)
+#
+# The EVO-X2 has no battery and cuts silently under sustained GPU inference:
+# journald is buffered, so a rail drop loses the tail and leaves no shutdown
+# record at all. This unit fsyncs one line every 5 s to ~/logs/power-sample.log,
+# so the last surviving line is the machine state at the instant of the cut.
+# Read-only: no writes outside its own log, no privileged calls, no subprocesses.
+# ~2 MB RSS.
+#
+# Install (runs straight from the checkout — no copy into $HOME):
+#   1. edit ExecStart below to your checkout path
+#   2. install -Dm644 doctor/power-sampler.service ~/.config/systemd/user/
+#   3. systemctl --user daemon-reload && systemctl --user enable --now power-sampler
+#   4. verify: doctor/power-sampler.py --tail 3   (must show fresh timestamps)
+
+[Unit]
+Description=power-sampler — fsync-per-line forensic record that survives a hard power cut
+After=multi-user.target
+
+[Service]
+Type=simple
+# Never let the monitor be the thing that gets killed, and never let it be the
+# thing that gets OOM-volunteered either: neutral score, hard cap.
+OOMScoreAdjust=0
+MemoryHigh=128M
+# Reference box checkout — edit to yours.
+ExecStart=%h/Piero/Work/Strix_AI_Server/doctor/power-sampler.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
