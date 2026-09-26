@@ -1086,6 +1086,17 @@ config you edited: `curl -s localhost:8080/v1/models`.
   trained short (Muse-Glimmer: 131072) and the server silently caps the
   slot — the 128k cell then legitimately reads `n/a`, and a claimed 262k
   would be a fiction.
+- **Sampling (protocol v6, from 260925).** Quality cells marked `(v6)` ran
+  at the producer-recommended recipe, per family card; unmarked quality
+  cells are the greedy era (temp 0, "v5") and are NOT comparable to v6
+  cells — temp 1.0 costs every Qwen arm 0.17–0.25 AIME-12 while fcb15
+  holds, so cross-protocol comparisons mislead. The recipes: Flash-Next
+  (all quants) 1.0/0.95/k20; 27B general 1.0/0.95/k20; 27B precise-coding
+  0.6/0.95/k20 (measured: does NOT rescue fcb15 — 5–6/15 vs greedy 12/15);
+  Muse-Glimmer 1.0/0.95/k**64** (measured: transforms the model — AIME-12
+  0.333→0.583, fcb15 7→12–13/15 first-pass). Under v6, fcb15
+  "with-retry" = a second independent sample at the same params, fresh
+  randomness (not re-greedy). Speed cells stay greedy by protocol (P-speed).
 
 ### 2. Quality — the batteries, with a confidence interval
 
