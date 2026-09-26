@@ -176,7 +176,7 @@ live in [Footnotes](#footnotes).
 | Local LLM | **Qwen3.8 Flash-Next Q5_K_XL + MTP** · sharp-low [¹²](#fn12) [¹⁴](#fn14) |**689** |**672** | 🟡**605** | 🟢**34.8** | 🟡**25.7** | **12/12** | 🟢**0.833** | 🟢0.533 [³⁴](#fn34) | 🟢**0.65** | 🟡**0.867** [¹⁰](#fn10) | **all rungs** | 10/10 | 97 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
 | Local LLM | Qwen3.8 Flash-Next Q6_K_XL + MTP · sharp-low [²](#fn2) |**730** |**699** |199 [¹⁸](#fn18) | 🟡**34.3** |**22.3** | **12/12** | 🟡0.750 | — | 🟢**0.65** [¹¹](#fn11) | 🟡**0.867** [¹¹](#fn11) | **all rungs** [¹¹](#fn11) | 10/10 [¹¹](#fn11) | 107 GiB · draft MTP shared-Q8_0 · 2.6 GiB |
 | Local LLM | Qwen3.8 27B Q8_K_XL + DFlash2 · sharp-low (serves stock) [¹⁴](#fn14) |486 |409 |192 | 20.5 | 🟡**28.0** | 🔴11/12 | 🟢**0.833** | 🟡 0.483 [0.36–0.61] [⁴²](#fn42) | 🟢**0.65** |0.800 [¹⁰](#fn10) | **all rungs** | 10/10 | 30 GiB · draft DFlash2 · 1.1–1.9 GiB [¹⁴](#fn14) |
-| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock |499 |470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | **12/12** | 0.333 | — |0.45 |0.733 [¹⁰](#fn10) |7/15 greedy · 13/15 retry [³⁶](#fn36) | 10/10 [⁴¹](#fn41) | 32 GiB · draft DFlash2 · 1.5 GiB |
+| Local LLM | Muse-Glimmer-30B Q8 + DFlash2 · stock |499 |470 | n/a [¹⁶](#fn16) | 🟡34.5 | 15.2 [³](#fn3) [¹⁷](#fn17) | 🟡 11/12 (v6) | 🟡**0.583** [0.32–0.81] (v6) | — |0.417 (v6) |0.733 [¹⁰](#fn10) | 🟡**12–13/15 → 13** (v6 n=2) [³⁶](#fn36) | 10/10 [⁴¹](#fn41) | 32 GiB · draft DFlash2 · 1.5 GiB |
 | Cloud | DeepSeek V4.1 Flash (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) | 🟡0.667 [0.39–0.86] | 🟡0.483 [0.36–0.61] [⁸](#fn8) | 0.42 [0.19–0.68] | 0.533 [0.30–0.75] (n=15) [²²](#fn22) |7/15 [²²](#fn22) | 🔴0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
 | Cloud | GLM-5.3 (cloud API) | — | — | — | — | — | **12/12** (passes) [¹⁹](#fn19) |0.583 [0.32–0.81] [¹⁹](#fn19) | 🟡0.433 [0.32–0.56] [²³](#fn23) |0.50 [0.25–0.75] [¹⁹](#fn19) | 0.60 [0.36–0.80] (n=15) [²²](#fn22) | 🟡11/15 [²²](#fn22) | 10/10 [²²](#fn22) | n/a (API) |
 | Cloud | GLM-5.3-flash (cloud API) | — | — | — | — | — | 🔴**11/12** (passes) [²⁰](#fn20) | 0.333 [0.14–0.61] [²⁰](#fn20) |0.367 [0.26–0.49] [²³](#fn23) | 0.417 [0.19–0.68] [²⁰](#fn20) | 0.667 [0.42–0.85] (n=15) [²²](#fn22) | 🟡9/15 [²²](#fn22) | 🔴0.8 [0.49–0.94] [²²](#fn22) | n/a (API) |
@@ -543,7 +543,8 @@ blocking — it is a complete cloud row.
 
 ### GLM-5.3-flash (cloud)
 The value pick: ladder 9/15 greedy but **15/15 with retry** (its greedy
-misses are format, not capability), AIME-60 0.367. Cons: AIME-12 0.333 —
+misses are format, not capability), AIME-60 0.367. Cons (v6 producer
+params, 260926): AIME-12 **0.583** —
 the reasoning floor of the cloud set; iten 11/12. Missing cells: none
 blocking.
 
@@ -730,7 +731,7 @@ same code-block contract as our locals; its cloud sibling now measures
 endpoint with the same harness, seed and n=12 as the neighbouring rows
 (artifacts: `probe-glm53f-{iten12,aime,zebra}.json`). The flash variant
 **passes the Italian gate** that full GLM-5.3 failed (11/12 vs 7/12) —
-but it is the weakest reasoner in the table (AIME 0.333, CI not
+but under v6 producer params it is a mid-pack reasoner (AIME-12 0.583, CI not
 overlapping the champion's 0.833) and its zebra 0.417 ties DeepSeek's
 cloud cell. Read it as: better instruction-following than its full
 sibling, weaker reasoning than everything else measured here.
