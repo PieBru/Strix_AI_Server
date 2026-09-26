@@ -23,7 +23,7 @@ from urllib.parse import unquote
 # separated) set in the unit — keeps the checkout pristine, no re-edits on
 # git pull.
 ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
-    "llama-llm,gufo-llm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
+    "llama-llm,gufo-llm,27b-collm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
 def _router_ini():
@@ -268,10 +268,14 @@ def boxinfo():
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
     _eps = []
-    # LLM arm toggle (260925): label carries status; link opens from LAN browser.
-    _llm_arm = "llama-llm" if _has("llama-llm.service") else "gufo-llm"
-    _llm_up = _svc(_llm_arm)
-    _lbl = ("webui :8080" if _llm_arm == "llama-llm" else "llm :8080")
+    # LLM arm toggle (260925; 260926 +27b-collm co-resident arm): label
+    # carries status of whichever arm is LIVE; link opens from LAN browser.
+    _arm = next((a for a in ("llama-llm", "27b-collm", "gufo-llm")
+                 if _has(f"{a}.service") and _svc(a)), None)
+    if _arm is None:
+        _arm = "llama-llm" if _has("llama-llm.service") else "gufo-llm"
+    _llm_up = _svc(_arm)
+    _lbl = {"llama-llm": "webui :8080", "27b-collm": "27b :8080"}.get(_arm, "llm :8080")
     _eps.append(_btn("/llmtoggle", ("⏹ stop " if _llm_up else "▶ start ") + _lbl)
                 + (f' <a style="color:#8cf" href="http://{socket.gethostname()}.local:8080/" target="_blank">open ↗</a>'
                    if _llm_up else ""))
@@ -464,7 +468,7 @@ details.chk summary::-webkit-details-marker{display:none}
 details.chk summary::before{content:"▸ ";color:#4c9aff}
 details.chk[open] summary::before{content:"▾ "}
 .err{background:#3a1111;border:1px solid #ff6b6b;color:#ffb3b3;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85em;white-space:pre-wrap}
-.boxfoot{margin-top:24px;font-size:.78em;color:#789;border-top:1px solid #234;padding:8px 2px}
+.boxfoot{margin-top:24px;font-size:.78em;color:#789;padding:8px 2px}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
@@ -591,16 +595,20 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
         elif self.path == "/llmtoggle":
-            # 260925: toggle the :8080 arm (llama-llm webui arm preferred, gufo-llm
-            # fallback where the fork unit doesn't exist). Fixed argv, POST-only.
-            _arm = "llama-llm.service"
-            try:
-                subprocess.run(["systemctl", "--user", "cat", _arm], capture_output=True, timeout=4)
-            except Exception:
-                _arm = "gufo-llm.service"
-            _act = subprocess.run(["systemctl", "--user", "is-active", _arm],
+            # 260925; 260926: toggle the LIVE :8080 arm if any (llama-llm /
+            # 27b-collm / gufo-llm), else start the preferred one. POST-only.
+            _arm = next((a for a in ("llama-llm", "27b-collm", "gufo-llm")
+                         if subprocess.run(["systemctl", "--user", "is-active", f"{a}.service"],
+                                           capture_output=True, text=True, timeout=4).stdout.strip() == "active"), None)
+            if _arm is None:
+                _arm = "llama-llm"
+                try:
+                    subprocess.run(["systemctl", "--user", "cat", f"{_arm}.service"], capture_output=True, timeout=4)
+                except Exception:
+                    _arm = "gufo-llm"
+            _act = subprocess.run(["systemctl", "--user", "is-active", f"{_arm}.service"],
                                   capture_output=True, text=True, timeout=4).stdout.strip()
-            subprocess.run(["systemctl", "--user", ("stop" if _act == "active" else "start"), _arm], timeout=60)
+            subprocess.run(["systemctl", "--user", ("stop" if _act == "active" else "start"), f"{_arm}.service"], timeout=60)
             body, ct = f"{('stopping' if _act == 'active' else 'starting')} {_arm}…", "text/plain"
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
