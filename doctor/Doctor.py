@@ -288,6 +288,13 @@ def boxinfo():
                        if _dm or _ts else ""))
     if _svc("open-webui"):
         _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:3000/" target="_blank">:3000 open-webui</a>')
+    # ComfyUI / MiniMax-H3 video lab on :8188 (operator 260927). Shown even when
+    # stopped: the unit carries no Conflicts=, so it shares GPU/GTT with the LLM
+    # arms — its state explains an OOM'd render (260927) more than its URL does.
+    if _has("comfyui-h3.service"):
+        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:8188/" target="_blank">:8188 comfyui ↗</a>'
+                    if _svc("comfyui-h3.service")
+                    else '<span style="color:#777">:8188 comfyui stopped</span>')
     _eps.append(":8667 doctor — /")
     return (f'<div class="boxfoot"><b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
             + " · ".join(_eps) + "</div>")
@@ -415,7 +422,7 @@ def stats():
             f'{log}')
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
-<script src="https://unpkg.com/htmx.org@2"></script>
+<script src="/htmx.min.js"></script>
 <script>function armOrd(m){fetch('/armorder?mode='+m)}</script>
 <script>const H_TG=[],H_ACC=[];let lastSig=null,N=180;
 function draw(id,arr){if(arr.length<2)return;var t0=arr[0][0],t1=arr[arr.length-1][0],dt=(t1-t0)||1;
@@ -669,6 +676,16 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/log":
             lines = [re.sub(r"^.*?llama-server\[\d+\]: ", "", l) for l in CACHE["jn"][-200:]]
             body, ct = "<pre>" + html.escape("\n".join(lines)) + "</pre>", "text/html"
+        elif self.path == "/htmx.min.js":
+            # Vendored 260927 (operator): the dashboard used to load htmx from
+            # unpkg.com, so with no internet the whole page was inert. Served
+            # from the repo next to this file; missing file must not kill the page.
+            try:
+                body = open("/home/piero/Piero/Work/Strix_AI_Server/doctor/htmx.min.js",
+                            errors="ignore").read()
+            except OSError:
+                body = ""
+            ct = "application/javascript"
         elif self.path.startswith("/res/"):
             body, ct = res(self.path[5:]) or "<pre>?</pre>", "text/html"
         else:
