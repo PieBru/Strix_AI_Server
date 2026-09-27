@@ -7,7 +7,10 @@ Conflicts=llama-llm.service gufo-llm.service qwen-image-demo.service
 
 [Service]
 WorkingDirectory=/home/piero/Piero/Work/QImage21
-ExecStart=/usr/bin/uv run --with gradio --with pillow python tests/simple_gradio_ui.py
+# --offline: this box has no internet. Without it uv re-resolves the requirement set
+# against pypi on every cold start and the unit crash-loops with status=2/INVALIDARGUMENT
+# (gradio 6.28 + pillow 12.3 are in the uv cache). Observed 260927 after a stop/start.
+ExecStart=/usr/bin/uv run --offline --with gradio --with pillow python tests/simple_gradio_ui.py
 Restart=on-failure
 RestartSec=5
 
