@@ -1,0 +1,17 @@
+{
+  "host": "127.0.0.1",
+  "port": 8001,
+  "backend": "vulkan",
+  "device": 0,
+  "threads": 8,
+  "lazy_load": true,
+  "models": [
+    {
+      "id": "acestep",
+      "family": "ace_step",
+      "path": "/home/piero/audio.cpp/models/ACE-Step1.5-GGUF/turbo",
+      "task": "gen",
+      "mode": "offline"
+    }
+  ]
+}

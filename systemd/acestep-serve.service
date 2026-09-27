@@ -1,0 +1,15 @@
+[Unit]
+Description=ACE-Step 1.5 music engine (audio.cpp / Vulkan) on 127.0.0.1:8001
+After=network.target
+
+[Service]
+WorkingDirectory=/home/piero/audio.cpp
+ExecStart=/home/piero/audio.cpp/build-vk/bin/audiocpp_server --config /home/piero/Piero/Work/Strix_AI_Server/acestep/acestep-server.json --no-ui
+Restart=on-failure
+RestartSec=5
+# SIGTERM is how systemctl stops this unit; without this a clean restart looks
+# like a crash in the journal (same trick as h3-video-ui).
+SuccessExitStatus=143
+
+[Install]
+WantedBy=default.target
