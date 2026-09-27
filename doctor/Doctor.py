@@ -295,6 +295,13 @@ def boxinfo():
         _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:8188/" target="_blank">:8188 comfyui ↗</a>'
                     if _svc("comfyui-h3.service")
                     else '<span style="color:#777">:8188 comfyui stopped</span>')
+    # ACE-Step 1.5 music lab on :7862 (UI) -> :8001 (audio.cpp engine, Vulkan).
+    # Same reason as comfyui: show it even when stopped, and the engine port next to
+    # the UI port because a dead :8001 is what a dead :7862 button actually means.
+    if _has("acestep-serve.service"):
+        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:7862/" target="_blank">:7862 music ↗</a>'
+                    if _svc("acestep-ui.service")
+                    else '<span style="color:#777">:7862 music stopped</span>')
     _eps.append(":8667 doctor — /")
     return (f'<div class="boxfoot"><b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
             + " · ".join(_eps) + "</div>")
