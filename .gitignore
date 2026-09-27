@@ -4,3 +4,4 @@ __pycache__/
 gpucore.*.gpu
 *.bak*
 .ralph/
+.superpowers/
