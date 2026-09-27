@@ -207,3 +207,43 @@ collision, no unit edits).
    GTT budget comfortably fits both.
 5. LM-1.7B (3.5 G, better musicality): copy it too while we're rsyncing
    anyway (disk is free), or keep the payload minimal?
+
+## 12. RESULT — executed 260927, unattended
+
+**The plan above was not the path taken.** Before rsyncing 15 GB, the local
+`~/audio.cpp` build (Vulkan/RADV, `build-vk`) turned out to already serve ACE-Step
+1.5 through its OpenAI-compatible server. That collapsed phases 0–2 to zero bytes of
+download: the turbo GGUF is self-contained (DiT + planner LM + Qwen3-Embedding + VAE
++ tokenizers), so no Python ACE-Step repo, no kernels wheel, no venv transplant.
+
+**What exists now** (all committed, all enabled at boot):
+
+| unit | what | port |
+|---|---|---|
+| `acestep-serve.service` | `audiocpp_server --model acestep` (audio.cpp, Vulkan/RADV), config `acestep/acestep-server.json` | `127.0.0.1:8001` (loopback) |
+| `acestep-ui.service` | `acestep/acestep_ui.py` — gradio, HTTP client only, no torch | `0.0.0.0:7862` (LAN, no auth per 260911) |
+
+Weights: `~/audio.cpp/models/ACE-Step1.5-GGUF/turbo/` (5.9 G, already on disk).
+Check: `uv run --no-project python acestep/check.py` → health + one real 5 s song.
+
+**Measured on the 8060S** (OBSERVED, not vendor):
+
+| gate | result |
+|---|---|
+| G1 20 s / 8 steps | 12.1 s, **RTF 0.60**, 3.84 MB wav, rms 7 800 |
+| G2 30 s / 8 steps | 17.0 s, **RTF 0.57** — scales sub-linearly |
+| G3 memory | ~13 GB resident; peak used 67.9 GB with gemma-collm up; no OOM |
+| G4 UI | Playwright: real click → wav 200 / 983 KB, "5.1 s in 5.2 s (RTF 1.02)", **0 non-localhost requests** |
+| G5 with full H3 render | H3 139 s (baseline ~125 s); ACE-Step 20 s song **also completes but in 78.8 s (RTF 3.94)**; min MemAvailable 49.8 GB |
+
+**Answers to §11:** (1) done. (2)–(5) moot as specced — the LM tier is baked into the
+GGUF (planner LM + Qwen3-Embedding ship inside `turbo/`), there is no separate
+0.6B/1.7B file to choose, and the Ciao/OpenAI facade is audio.cpp's own
+`/v1/audio/speech|lyrics|genres|caption` on `:8001`, currently loopback-only.
+If Ciao on .150 should reach it, that is a bind change on `:8001`, not a new service.
+
+**Known ceilings** (`ponytail`): UI exposes 7 of the ~40 engine params; no lyrics
+rewrite / cover / repaint; no audio out of the box (gradio player + download only);
+music is 6.5x slower while an H3 render holds the GPU — fine to coexist, slow to
+share. `27b-collm` + ACE-Step + an H3 render at once is untested and 27B+H3 already
+OOMs on its own (260927), so don't.
