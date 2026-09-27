@@ -220,7 +220,7 @@ download: the turbo GGUF is self-contained (DiT + planner LM + Qwen3-Embedding +
 
 | unit | what | port |
 |---|---|---|
-| `acestep-serve.service` | `audiocpp_server --model acestep` (audio.cpp, Vulkan/RADV), config `acestep/acestep-server.json` | `127.0.0.1:8001` (loopback) |
+| `acestep-serve.service` | `audiocpp_server --model acestep` (audio.cpp, Vulkan/RADV), config `acestep/acestep-server.json` | `0.0.0.0:8001` (LAN, no auth — operator 260927) |
 | `acestep-ui.service` | `acestep/acestep_ui.py` — gradio, HTTP client only, no torch | `0.0.0.0:7862` (LAN, no auth per 260911) |
 
 Weights: `~/audio.cpp/models/ACE-Step1.5-GGUF/turbo/` (5.9 G, already on disk).
@@ -239,11 +239,19 @@ Check: `uv run --no-project python acestep/check.py` → health + one real 5 s s
 **Answers to §11:** (1) done. (2)–(5) moot as specced — the LM tier is baked into the
 GGUF (planner LM + Qwen3-Embedding ship inside `turbo/`), there is no separate
 0.6B/1.7B file to choose, and the Ciao/OpenAI facade is audio.cpp's own
-`/v1/audio/speech|lyrics|genres|caption` on `:8001`, currently loopback-only.
+`/v1/audio/speech|lyrics|genres|caption` on `:8001`, **exposed on the LAN at
+operator's request 260927** (`http://192.168.50.15:8001`); Ciao on `.150` stays out of
+it — no facade work, no Ciao-side config change.
+
+**Loaded eagerly** (operator 260927): `lazy_load: false`, so the ~13 GB of weights are
+resident from unit start and the first song is not a cold load. Cost: that GTT is held
+until `systemctl --user stop acestep-serve` — with `27b-collm` up too, the box sits at
+~108 GiB used / 16 GiB available, which is exactly why the no-stacking rule below is
+written down and not left to memory.
 If Ciao on .150 should reach it, that is a bind change on `:8001`, not a new service.
 
 **Known ceilings** (`ponytail`): UI exposes 7 of the ~40 engine params; no lyrics
 rewrite / cover / repaint; no audio out of the box (gradio player + download only);
 music is 6.5x slower while an H3 render holds the GPU — fine to coexist, slow to
-share. `27b-collm` + ACE-Step + an H3 render at once is untested and 27B+H3 already
-OOMs on its own (260927), so don't.
+share. `27b-collm` + ACE-Step + an H3 render at once is **forbidden by operator
+260927** (27B+H3 already OOMs on its own; eager ACE-Step adds 13 GB to that).

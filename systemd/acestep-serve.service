@@ -1,8 +1,13 @@
 [Unit]
-Description=ACE-Step 1.5 music engine (audio.cpp / Vulkan) on 127.0.0.1:8001
+Description=ACE-Step 1.5 music engine (audio.cpp / Vulkan) on 0.0.0.0:8001
 After=network.target
 
 [Service]
+# Bind + eager load live in acestep/acestep-server.json (no comments allowed there):
+# host 0.0.0.0 = LAN-reachable with no auth, operator decision 260927 under the
+# trusted-LAN policy (260911); lazy_load false = the 13 GB of weights are resident
+# from start, so the first song is not a ~40 s cold load. Stop this unit to give the
+# GTT back before a big LLM arm + H3 render.
 WorkingDirectory=/home/piero/audio.cpp
 ExecStart=/home/piero/audio.cpp/build-vk/bin/audiocpp_server --config /home/piero/Piero/Work/Strix_AI_Server/acestep/acestep-server.json --no-ui
 Restart=on-failure
