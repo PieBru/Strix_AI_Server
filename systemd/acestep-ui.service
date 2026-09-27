@@ -3,10 +3,14 @@ Description=Simple ACE-Step music generator UI (gradio :7862 -> acestep-serve :8
 After=acestep-serve.service
 
 [Service]
-WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server/acestep
+# Repo ROOT, not acestep/: a `git checkout` of a branch where acestep/ does not exist
+# deletes the directory, and a UI started inside it keeps the dead inode — every
+# generation then dies in gradio's postprocess with os.getcwd() -> FileNotFoundError
+# (observed 260927 right after the main fast-forward).
+WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server
 # --offline: this box has no internet; without it uv re-resolves against pypi and the
 # unit dies with status=2/INVALIDARGUMENT on every restart (gradio 6.28 is in the uv cache).
-ExecStart=/usr/bin/uv run --offline --with gradio python acestep_ui.py
+ExecStart=/usr/bin/uv run --offline --with gradio python acestep/acestep_ui.py
 Restart=on-failure
 RestartSec=5
 # SIGTERM is how systemctl stops this unit (same trick as h3-video-ui).
