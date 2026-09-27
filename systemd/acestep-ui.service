@@ -1,0 +1,16 @@
+[Unit]
+Description=Simple ACE-Step music generator UI (gradio :7862 -> acestep-serve :8001)
+After=acestep-serve.service
+
+[Service]
+WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server/acestep
+# --offline: this box has no internet; without it uv re-resolves against pypi and the
+# unit dies with status=2/INVALIDARGUMENT on every restart (gradio 6.28 is in the uv cache).
+ExecStart=/usr/bin/uv run --offline --with gradio python acestep_ui.py
+Restart=on-failure
+RestartSec=5
+# SIGTERM is how systemctl stops this unit (same trick as h3-video-ui).
+SuccessExitStatus=143
+
+[Install]
+WantedBy=default.target
