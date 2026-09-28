@@ -7,7 +7,7 @@
 # (h3-video-ui, qwen-image-test, whisper-stt) stay at the 200 default on purpose:
 # under real pressure they should die before a 40 GB arm does.
 set -eu
-UNITS=(27b-collm gufo-serve acestep-serve comfyui-h3 gufo-llm)
+UNITS=(27b-collm gufo-serve acestep-serve comfyui-h3 gufo-llm sos-collm)
 DEST="${1:-$HOME/.config/systemd/user}"
 SRC="$(dirname "$(readlink -f "$0")")/oom-neutral.conf"
 

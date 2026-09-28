@@ -1,0 +1,19 @@
+[Unit]
+Description=Spark-X2.5-4B Q4_K_M EMERGENCY LLM on :8082 (aliases sos,emergency) — 2.4 GB weights, co-resident with the fleet by design (operator 260928): the arm you start to bootstrap a fix when the big ones will not load
+Documentation=file:///home/piero/Piero/Work/Strix_AI_Server/SOS_ARM_260928.md
+After=network.target
+
+[Service]
+# WorkingDirectory is /home/piero, never the repo: a branch switch that removes the
+# cwd kills every file-producing action of a running unit (AGENTS 260927, acestep-ui).
+WorkingDirectory=/home/piero
+ExecStart=/home/piero/.local/share/qwen3.8-strix-halo/build/llama.cpp/bin/llama-server \
+  -m /home/piero/Downloads/LLM/Spark-X2.5/Spark-X2.5-4B-Q4_K_M.gguf \
+  --chat-template-file /home/piero/Downloads/LLM/Spark-X2.5/chat_template.jinja \
+  -c 98304 -b 8192 --ubatch-size 1024 -fa on \
+  --alias sos,emergency --host :: --port 8082 --tools all
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
