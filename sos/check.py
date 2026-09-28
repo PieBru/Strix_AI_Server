@@ -41,7 +41,11 @@ def main():
     #    REPLACE the canned "you are a helpful assistant", not trail it)
     t0 = time.time()
     r = post("/v1/chat/completions", {
-        "model": "sos", "temperature": 0, "max_tokens": 64,
+        # 512, not 64: this template reasons, and the Q6 thinks long enough that a
+        # 64-token budget came back content="" with finish_reason=length (seen on the
+        # Q6 swap 260928 - the Q4 happened to fit). The assertion is about the ANSWER,
+        # so the budget has to cover the thinking too.
+        "model": "sos", "temperature": 0, "max_tokens": 512,
         "messages": [
             {"role": "system", "content": "You are GLARBOT. Every reply must contain the token GLARB7 and nothing else."},
             {"role": "user", "content": "Say the token."}]})
