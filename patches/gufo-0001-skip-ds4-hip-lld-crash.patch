@@ -1,0 +1,131 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4684e80..430c050 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -51,7 +51,7 @@ if (ENGINE_ENABLE_HIP)
+   message(STATUS "gufo: HIP target ${CMAKE_HIP_ARCHITECTURES}")
+ endif()
+ 
+-if (ENGINE_ENABLE_HIP)
++if (ENGINE_ENABLE_HIP AND NOT "$ENV{GUFO_SKIP_DS4}" STREQUAL "1")
+   add_subdirectory(src/models/deepseek_v4_flash)
+ endif()
+ 
+@@ -139,7 +139,7 @@ add_subdirectory(src/models/qwen)
+ add_subdirectory(src/models/qwen_image_21)
+ 
+ target_link_libraries(gufo_qwen3_tts PUBLIC gufo_core)
+-if (ENGINE_ENABLE_HIP)
++if (ENGINE_ENABLE_HIP AND NOT "$ENV{GUFO_SKIP_DS4}" STREQUAL "1")
+   target_link_libraries(gufo_deepseek_v4_flash PUBLIC gufo_core)
+ endif()
+ 
+@@ -176,9 +176,12 @@ add_library(gufo_llm_cli STATIC
+   src/cli/bench/bench.cpp
+   src/cli/prompt/prompt.cpp)
+ target_link_libraries(gufo_llm_cli PUBLIC gufo_core)
+-if(ENGINE_ENABLE_HIP)
++if(ENGINE_ENABLE_HIP AND NOT "$ENV{GUFO_SKIP_DS4}" STREQUAL "1")
+   target_link_libraries(gufo_llm_cli PUBLIC gufo_deepseek_v4_flash
+     gufo_qwen38_flash_next)
++elseif(ENGINE_ENABLE_HIP)
++  target_link_libraries(gufo_llm_cli PUBLIC gufo_qwen38_flash_next)
++  target_sources(gufo_llm_cli PRIVATE src/models/deepseek_v4_flash/stub.cpp)
+ endif()
+ 
+ add_library(gufo_logging STATIC src/cli/serve/logging.cpp)
+@@ -222,7 +225,7 @@ target_compile_definitions(gufo PRIVATE
+   GUFO_H3_SOURCE_MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/src/models/minimax_h3/MINIMAX_H3_FL2VA_BF16.source-manifest.json"
+   GUFO_H3_INSTALLED_SOURCE_MANIFEST="${CMAKE_INSTALL_PREFIX}/share/gufo/models/minimax_h3/MINIMAX_H3_FL2VA_BF16.source-manifest.json")
+ 
+-if (ENGINE_ENABLE_HIP)
++if (ENGINE_ENABLE_HIP AND NOT "$ENV{GUFO_SKIP_DS4}" STREQUAL "1")
+   target_link_libraries(gufo PRIVATE gufo_deepseek_v4_flash)
+ endif()
+ target_link_libraries(gufo PRIVATE gufo_qwen3_tts gufo_qwen3_asr)
+diff --git a/src/models/deepseek_v4_flash/stub.cpp b/src/models/deepseek_v4_flash/stub.cpp
+new file mode 100644
+index 0000000..65db077
+--- /dev/null
++++ b/src/models/deepseek_v4_flash/stub.cpp
+@@ -0,0 +1,80 @@
++// stub.cpp — GUFO_SKIP_DS4=1 build: the nightly lld 24 crashes linking the ds4
++// device kernels (LTO CallGraph pass), so this file provides fatal stubs for the
++// symbols the CLI references. Any attempt to actually serve a ds4 model fails
++// loudly instead of silently. Remove when the toolchain is fixed upstream.
++#include "src/models/deepseek_v4_flash/engine.hpp"
++
++#include <cstdio>
++#include <cstdlib>
++#include <utility>
++
++namespace gufo::models::deepseek_v4_flash {
++namespace {
++[[noreturn]] void Fail(const char* what) {
++  std::fprintf(stderr, "gufo: %s unavailable (built with GUFO_SKIP_DS4=1)\n", what);
++  std::abort();
++}
++}  // namespace
++
++bool ValidateGgufTemplate(const core::GgufReader& reader, std::string* error_msg) {
++  (void)reader;
++  if (error_msg) *error_msg = "deepseek_v4_flash disabled in this build";
++  return false;
++}
++
++Model::~Model() = default;
++Session::~Session() = default;
++
++std::shared_ptr<Model> Model::Load(const std::string&, const ModelOptions&,
++                                   std::string* error_msg) {
++  if (error_msg) *error_msg = "deepseek_v4_flash disabled in this build";
++  return nullptr;
++}
++
++std::unique_ptr<Session> Model::CreateSession(core::SessionMode, std::uint32_t,
++                                              std::string* error_msg) {
++  if (error_msg) *error_msg = "deepseek_v4_flash disabled in this build";
++  return nullptr;
++}
++
++bool Model::EvaluateBatch(std::span<const SessionBatchItem>, std::string*) const { Fail("ds4 EvaluateBatch"); }
++bool Model::DsparkStepBatch(std::span<const SessionDsparkBatchItem>, std::string*) const { Fail("ds4 DsparkStepBatch"); }
++std::vector<int> Model::Tokenize(std::string_view, bool) const { Fail("ds4 Tokenize"); }
++std::vector<int> Model::EncodeChat(std::string_view, std::string_view) const { Fail("ds4 EncodeChat"); }
++std::vector<int> Model::EncodeChat(std::span<const ChatMessage>, const ChatTemplateOptions&) const { Fail("ds4 EncodeChat"); }
++std::vector<int> Model::EncodeChat(std::span<const ChatMessage>, std::span<const ChatTool>, const ChatTemplateOptions&) const { Fail("ds4 EncodeChat"); }
++std::string Model::DecodeToken(int) const { Fail("ds4 DecodeToken"); }
++bool Model::IsStopToken(int) const { Fail("ds4 IsStopToken"); }
++int Model::EosToken() const { Fail("ds4 EosToken"); }
++int Model::VocabSize() const { Fail("ds4 VocabSize"); }
++std::string Model::ModelName() const { Fail("ds4 ModelName"); }
++std::uint32_t Model::MaxContext() const noexcept { Fail("ds4 MaxContext"); }
++bool Model::HasDspark() const { Fail("ds4 HasDspark"); }
++
++bool Session::Sync(std::span<const int>, std::string*) { Fail("ds4 Sync"); }
++int Session::SelectNext(float, std::uint64_t*, int, float, float) const { Fail("ds4 SelectNext"); }
++bool Session::Evaluate(int, std::string*) { Fail("ds4 Evaluate"); }
++bool Session::DsparkEnabled() const { Fail("ds4 DsparkEnabled"); }
++void Session::BeginRequest() { Fail("ds4 BeginRequest"); }
++void Session::PrepareBatchExecution() { Fail("ds4 PrepareBatchExecution"); }
++bool Session::DsparkStep(std::vector<int>*, std::string*) { Fail("ds4 DsparkStep"); }
++bool Session::DsparkStep(std::size_t, std::vector<int>*, std::string*) { Fail("ds4 DsparkStep"); }
++bool Session::DsparkStep(std::size_t, std::uint32_t, std::vector<int>*, std::string*, const ds4_dspark_sampler*, bool) { Fail("ds4 DsparkStep"); }
++int Session::TakePendingDsparkToken() { Fail("ds4 TakePendingDsparkToken"); }
++Session::DsparkStats Session::DsparkStatistics() const { Fail("ds4 DsparkStatistics"); }
++std::vector<float> Session::CopyLogits(std::string*) const { Fail("ds4 CopyLogits"); }
++void Session::SetCancellationCheck(CancellationCheck) { Fail("ds4 SetCancellationCheck"); }
++void Session::Invalidate() noexcept { Fail("ds4 Invalidate"); }
++int Session::Position() const { Fail("ds4 Position"); }
++int Session::ContextSize() const { Fail("ds4 ContextSize"); }
++std::uint32_t Session::PrefillCapacity() const { Fail("ds4 PrefillCapacity"); }
++std::uint64_t Session::PayloadBytes() const { Fail("ds4 PayloadBytes"); }
++std::unique_ptr<SessionSnapshot> Session::SaveSnapshot(std::string*) const { Fail("ds4 SaveSnapshot"); }
++bool Session::RestoreSnapshot(const SessionSnapshot&, std::string*) { Fail("ds4 RestoreSnapshot"); }
++bool Session::RestoreSnapshot(std::span<const std::uint8_t>, std::string*) { Fail("ds4 RestoreSnapshot"); }
++SessionSnapshot::~SessionSnapshot() = default;
++std::uint64_t SessionSnapshot::SizeBytes() const noexcept { Fail("ds4 SessionSnapshot::SizeBytes"); }
++std::span<const std::uint8_t> SessionSnapshot::bytes() const noexcept { Fail("ds4 SessionSnapshot::bytes"); }
++bool SessionSnapshot::CopyTo(std::span<std::uint8_t>) const noexcept { Fail("ds4 SessionSnapshot::CopyTo"); }
++
++}  // namespace gufo::models::deepseek_v4_flash
