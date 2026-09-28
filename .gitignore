@@ -9,3 +9,4 @@ gpucore.*.gpu
 /vendor/
 # personal session-resume helper (carries a pi session uuid)
 /pi-resume.sh
+stt/.venv/

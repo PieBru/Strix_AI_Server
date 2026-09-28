@@ -1,0 +1,21 @@
+[Unit]
+Description=faster-whisper STT test UI (gradio :7863, CPU int8)
+After=network.target
+
+[Service]
+# Repo ROOT as WorkingDirectory: same lesson as acestep-ui (260927) — a branch
+# checkout without stt/ would delete tracked files out from under the process.
+WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server
+# Static venv (staged offline from laptop uv caches, 260928): faster-whisper 1.2.1 +
+# ctranslate2 4.8.1 (CPU) + gradio 6.28. No uv at runtime => no pypi resolution, so
+# no --offline dance needed here.
+# HF_HUB_OFFLINE=1: models resolve from ~/.cache/huggingface/hub (rsynced from laptop).
+Environment=HF_HUB_OFFLINE=1
+ExecStart=/home/piero/Piero/Work/Strix_AI_Server/stt/.venv/bin/python /home/piero/Piero/Work/Strix_AI_Server/stt/stt_ui.py
+Restart=on-failure
+RestartSec=5
+# SIGTERM is how systemctl stops this unit (same as acestep-ui / h3-video-ui).
+SuccessExitStatus=143
+
+[Install]
+WantedBy=default.target
