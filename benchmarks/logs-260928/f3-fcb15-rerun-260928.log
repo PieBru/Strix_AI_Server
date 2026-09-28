@@ -1,0 +1,52 @@
+=== F3 FCB15 RE-RUN start Mon Sep 28 12:03:59 PM CEST 2026 ===
+item 1: greedy PASS (36.4s)
+item 2: greedy FAIL | retry@0.6 FAIL (16.0s)
+item 3: greedy FAIL | retry@0.6 PASS (123.3s)
+item 4: greedy PASS (25.9s)
+item 5: greedy PASS (28.7s)
+item 6: greedy PASS (19.3s)
+item 7: greedy PASS (16.6s)
+item 8: greedy PASS (15.4s)
+item 9: greedy PASS (34.2s)
+item 10: greedy PASS (31.8s)
+item 11: greedy PASS (44.1s)
+item 12: greedy FAIL | retry@0.6 PASS (105.9s)
+item 13: greedy FAIL | retry@0.6 FAIL (38.4s)
+item 14: greedy PASS (38.8s)
+item 15: greedy PASS (3.1s)
+V5 retry loop round 2: 2 unsolved item(s)
+item 2: retry#2 FAIL (11.9s)
+item 13: retry#2 FAIL (47.2s)
+V5 retry loop round 3: 2 unsolved item(s)
+item 2: retry#3 FAIL (10.8s)
+item 13: retry#3 FAIL (39.4s)
+
+SUMMARY default [f3g-b722a61-fcb15-s1]: greedy 11/15 | with-retry 13/15
+G_FCB_s1 FAIL
+=== fcb15 s1 done Mon Sep 28 12:19:03 PM CEST 2026 ===
+item 1: greedy PASS (53.3s)
+item 2: greedy FAIL | retry@0.6 FAIL (11.0s)
+item 3: greedy PASS (71.2s)
+item 4: greedy PASS (25.6s)
+item 5: greedy PASS (42.8s)
+item 6: greedy FAIL | retry@0.6 PASS (16.7s)
+item 7: greedy PASS (14.9s)
+item 8: greedy PASS (12.2s)
+item 9: greedy PASS (36.1s)
+item 10: greedy PASS (11.4s)
+item 11: greedy PASS (46.8s)
+item 12: greedy PASS (35.8s)
+item 13: greedy FAIL | retry@0.6 FAIL (75.1s)
+item 14: greedy FAIL | retry@0.6 PASS (111.5s)
+item 15: greedy PASS (5.1s)
+V5 retry loop round 2: 2 unsolved item(s)
+item 2: retry#2 FAIL (11.9s)
+item 13: retry#2 FAIL (47.2s)
+V5 retry loop round 3: 2 unsolved item(s)
+item 2: retry#3 FAIL (10.8s)
+item 13: retry#3 FAIL (39.4s)
+
+SUMMARY default [f3g-b722a61-fcb15-s2]: greedy 11/15 | with-retry 13/15
+G_FCB_s2 FAIL
+=== fcb15 s2 done Mon Sep 28 12:31:48 PM CEST 2026 ===
+FCB15_RERUN_ALL_DONE Mon Sep 28 12:31:48 PM CEST 2026
