@@ -11,6 +11,14 @@
 #   only uplink is a slow 3G tether, so nothing big goes through it; this script
 #   runs on THIS box the moment the line returns.
 #
+# GATE (verified 260929 through the .150 proxy): Lightricks/LTX-2.5 is a GATED repo.
+#   anonymous resolve -> 401 "Access to model ... is restricted"; this box's $HF_TOKEN
+#   -> 403 (the account has not been granted the license). Repo metadata/API reads are
+#   public, so the pins below can be re-checked without access; the blobs cannot.
+#   Mirror vonkaiser/LTX-2.5-FP8-NVFP4 is public but carries ONLY the text encoder
+#   (7423624178 B, matches the pin below) plus a 21025119068 B FP8 transformer — not
+#   the NVFP4 DiT, and none of the VAEs. There is no ungated path to the full set.
+#
 # PINS are from ~/Downloads/Git/vllm.cpp/docs/USAGE.md (the registry that
 # AGENTS.md names for "which weights, and from where"), read 260928. SHA-256 is
 # authoritative over revision: Lightricks published TWO DIFFERENT FILES at
@@ -38,7 +46,7 @@ FILES=(
   "text_encoders/gemma4-12b-with-proj-nvfp4-torchao.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|5a40ba9ab209a90ddb7943d1e3d374c51cfd3256|7423624178|12132b7157925332d2b21de9fc6f507c14f4f0cbc7081484d1968ebf8a19b4bf"
   "vae/ltx-2.5-video-vae-conv-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|1452269922|685b06ee3d9b2039647698fc4ea33175112462fc374e2777312c907897dfce8d"
   "vae/ltx-2.5-audio-vae-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|364866540|c52733d37f6a7fb7949c3dc0fb468c6cb2169e4d836983a73babb9f0d54837a5"
-  "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|0|"
+  "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|995778752|"
 )
 # REQUIRED by ti2vid_two_stage / keyframe_interpolation / a2vid_two_stage /
 # res2s_two_stage / dfr; NOT needed by distilled_two_stage. 8.9 GB, so opt-in.
