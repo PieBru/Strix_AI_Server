@@ -11,10 +11,25 @@
 #   only uplink is a slow 3G tether, so nothing big goes through it; this script
 #   runs on THIS box the moment the line returns.
 #
-# GATE (verified 260929 through the .150 proxy): Lightricks/LTX-2.5 is a GATED repo.
-#   anonymous resolve -> 401 "Access to model ... is restricted"; this box's $HF_TOKEN
-#   -> 403 (the account has not been granted the license). Repo metadata/API reads are
-#   public, so the pins below can be re-checked without access; the blobs cannot.
+# GATE (re-verified 260929 through the .150 proxy): Lightricks/LTX-2.5 is GATED.
+#   anonymous resolve -> 401; $HF_TOKEN (same string as $HUGGINGFACE_TOKEN, account
+#   `piebru`) -> 403 "...you are not in the authorized list. Visit ... to ask for
+#   access". The credential itself is fine (api/whoami-v2 returns the user, a public
+#   Lightricks blob -> 307), so this is a missing licence grant, not a bad token.
+#   The repo is `gated: auto`: accepting the terms at
+#   https://huggingface.co/Lightricks/LTX-2.5 grants access immediately, no review.
+#
+# WHAT THAT LEAVES FETCHABLE TODAY (260929, all from the PUBLIC
+# vonkaiser/LTX-2.5-FP8-NVFP4, all answering 206 to a Range request without a token):
+#   DiT nvfp4 and audio VAE -- BYTE-IDENTICAL to the official pins below (same sha256),
+#     so the pins still verify; the mirror is only the transport.
+#   upsampler -- same size as the (unpinned) official one.
+#   text encoder -- the pinned 6.91 GiB build is still served at the pinned revision
+#     (main has moved to 8.26 GiB, which is why the revision is pinned).
+#   video VAE -- the mirror has ltx-2.5-video-vae-bf16 (1.37 GiB), which is NOT the
+#     pinned ltx-2.5-video-vae-CONV-bf16 (1,452,269,922 B). No public copy of the conv
+#     build was found (checked guillaume127, EllaPriest45, LiconStudio). It is fetched
+#     unpinned as a stand-in; the render smoke at the bottom decides if it fits.
 #   Mirror vonkaiser/LTX-2.5-FP8-NVFP4 is public but carries ONLY the text encoder
 #   (7423624178 B, matches the pin below) plus a 21025119068 B FP8 transformer — not
 #   the NVFP4 DiT, and none of the VAEs. There is no ungated path to the full set.
@@ -42,11 +57,15 @@ VERIFY_ONLY=0
 
 # relpath | repo | revision | bytes | sha256 (empty = no local pin, record it)
 FILES=(
-  "diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|18721432024|f9c4c2ae9a6aa8f732eb02a1c4c3b34888caad3dd35bb65deaf3b5043cda78fa"
+  "diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|18721432024|f9c4c2ae9a6aa8f732eb02a1c4c3b34888caad3dd35bb65deaf3b5043cda78fa"
   "text_encoders/gemma4-12b-with-proj-nvfp4-torchao.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|5a40ba9ab209a90ddb7943d1e3d374c51cfd3256|7423624178|12132b7157925332d2b21de9fc6f507c14f4f0cbc7081484d1968ebf8a19b4bf"
+  # GATED: 403 with the current token. Kept as the record of what is still missing.
   "vae/ltx-2.5-video-vae-conv-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|1452269922|685b06ee3d9b2039647698fc4ea33175112462fc374e2777312c907897dfce8d"
-  "vae/ltx-2.5-audio-vae-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|364866540|c52733d37f6a7fb7949c3dc0fb468c6cb2169e4d836983a73babb9f0d54837a5"
-  "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|995778752|"
+  # Stand-in for the conv build above -- different artifact, hence no pin: the script
+  # prints the sha256 it got so it can be recorded once the official one is comparable.
+  "vae/ltx-2.5-video-vae-bf16.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|0|"
+  "vae/ltx-2.5-audio-vae-bf16.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|364866540|c52733d37f6a7fb7949c3dc0fb468c6cb2169e4d836983a73babb9f0d54837a5"
+  "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|995778752|"
 )
 # REQUIRED by ti2vid_two_stage / keyframe_interpolation / a2vid_two_stage /
 # res2s_two_stage / dfr; NOT needed by distilled_two_stage. 8.9 GB, so opt-in.
@@ -77,7 +96,11 @@ for entry in "${FILES[@]}"; do
   [ "$VERIFY_ONLY" = "1" ] && { echo "MISSING  $rel"; fail=1; continue; }
 
   echo "FETCH    $rel"
-  if ! curl -fL -C - --retry 5 --retry-delay 5 -o "$dest.part" "$url"; then
+  # --speed-limit: the only uplink is a phone tether that goes quiet for minutes at a
+  # time; kill a stalled socket so the retry loop re-establishes it instead of hanging
+  # on a dead connection at 0 B/s.
+  if ! curl -fL -C - --retry 12 --retry-delay 10 --retry-all-errors \
+           --speed-limit 20000 --speed-time 90 -o "$dest.part" "$url"; then
     echo "         fetch failed (line down?); $dest.part kept for resume"
     fail=1
     continue
