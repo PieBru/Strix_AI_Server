@@ -1,0 +1,24 @@
+[Unit]
+Description=Simple LTX-2.5 text-to-video UI (gradio :7864 -> vllm.cpp ltx2-gen)
+
+[Service]
+# WorkingDirectory is OUTSIDE any checkout on purpose: a unit whose cwd lives inside the
+# repo dies the moment a branch switch removes that subdirectory (the running process
+# keeps a deleted inode and every file-producing action fails on os.getcwd() -- seen
+# 260927 with acestep-ui).
+WorkingDirectory=/home/piero/Piero/Work/LTX25
+# --offline: this box has no internet. `uv run --with X` re-resolves against pypi on a
+# cold start and crash-loops with status=2/INVALIDARGUMENT when it cannot (qwen-image-test,
+# 260927). gradio is already in the uv cache from h3-video-ui / acestep-ui / whisper-stt.
+ExecStart=/usr/bin/uv run --offline --with gradio python ltx25_ui.py
+Restart=on-failure
+RestartSec=5
+# SIGTERM is how systemctl stops this unit; without this a clean restart is logged as
+# "Failed with result 'exit-code'" and a real crash is indistinguishable from a stop.
+SuccessExitStatus=143
+# A render is a child of this unit and can hold tens of GB for minutes; give a stop the
+# room to reap it instead of SIGKILLing mid-write.
+TimeoutStopSec=120
+
+[Install]
+WantedBy=default.target
