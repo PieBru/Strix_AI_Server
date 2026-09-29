@@ -1,16 +1,29 @@
+# MIRROR of strixy2:~/.config/systemd/user/gufo-llm.service, taken 260929 from the
+# live unit (`systemctl --user cat gufo-llm.service`). This file used to drift from
+# live in three ways, each of which a restore would have silently re-applied:
+#   WorkingDirectory  repo had .../Strix_AI_Server, live has /home/piero. A unit cwd
+#                     inside the repo is the documented loaded gun: a checkout of a
+#                     branch without that dir leaves the process on a deleted inode
+#                     (acestep-ui, 260927).
+#   binary            repo had Downloads/Git/gufo/build/release/gufo, live is gufo-bench.
+#   -c                repo had 196608, live base is 131072 with ctx256k.conf -> 262144.
+# Live also carries two drop-ins, both mirrored here: ctx256k.conf and
+# zz-cache-disk.conf (plus oom-neutral.conf, installed by install-oom-neutral.sh).
+# Re-derive any of it from the box, never from this file's history:
+#   systemctl --user cat gufo-llm.service && systemctl --user show gufo-llm -p ExecStart --value
+#
 # gufo-llm — fleet champion arm (promoted 260925): gufo engine serving
 # Qwen3.8 Flash-Next UD-Q4_K_XL + shared-Q8_0 MTP draft (d3) at effort low,
-# c=196608 (measured: 90 GiB/125 GiB GTT, +1.7 GiB vs 131k — fn30/fn39).
-# Vision sidecar mmproj included. Replaces model-router-pwilkin.service.
+# c=131072 (fleet basis; 192k probe-only with the image server down — co-residency storm 260925 (measured: 90 GiB/125 GiB GTT — fn30/fn39). Vision sidecar included.
 [Unit]
 Description=gufo serve llm — Qwen3.8 Flash-Next UD-Q4_K_XL + MTP (champion) on 0.0.0.0:8080
 After=network.target
 
 [Service]
-WorkingDirectory=/home/piero/Piero/Work/Strix_AI_Server
+WorkingDirectory=/home/piero
 Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
 Environment=LD_LIBRARY_PATH=/opt/rocm/lib:
-ExecStart=/home/piero/Downloads/Git/gufo/build/release/gufo serve llm --model /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf --mmproj /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/mmproj-BF16.gguf --mtp-model /home/piero/Downloads/LLM/Qwen38/flash-next/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf --speculative mtp -d 3 --reasoning-effort low -c 196608 -i 0.0.0.0 -p 8080 --served-model-name default
+ExecStart=/home/piero/gufo-bench/gufo serve llm --model /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf --mmproj /home/piero/Downloads/LLM/Qwen38/flash-next-unsloth/mmproj-BF16.gguf --mtp-model /home/piero/Downloads/LLM/Qwen38/flash-next/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf --speculative mtp -d 3 -c 131072 -i 0.0.0.0 -p 8080 --served-model-name default
 Restart=on-failure
 RestartSec=5
 
