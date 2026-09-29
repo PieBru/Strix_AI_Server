@@ -37,6 +37,14 @@ def main():
     names = [m["name"] for m in get("/v1/models")["models"]]
     check("model listed", "sos" in names or "emergency" in names, str(names))
 
+    # 2b. WHICH weight is actually loaded. -m is a symlink, so a repoint that was
+    #     never reverted passes every test below while serving the wrong model
+    #     (found 260929: link still on the rejected Q6_K_XL after 2dbccb7 sealed Q4).
+    #     Flip the expected ftype here if a quant is ever re-adopted; not env-tunable.
+    props = get("/props")
+    check("weight is the sealed Q4", props.get("model_ftype") == "Q4_K - Medium",
+          f"{props.get('model_ftype')} @ {props.get('model_path')}")
+
     # 3. it follows a system prompt (the sharp template's FIX 1: our prompt must
     #    REPLACE the canned "you are a helpful assistant", not trail it)
     t0 = time.time()
