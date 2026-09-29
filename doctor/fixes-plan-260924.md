@@ -87,6 +87,31 @@ in `state/carry.json` verify field.
 
 ## Status 260924 09:4x — DONE: A1-A3, B1-B6 (all self-tested; B4 exercises live tonight). C1 LANDED: serialize via llama-gate -l (flock /tmp/llama-lab.lock, gate-check inside the lock), deployed both boxes, self-tested.
 
+## Status 260929 — C1 CLOSED as (b)+(c); (a) is unimplementable, measured
+
+`1391410` (260928) says "the margin policy (C1) is still owed". Half true: (b) landed
+260924 (`llama-gate -l`), what was still open is (a), the per-arm working-set table with
+a hard reserve. It cannot be built as a cap on this stack:
+
+```
+sum of every running user unit's MemoryCurrent  3.4 GiB   (sos 2.5, the rest ~0.9)
+/sys/class/drm/card0/device/mem_info_gtt_used   99 GiB
+MemAvailable                                12.0 GiB   (MemTotal 124.4)
+```
+
+ROCm's GTT allocations are host pages that never appear in the unit's cgroup, so
+`MemoryHigh` / `MemoryMax` on an arm bounds its RSS only and the kernel still picks the
+victim by score. A hard reserve is therefore not enforceable where it matters, and a
+*table* of working sets would only be a rotting snapshot of a number `MemAvailable`
+already reports live (AGENTS: prefer a query over a snapshot).
+
+**Policy (the (c) half, now explicit):** GTT is host memory, so `MemAvailable` *is* the
+headroom signal, and `llama-gate` already reads it. Any second model load — including a
+manual one — goes through `llama-gate -l <weights_GiB + KV_GiB + 8>`. The +8 is the
+measured slack a load needs beyond weights+KV before the allocator settles. At the idle
+state above the gate refuses a 27 B load with the H3 stack resident, which is the
+correct answer, not a false positive.
+
 ## Execution order (on go)
 A1 → A2 → A3 (config, reversible, kills the P1 recurrence) →
 B6 (one line) → B1 → B2 (same file) → B4 → B5 → B3.
