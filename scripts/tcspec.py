@@ -19,6 +19,7 @@ Tags are built from chr() so this file contains no tool markup itself.
 import json
 import re
 import sys
+import time
 import urllib.request
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8090/v1"
@@ -30,6 +31,10 @@ MODE = sys.argv[5] if len(sys.argv) > 5 else "plain"
 # Length of the newText payload, in chars. Every observed stall dropped the quote
 # immediately after a long string value, so this is the variable under test.
 VLEN = int(sys.argv[6]) if len(sys.argv) > 6 else 60
+# Sampling temperature. The Spark SOS arm emits a DIFFERENT tool-call markup shape per
+# sample at 0.6 (260929 battery), and the fork's PEG parser 500s on any shape it cannot
+# consume to the end - so temp is the variable that decides whether the arm is servable.
+TEMP = float(sys.argv[7]) if len(sys.argv) > 7 else 0.6
 
 
 def filler(tokens):
@@ -90,7 +95,7 @@ for i in range(N):
     body = {"model": MODEL, "messages": [
         {"role": "system", "content": sysmsg},
         {"role": "user", "content": PROMPT}],
-        "tools": TOOLS, "max_tokens": 2000, "temperature": 0.6, "stream": False}
+        "tools": TOOLS, "max_tokens": 2000, "temperature": TEMP, "stream": False}
     if MODE == "pi":
         body["chat_template_kwargs"] = {"enable_thinking": True, "reasoning_effort": "low",
                                         "preserve_thinking": True}
@@ -98,8 +103,10 @@ for i in range(N):
     req = urllib.request.Request(BASE + "/chat/completions", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"})
     try:
+        t0 = time.time()
         with urllib.request.urlopen(req, timeout=180) as r:
             d = json.loads(r.read())
+        el = time.time() - t0
     except Exception as e:
         print(f"{i:2d} REQUEST FAILED {e}")
         continue
@@ -130,6 +137,10 @@ for i in range(N):
                     tag += " json-was-valid"
                 except Exception as e:
                     tag += f" json-invalid {e}"
-    print(f"{i:2d} {tag}  {json.dumps((calls[0]['function']['arguments'] if calls else txt)[:220])[:220]}")
+    # tok/s are per-request: on a thinking model most of them are reasoning, which is
+    # the tax a coding harness pays per turn (SOS Q4-vs-Q6, 260929).
+    u = d.get("usage", {})
+    print(f"{i:2d} {tag}  [{u.get('completion_tokens','?')}tok {el:.1f}s]  "
+          f"{json.dumps((calls[0]['function']['arguments'] if calls else txt)[:200])[:200]}")
 
 print(f"\nn={N} parsed={ok} badjson={badjson} leaked={leaked} of-which-bare-key={bare}")
