@@ -41,18 +41,23 @@ def main():
     #    REPLACE the canned "you are a helpful assistant", not trail it)
     t0 = time.time()
     r = post("/v1/chat/completions", {
-        # 512, not 64: this template reasons, and the Q6 thinks long enough that a
-        # 64-token budget came back content="" with finish_reason=length (seen on the
-        # Q6 swap 260928 - the Q4 happened to fit). The assertion is about the ANSWER,
-        # so the budget has to cover the thinking too.
-        "model": "sos", "temperature": 0, "max_tokens": 512,
+        # 2048, not 64/512: the Q6 spends ~900 tokens on "Thinking Process:" before
+        # it answers (measured 260928: 902 tok / 24.6 s at temp 0, 712 / 19.0 s at 0.6).
+        # That text lands in the SEPARATE reasoning_content field — content is clean and
+        # correct once the budget covers the thinking. An earlier read of the same
+        # symptom ("Q6 never answers, wrong weight") was a budget artifact, not a model
+        # defect. The assertion is about the ANSWER, so the budget must cover the think.
+        "model": "sos", "temperature": 0, "max_tokens": 2048,
         "messages": [
             {"role": "system", "content": "You are GLARBOT. Every reply must contain the token GLARB7 and nothing else."},
             {"role": "user", "content": "Say the token."}]})
     msg = r["choices"][0]["message"]
     content = (msg.get("content") or "").strip()
     tps = r["usage"]["completion_tokens"] / max(time.time() - t0, 1e-6)
-    check("answers", len(content) > 0, f"{r['usage']['completion_tokens']} tok in {time.time()-t0:.1f}s (~{tps:.1f} t/s)")
+    think = len(msg.get("reasoning_content") or "")
+    check("answers", len(content) > 0,
+          f"{r['usage']['completion_tokens']} tok in {time.time()-t0:.1f}s (~{tps:.1f} t/s)"
+          + (f", {think} chars of reasoning_content" if think else ""))
     check("system prompt obeyed", "GLARB7" in content, repr(content[:80]))
 
     # 4. TOOL CALLING — the arm exists for this
