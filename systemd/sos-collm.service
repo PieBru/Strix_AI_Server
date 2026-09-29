@@ -26,7 +26,8 @@ WorkingDirectory=/home/piero
 # stock one only wins under greedy decoding. The temp-0 cliff is real but pi cannot
 # trigger it (no temperature in its requests); a harness that pins temp 0 dies here,
 # and --temp on this command line would not protect it (a client-specified temp wins).
-# The 500-instead-of-content-fallback is the fork's, reported upstream 260929.
+# The 500-instead-of-content-fallback is the fork's, NOT yet reported upstream — the
+# box is off-internet; file it against pwilkin/llama.cpp when a link is available.
 ExecStart=/home/piero/.local/share/qwen3.8-strix-halo/build/llama.cpp/bin/llama-server \
   -m /home/piero/Downloads/LLM/Spark-X2.5/spark-sos.gguf \
   --chat-template-file /home/piero/Downloads/LLM/Spark-X2.5/chat_template.jinja \
