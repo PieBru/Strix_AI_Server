@@ -15,6 +15,18 @@ WorkingDirectory=/home/piero
 # embedded version (grep 'Sharp chat template' in the metadata) is newer than the
 # pinned file below, drop --chat-template-file and use --jinja instead, else the
 # arm silently runs an older template than the quant was validated with.
+#
+# DO NOT flip to --jinja on a tool-call hunch (measured 260929, scripts/tcspec.py,
+# n=12-16 per cell, clean tool calls / hard HTTP 500 from the fork's PEG parser):
+#   sharp  temp 1.0 (what pi gets, it sends no temperature): 10/12 clean, 1x500, 1 leak
+#   stock  temp 1.0:                                        8/12 clean, 0x500, 4 leaks
+#   sharp  temp 0.6:  7/12 clean, 3x500   stock temp 0.6:  9/12 clean, 1x500
+#   sharp  temp 0:    0/16 clean, 16x500  stock temp 0:   16/16 clean, 0x500
+# So sharp is the better template at the operating point pi actually uses, and the
+# stock one only wins under greedy decoding. The temp-0 cliff is real but pi cannot
+# trigger it (no temperature in its requests); a harness that pins temp 0 dies here,
+# and --temp on this command line would not protect it (a client-specified temp wins).
+# The 500-instead-of-content-fallback is the fork's, reported upstream 260929.
 ExecStart=/home/piero/.local/share/qwen3.8-strix-halo/build/llama.cpp/bin/llama-server \
   -m /home/piero/Downloads/LLM/Spark-X2.5/spark-sos.gguf \
   --chat-template-file /home/piero/Downloads/LLM/Spark-X2.5/chat_template.jinja \

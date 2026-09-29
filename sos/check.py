@@ -68,31 +68,50 @@ def main():
           + (f", {think} chars of reasoning_content" if think else ""))
     check("system prompt obeyed", "GLARB7" in content, repr(content[:80]))
 
-    # 4. TOOL CALLING — the arm exists for this
-    r = post("/v1/chat/completions", {
-        "model": "sos", "temperature": 0, "max_tokens": 256,
-        "tools": [{
-            "type": "function",
-            "function": {
-                "name": "run_shell",
-                "description": "Run a read-only shell command on the server and return its stdout.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"command": {"type": "string", "description": "the command to run"}},
-                    "required": ["command"]}}}],
-        "messages": [{"role": "user",
-                      "content": "What is the disk usage of / ? Use a tool, do not answer from memory."}]})
-    msg = r["choices"][0]["message"]
-    calls = msg.get("tool_calls") or []
-    check("tool call emitted", bool(calls), f"content={repr((msg.get('content') or '')[:60])}")
-    if calls:
-        fn = calls[0]["function"]
-        check("tool name correct", fn["name"] == "run_shell", fn["name"])
+    # 4. TOOL CALLING — the arm exists for this, and ONE sample cannot see how it fails.
+    #    Measured 260929 (scripts/tcspec.py, n=12, temp 0.6, Q4): 7 clean calls, 2 leaked
+    #    as markup, 3 HTTP 500 "output does not match the expected peg-native format" —
+    #    the fork's PEG parser throws instead of degrading to content when the model mixes
+    #    markup shapes (tool_name / invoke+parameter / tool+parameter across samples).
+    #    A gate that fires one request reports green on a 58 % arm, so it fires N times.
+    N = int(os.environ.get("TC_N", "8"))
+    calls_ok = hard_err = 0
+    detail = ""
+    for i in range(N):
         try:
-            args = json.loads(fn["arguments"])
-            check("args are valid JSON", "command" in args, json.dumps(args)[:120])
+            # No explicit temperature: pi sends none, so the server default (1.0) is the
+            # operating point a client actually gets. Pinning 0 here would measure a regime
+            # nobody serves - and on the sharp template temp 0 measures 0/16 (all HTTP 500).
+            r = post("/v1/chat/completions", {
+                "model": "sos", "max_tokens": 256,
+                "tools": [{
+                    "type": "function",
+                    "function": {
+                        "name": "run_shell",
+                        "description": "Run a read-only shell command on the server and return its stdout.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"command": {"type": "string", "description": "the command to run"}},
+                            "required": ["command"]}}}],
+                "messages": [{"role": "user",
+                              "content": "What is the disk usage of / ? Use a tool, do not answer from memory."}]})
         except Exception as e:
-            check("args are valid JSON", False, f"{e}: {fn['arguments'][:120]!r}")
+            hard_err += 1
+            detail = detail or f"request {i+1}: {e}"
+            continue
+        msg = r["choices"][0]["message"]
+        calls = msg.get("tool_calls") or []
+        if calls and calls[0]["function"]["name"] == "run_shell":
+            try:
+                if "command" in json.loads(calls[0]["function"]["arguments"]):
+                    calls_ok += 1
+                    detail = detail or json.dumps(calls[0]["function"]["arguments"])[:60]
+            except Exception:
+                pass
+        if not calls and not detail:
+            detail = f"request {i+1}: no tool_calls, content={repr((msg.get('content') or '')[:60])}"
+    check(f"tool-call rate >= {3*N//4}/{N}", calls_ok >= 3 * N // 4,
+          f"{calls_ok}/{N} clean calls, {hard_err} hard errors — {detail}")
 
     # 5. long context: a pi-sized prompt must not break the slot
     filler = "The quick brown fox jumps over the lazy dog. " * 4000   # ~40k tokens
