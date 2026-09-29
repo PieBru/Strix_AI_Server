@@ -129,8 +129,11 @@ echo
 echo "encoder-config (REQUIRED beside the torchao NVFP4 tower — it carries no __metadata__):"
 echo "  \$HOME/Downloads/Git/vllm.cpp/tests/vllm/models/ltx2_gemma4_text_config.json"
 echo
-echo "render smoke (note: ltx2-gen accepts --device cpu|cuda ONLY, main.cpp:517-518;"
-echo "on this box that means CPU unless a vulkan/rocm selection is added upstream):"
+echo "render smoke (NOTE on --device: the flag only accepts cpu|cuda (main.cpp:118, default"
+echo "'cuda' at :295) and main.cpp:517 turns 'cuda' into mp.device = 1 -- a device INDEX,"
+echo "not a CUDA API call. This tree is built as build-vulkan/, so 'cuda' plausibly means"
+echo "'the Vulkan GPU' here and the older note claiming CPU-only was never tested. Verify"
+echo "with a real render on gfx1151 before concluding anything about speed.):"
 cat <<EOF
   ~/Downloads/Git/vllm.cpp/build-vulkan/examples/ltx2-gen \\
     --dit $ROOT/diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors \\
