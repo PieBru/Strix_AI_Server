@@ -5,10 +5,24 @@
 # -l: also serialize box-wide via flock held for CMD's lifetime (C1 policy:
 #  lab loads check-then-run atomically, one at a time per box).
 lock=""
-[ "$1" = "-l" ] && { lock=1; shift; }
+if [ "${1:-}" = "-l" ]; then lock=1; shift; fi
+# Self-check: the gate must refuse just above and allow just below the live
+# MemAvailable read in GiB. With the old MiB/GB mix-up this failed (need=31 was
+# compared against 30360 and always passed), so it catches the units bug itself.
+if [ "${1:-}" = "--selftest" ]; then
+  # Anchor to `free`, NOT to the same awk the gate uses: a selftest that derives
+  # its expectation from the code under test passes no matter what the code does.
+  a=$(free -b | awk '/^Mem:/{print int($7/1073741824)}')
+  bash "${BASH_SOURCE[0]}" $((a + 1)) true && { echo "FAIL: allowed at need=$((a+1))G with ${a}G avail"; exit 1; }
+  bash "${BASH_SOURCE[0]}" $((a - 1)) true || { echo "FAIL: refused at need=$((a-1))G with ${a}G avail"; exit 1; }
+  echo "OK: gate tracks MemAvailable in GiB (${a}G avail)"
+  exit 0
+fi
 need=$1; shift
 run() {
-  avail=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo)
+  # GiB, matching the MIN_GB contract. Was int($2/1024) = MiB, which made every
+  # documented call (`llama-gate 45 …`) refuse only below 45 MiB.
+  avail=$(awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo)
   if [ "$avail" -lt "$need" ]; then
     echo "REFUSED: ${avail}G avail < ${need}G — unload the resident arm first (doctor F1)" >&2
     exit 75
