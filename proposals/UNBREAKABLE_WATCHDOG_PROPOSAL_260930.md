@@ -183,6 +183,24 @@ its 30-min lockfile.
 
 ## 9. Tasks, in order
 
+> **Done 260930 (steps 1–4 partially).** `scripts/strix-watchdog.py` + `systemd/strix-watchdog.{service,timer}`
+> exist on `feat/serving-profiles`; `tests/watchdog_check.py` covers the ladder. Installed in
+> `~/.config/systemd/user/` but **left disabled** — enabling an unattended actor is the operator's
+> call. Deviation from §6: the service is `Type=oneshot` with `TimeoutStartSec=120` instead of
+> `Type=notify` + `WatchdogSec=300`; for a oneshot that is the same hang guard with no
+> `sd_notify` code to get wrong. Drills run on this box:
+>
+> | drill | expected | observed |
+> |---|---|---|
+> | `systemctl --user stop gemma-collm`, tick ×4 | watch ×3 then tier 1 | `watch 0/3,1/3,2/3` then `restart rc=0`, unit active again |
+> | tick after the arm reloads | ok, counters reset | `probe=ok tool call run_shell(...)` -> failures 0, tier 0, actions 1 |
+> | stamp removed (box parked) | no action, ever | `ignore (no stamp — the box is parked by hand…)` |
+> | `~/.config/strix/watchdog.disable` | no action | `ignore (disabled by operator…)` |
+> | `kill -9` the arm | tier 1 | **not run** — `Restart=on-failure` on `gemma-collm` already fixes it before the next tick, so the drill would prove nothing. The interesting version is a wedge, below. |
+>
+> Still un-run: tier 2/3 under held memory, the 40 k wedge (expect *no* action), and step 1's
+> cold/warm × idle/mid-render timing table (budget is still the 60 s default).
+
 1. **Measure before tuning**: record completion times per arm (cold/warm × idle/mid-render) so
    the budget and N are numbers, not vibes. Pass/fail: a table in this file with real seconds.
 2. `strix-watchdog.py` with the tick above + a `--dry-run` that prints the action it *would*
