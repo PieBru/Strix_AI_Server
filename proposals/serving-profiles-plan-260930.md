@@ -22,11 +22,18 @@ Location note: the plan lives beside its spec in `proposals/` rather than `docs/
 > four `tests/*_check.py` are on that branch, newest commit `e77f794`. The nightly collector is
 > Task 9's and lives where collectors live:
 > `~/.pi/agent/skills/doctor-dream/collectors/c_profiles.py`.
-> Measured on strix-9ad3: `panic`, `emergency` and `lab-video` all gated **PASS** (27 B alone:
-> GTT peak 35.11 %, tool call 4.35 s; lab-video: 46.38 %, swap 5 MiB; panic: 15.19 %, swap 0);
-> browser switch `lab-video -> panic -> lab-video` verified against a real Chromium with
-> `systemctl` read back outside the page. The step boxes below are NOT ticked — the commits are
-> the record.
+> Measured on strix-9ad3: `panic`, `emergency`, `coding` and `lab-video` all gated **PASS**
+> (27 B alone: GTT peak 35.11 %, tool call 4.35 s; **coding** — 27 B + image + music + STT
+> concurrently: 66.69 %, min mem_avail 26.4 GiB, **swap 0.0 MiB**, 4/4 resident; lab-video:
+> 40.11 %, swap 0.04 MiB); browser switch `lab-video -> panic -> lab-video` verified
+> against a real Chromium with `systemctl` read back outside the page. The step boxes below are
+> NOT ticked — the commits are the record.
+> Gating `coding` (the heaviest set, slowest to load) exposed and fixed two gate bugs in the
+> same commit `d01bda3`: readiness was a TCP connect, so a cold arm answering 503 mid-load was
+> declared ready and its probe failed in 0.01 s; and the gate started its own units without
+> stopping the rest, so it could measure two profiles at once and blame the wrong one. Both had
+> produced false FAILs. `coding` and `lab-video` now carry `verified` stamps pointing at their
+> evidence files; the other six stay empty and say why.
 > The **unbreakable watchdog** (operator directive 260930) is built on the same branch —
 > `scripts/strix-watchdog.py` + `systemd/strix-watchdog.{service,timer}`, drilled, installed in
 > `~/.config/systemd/user/` and **left disabled**: its `ExecStart` points at this worktree, so
