@@ -351,7 +351,7 @@ def _switches_recent(hours=6):
 def refresh():
     try:
         _g = gpu(); _r = ram_disk_cpu()
-        track("GPU", int(_g[0].strip("%") or 0)); track("VRAM", int(_g[1].strip("%") or 0))
+        track("VRAM", int(_g[1].strip("%") or 0))  # gpu_busy_percent is not tracked: see sysrow
         track("GPU temp", float(_g[2][:-2] or 0)); track("GPU power", float(_g[3][:-1] or 0))
         track("RAM", int(_r[0].strip("%") or 0)); track("SWAP", int(_r[5].strip("%") or 0))
         track("DISK", int(_r[2].strip("%") or 0)); track("CPU", float(_r[4]))
@@ -500,7 +500,7 @@ def boxinfo():
             + " · ".join(_eps) + "</div>")
 
 def stats():
-    gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
+    _gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
     h, svc, arm, tg, acc, jn, errs, gpu_err = inference()
     bar = lambda p, c=None: f'<div class="bar"><i style="width:{min(max(p,0),100)}%;{f"background:{c}" if c else ""}"></i></div>'
     heat = lambda v: f"hsl({120-1.2*min(max(v,0),100)},90%,55%)"
@@ -528,8 +528,6 @@ def stats():
     except ValueError: tm = 0
     try: pw = float(gpw[:-1]) if gpw.endswith("W") else 0
     except ValueError: pw = 0
-    try: gpv = int(gp.strip("%"))
-    except ValueError: gpv = 0
     NCPU = os.cpu_count() or 1
     cpup = min(float(ld)/NCPU*100, 100)
     def pchip(key, unit="", fmt="{:.0f}", hf=None, xform=lambda v: v):
@@ -556,8 +554,11 @@ def stats():
             return ""
         return (f'<button class="cp" style="float:right;margin-left:6px" onclick="peakReset(this,\'{key}\')" title="reset peak">↺</button>'
                 f'<i class=pk style="float:right{c}">peak {fmt.format(p["v"])}{unit} {t}</i>')
-    sysrow = (card("GPU" + pchip("GPU", "%", hf=heat), gp, bar(gpv, heat(gpv)))
-            + card("VRAM" + pchip("VRAM", "%", hf=heat_vram), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
+    # No "GPU busy" card: on this APU gpu_busy_percent reads 100 whenever any process holds
+    # /dev/kfd, idle or not (measured 260930: flat 100 across 41 W idle and a 111 W generation).
+    # A permanently red card is not an alarm, it is the loss of one. GTT (VRAM) and power are the
+    # two GPU signals that actually move here; the raw counter still lands in metrics.csv.
+    sysrow = (card("VRAM" + pchip("VRAM", "%", hf=heat_vram), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
               + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat), gpw, bar(pw, heat(pw)))
               + card("RAM · GiB" + pchip("RAM", "%", hf=heat_ram), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
@@ -771,6 +772,8 @@ def _metrics_logger():
         return int(100 * (1 - (int(s2[3]) - int(s1[3])) / ((t2 - t1) or 1)))
     while True:
         try:
+            # gpu_busy_percent: kept for the record and for c_resources.py's schema, but it is
+            # pinned to 100 while any process holds /dev/kfd. Chart power or gtt_used instead.
             g = 0
             for f in glob.glob("/sys/class/drm/card*/device/gpu_busy_percent"):
                 try: g = max(g, int(open(f).read()))
