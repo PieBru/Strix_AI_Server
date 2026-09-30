@@ -166,6 +166,42 @@ def apply_dry_run(name):
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
+# Mirror of TIERS in scripts/strix-watchdog.py. ponytail: duplicated rather than imported so
+# the panel never depends on the actor it reports on; share a module if the ladder ever grows.
+WD_TIERS = ("restart", "emergency", "panic", "shout")
+WD_STATE = os.path.expanduser("~/.local/state/strix/watchdog.json")
+
+
+def watchdog_state():
+    """(state dict or None, timer enabled?) — read once per refresh, like profile_state."""
+    try:
+        st = json.loads(open(WD_STATE).read())
+    except (OSError, ValueError):
+        st = None
+    on = subprocess.run(["systemctl", "--user", "is-enabled", "strix-watchdog.timer"],
+                        capture_output=True).returncode == 0
+    return st, on
+
+
+def watchdog_html(st, timer_on, now):
+    """One line under the profile line: is the watchdog alive, and what did it do today.
+    A dead watchdog is the failure nobody notices — the box looks fine and nothing is
+    watching it — so 'off' and 'silent' are said out loud instead of rendering nothing."""
+    if not timer_on:
+        return ('<span class="m">watchdog <b>off</b> — '
+                'systemctl --user enable --now strix-watchdog.timer</span>')
+    if not st or not st.get("last_tick_ts"):
+        return '<span class="bad">watchdog timer ON but no tick has ever been recorded</span>'
+    age = int(now - st["last_tick_ts"])
+    alive = age < 300  # timer fires every 2 min; 5 without a tick means the tick is not running
+    out = f'watchdog <b class="{"on" if alive else "bad"}">{"ok" if alive else "SILENT"}</b> {age} s'
+    if st.get("actions"):
+        hits = " ".join(f'{WD_TIERS[int(k)]}×{v}' for k, v in sorted(st.get("tier_hits", {}).items())
+                        if k.isdigit() and int(k) < len(WD_TIERS))
+        out += f' · <b class="bad">{st["actions"]} action(s) today</b>' + (f' ({hits})' if hits else "")
+    return out
+
+
 def profile_state():
     """(stamp, missing, extra, gate) for this box. Called by the collector, not per render:
     it probes every managed unit with systemctl."""
@@ -319,6 +355,7 @@ def refresh():
         CACHE["loads"] = _loads_recent(); CACHE["loads_t"] = time.time()
     CACHE["res"] = _resident()
     CACHE["prof"] = profile_state()   # stamp vs truth vs last gate; probes units, so only here
+    CACHE["wd"] = watchdog_state()
     tg = acc = None
     for l in reversed(jn):
         if tg is None and (m := re.search(r"print_timing: id\s+\d+ \| task\s+(\d+) \| n_gen =\s*(\d+), tg =\s*([\d.]+)", l)):
@@ -511,7 +548,9 @@ def stats():
               f'<b class="{"on h" if ARM_SORT_MODE else "h"}" onclick="armOrd(1)">load</b>'
               f'<b class="{"h on" if not ARM_SORT_MODE else "h"}" onclick="armOrd(0)">at</b>'
               + _rows + '</div>')
-    infrow = (card(f'ARM {_pills}', '<div class="prof">' + profile_line_html(*CACHE.get("prof") or (None, [], [], None)) + '</div>' + armtxt, w=2, h=2)
+    wd = CACHE.get("wd") or (None, False)
+    infrow = (card(f'ARM {_pills}', '<div class="prof">' + profile_line_html(*CACHE.get("prof") or (None, [], [], None))
+                   + '</div><div class="prof">' + watchdog_html(wd[0], wd[1], time.time()) + '</div>' + armtxt, w=2, h=2)
               + '<div class="card" style="grid-column:span 2"><b>LIVE tg ' + pchip("LIVE tg", " t/s", "{:.1f}") + ' <span id="tgv" style="color:#4c9aff">…</span></b>'
               '<svg class="sp" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline id="tgline" fill="none" stroke="#4c9aff" stroke-width="1.3"/></svg></div>'
               '<div class="card" style="grid-column:span 2"><b>DRAFT acc ' + pchip("DRAFT acc", "", "{:.2f}") + ' <span id="accv" style="color:#6dd66d">…</span></b>'

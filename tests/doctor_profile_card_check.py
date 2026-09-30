@@ -101,6 +101,24 @@ def check_a_refused_apply_is_said_instead_of_a_lie():
     assert code == 200 and calls == ["panic"], (code, body, calls)
 
 
+def check_the_watchdog_says_off_and_silent_instead_of_nothing():
+    now = 1_000_000.0
+    off = D.watchdog_html(None, False, now)
+    assert "off" in off and "enable --now strix-watchdog.timer" in off, off
+    never = D.watchdog_html(None, True, now)
+    assert "no tick has ever been recorded" in never and 'class="bad"' in never, never
+    ok = D.watchdog_html({"last_tick_ts": now - 30}, True, now)
+    assert 'class="on">ok' in ok and "30 s" in ok, ok
+    dead = D.watchdog_html({"last_tick_ts": now - 900}, True, now)
+    assert "SILENT" in dead and 'class="bad"' in dead, dead
+    acted = D.watchdog_html({"last_tick_ts": now - 30, "actions": 2,
+                             "tier_hits": {"0": 1, "1": 1}}, True, now)
+    assert "2 action(s) today" in acted and "restart×1" in acted and "emergency×1" in acted, acted
+    # a state file from a future ladder must not index out of range into a traceback
+    assert "shout" not in D.watchdog_html({"last_tick_ts": now, "actions": 1,
+                                           "tier_hits": {"9": 3}}, True, now)
+
+
 def main():
     for fn in [check_profile_line_shows_claim_truth_and_gate,
                check_profile_line_is_clean_when_there_is_nothing_to_say,
@@ -110,7 +128,8 @@ def main():
                check_select_marks_current_and_always_offers_the_way_out,
                check_apply_validates_before_anything_is_spawned,
                check_apply_spawns_the_exact_name_once,
-               check_a_refused_apply_is_said_instead_of_a_lie]:
+               check_a_refused_apply_is_said_instead_of_a_lie,
+               check_the_watchdog_says_off_and_silent_instead_of_nothing]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")

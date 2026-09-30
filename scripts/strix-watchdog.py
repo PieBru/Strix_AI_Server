@@ -160,28 +160,34 @@ def tick(dry=False, *, spawn=None, probe_fn=None, now=None):
           f" {detail or ''} | failures={st['failures']} tier={st['tier']} -> {action}"
           + (f" ({reason})" if reason else ""))
 
+    def save():
+        # last_tick_ts is written on EVERY tick, including ignore: "the watchdog is quiet"
+        # and "the watchdog is dead" must not look the same in the Doctor.
+        if not dry:
+            st["last_tick_ts"] = now or time.time()
+            write_state(st)
+
     if action == "ok":
         st.update(failures=0, tier=0)
-        if not dry:
-            write_state(st)
+        save()
         return action
     if action == "watch":
         st["failures"] += 1
-        if not dry:
-            write_state(st)
+        save()
         return action
     if action in ("ignore", "wait"):
+        save()
         return action
 
     rc, note = act(action, prof, sp, dry)
     print(f"  action {action} rc={rc} {note}")
     if not dry:
+        acted = st["tier"]  # the tier that was USED, not the next one
         st["actions"] += 1
         st["last_action_ts"] = now or time.time()
-        st["tier"] = min(st["tier"] + 1, len(TIERS) - 1)
-        k = str(st["tier"])
-        st["tier_hits"][k] = st["tier_hits"].get(k, 0) + 1
-        write_state(st)
+        st["tier"] = min(acted + 1, len(TIERS) - 1)
+        st["tier_hits"][str(acted)] = st["tier_hits"].get(str(acted), 0) + 1
+        save()
     return action
 
 
