@@ -368,10 +368,16 @@ def refresh():
     if io: _IO.update(t=time.time(), r=io[0], w=io[1])
     if CACHE.get("io"): track("DISK I/O", sum(CACHE["io"]))
     if CACHE.get("swio"): track("SWAP rate", sum(CACHE["swio"]))
+    # Storm latch: held until cleared by hand (see storm_tick + the badge on the SWAP card).
+    storm_tick(sum(CACHE.get("swio", (0.0, 0.0))), sw or (0, 0))
     if CACHE.get("tg"): track("LIVE tg", CACHE["tg"][2])
     if CACHE.get("acc"): track("DRAFT acc", CACHE["acc"][0])
-    try: h = json.load(urlopen("http://127.0.0.1:8080/health", timeout=4))["status"]  # gufo and llama-router share the contract
-    except Exception: h = "unreachable"
+    try:
+        _hr = urlopen("http://127.0.0.1:8080/health", timeout=4)  # gufo and llama-router share the contract
+        h = json.load(_hr)["status"]
+        CACHE["srv"] = _hr.headers.get("Server", "")  # "llama.cpp" -> that arm ships its own web UI on :8080
+    except Exception:
+        h = "unreachable"; CACHE["srv"] = ""
     try:
         _gufo = subprocess.run(["systemctl", "--user", "is-active", "gufo-llm"],
                                capture_output=True, text=True, timeout=4).stdout.strip() == "active"
@@ -672,7 +678,7 @@ h1{font-size:1.2em;color:#fff;display:flex;align-items:center;gap:8px}h2{font-si
 summary{font-size:.95em;color:#888;margin:20px 0 8px;cursor:pointer;list-style:none}
 summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-h1 .up{margin-left:auto;font-size:.55em;color:#888;font-weight:normal}
+h1 .up{font-size:.55em;color:#888;font-weight:normal}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
 h1 .anv{font-size:.7em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:0 8px;text-decoration:none}
@@ -698,7 +704,7 @@ details.chk[open] summary::before{content:"▾ "}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
 .artab *{font-size:.78em !important}
 .pill{display:inline-block;background:#1d7a2e;color:#eaffea;border-radius:9px;padding:1px 8px;font-size:1.25em;margin-left:8px;vertical-align:middle}
-#prof{margin-left:12px;font-size:.85em;background:#101418;color:#cfe3ff;border:1px solid #2a3a4a;border-radius:6px;padding:2px 6px}
+#prof{margin-left:auto;font-size:.85em;background:#101418;color:#cfe3ff;border:1px solid #2a3a4a;border-radius:6px;padding:2px 6px}
 .prof{display:block;font-weight:400;font-size:.8em;margin-top:4px;opacity:.95}
 .prof .on{color:#6dd66d}.prof .bad{color:#ff6b6b}.prof .m{color:#8b98a5}
 .pill.off{background:#3a3a3a;color:#999}
@@ -717,7 +723,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span>__WEBUI__<a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -1008,10 +1014,16 @@ class H(BaseHTTPRequestHandler):
         elif self.path.startswith("/res/"):
             body, ct = res(self.path[5:]) or "<pre>?</pre>", "text/html"
         else:
+            # The arm's own web UI, advertised only when :8080 answers as llama-server
+            # (Server header, sampled in refresh()). Host comes from the request, so a
+            # laptop reading strixy-9ad3.local:8667 gets a link it can actually open.
+            vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
             body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__UPTIME__",
             (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
             (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
-            profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp()))), "text/html"
+            profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
+            f'<a class="anv" href="http://{vh}:8080/" target="_blank" rel="noopener" title="llama-server web UI (the arm on :8080)">webui</a>'
+            if "llama" in CACHE.get("srv", "").lower() else "")), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
 
