@@ -917,7 +917,9 @@ afterwards, or a swap partition in the manual disk layout); `vm.swappiness =
 10` in `/etc/sysctl.d/`, so the kernel prefers dropping cache over pushing a
 working set to swap. The number to watch is not swap *use* but swap *rate*:
 `si`/`so` at zero with 106 GiB of GTT (the GPU-visible memory window) is healthy, either one pinned at
-hundreds of MB/s is the failure mode this chapter exists to prevent.
+hundreds of MB/s is the failure mode this chapter exists to prevent (with zswap
+on, read that rate as *pages handed to the swap subsystem*, not pages that
+reached the NVMe — see below).
 `swapon --show` plus `cat /sys/block/zram0/mm_stat` (field 1 ÷ field 2 = the
 real ratio) is the whole diagnosis: if that ratio is near 1, zram is a pure
 cost on that box.
@@ -926,6 +928,59 @@ cost on that box.
 archinstall's answer is *yes* — compressible anon is the common case, and
 none of the above applies. This is specifically a RAM-resident-model box,
 where the pages that get swapped *are* the model, that should answer **No**.
+
+#### zswap: same test, same answer
+
+Switching zram off did not leave the box without compressed swap. **zswap was
+on anyway**, and nobody here turned it on: no `zswap=` argument on the kernel
+cmdline, nothing in `/etc/sysctl.d` or `/etc/modules-load.d` — Arch's `linux`
+ships `CONFIG_ZSWAP_DEFAULT_ON=y`. The installer's zram was a question we
+answered; this one was never asked.
+
+It is not a second zram. zswap is a *frontswap cache*: compressed pages held in
+RAM **in front of** the real swapfile, written back to disk when the pool fills
+or when pressure asks for the memory. So one of the four arguments above falls
+away — there is no priority-`100` device cutting the queue, the swapfile stays
+the only tier — and the rest carry over, one of them badly:
+
+| the zram argument | under zswap |
+|---|---|
+| the reclaim target cannot be met, so reclaim never stops | **carries**, bounded: a stored page is counted as reclaimed having freed ~11 % of itself |
+| the wrong tier is used first | **does not carry** — no priority, it fronts the swapfile and does write back |
+| every fault-in costs twice | **carries** verbatim: zstd decompress, *plus* the amdgpu userptr restore |
+| it stays resident and `avail` stays depressed | **carries, worse**: `max_pool_percent=20` = **24.9 GiB** it is allowed to claim, on a box whose cmdline asks for a 124 GiB GTT window (`amdgpu.gttsize=126976`) |
+
+**The same test, one line shorter.** `grep -i zswap /proc/meminfo` and divide
+`Zswap:` (bytes the pool really holds) by `Zswapped:` (bytes of pages stored in
+it). Measured 2026-09-30 with 1.1 GiB resident: **1 049 216 kB for 1 175 104 kB
+stored = 1.12×** — against the **1.09×** this chapter measured for the zram
+storm, and for the same reason: what floods out under pressure is weights, KV
+and their shmem-backed GPU mappings. Minutes later, in an idle 33 MiB trickle,
+the same division read **1.68×**. The ratio is not a property of zswap, it is a
+property of *what got swapped* — and the storm is the case that decides whether
+the box lives or thrashes.
+
+**One harm zram never had here.** `pswpin`/`pswpout` count pages handed to the
+swap subsystem, *including* the ones zswap swallowed in RAM. Lifetime `pswpout`
+on this box is **3.2 GiB** while the swapfile has held ~**0.1 GiB** at any one
+moment — so the Doctor's swap-storm latch, which is built on exactly those
+counters, can be reporting zstd compression as if it were NVMe thrashing. The
+SWAP card now prints the split (`1.2/32 · 1.1 in zswap`) so the number `free`
+gives and the number htop gives are on screen at once instead of argued about;
+htop gets its smaller figure by subtracting `Zswapped`, with a `FIXME` in its
+own source admitting it cannot tell which of those pages were also swapcache.
+
+**Status as of 2026-09-30: still enabled.** Disabling it is a kernel knob, not
+a unit, and this box is administered over SSH without passwordless sudo:
+
+```bash
+echo 0 | sudo tee /sys/module/zswap/parameters/enabled   # live, reversible, no reboot; the pool drains on its own
+grubby --update-kernel=ALL --args="zswap.enabled=0"      # permanent — needs a reboot, so it waits for a window
+```
+
+Until that lands, read the *ratio*, not the pool size: a pool that stays small
+is zswap doing nothing, a pool growing at 1.1× is the zram treadmill wearing a
+different hat.
 
 ### After the install
 
