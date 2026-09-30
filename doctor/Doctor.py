@@ -712,7 +712,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><a class="anv" href="/anvil" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
+<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
