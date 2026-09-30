@@ -328,6 +328,51 @@ def check_repo_sha_tracks_the_measuring_code_not_the_commit():
     assert g._repo_sha(str(d / "nowhere")) == "unknown"
 
 
+def check_the_gate_measures_the_shape_the_profile_declares():
+    """A foreign unit is stopped before the profile's units are started, and the stop comes
+    first: otherwise the run measures the union of two profiles and blames the wrong one."""
+    h = GateHarness(units=("gemma-collm",))
+    up = {"gemma-collm", "comfyui-h3", "h3-video-ui"}   # box is actually on lab-video
+    ev = h.run(active_fn=lambda u: u in up,
+               known_units=["gemma-collm", "comfyui-h3", "h3-video-ui"])
+    stops = [c for c in h.calls if "disable" in c]
+    assert stops == [["--user", "disable", "--now", "comfyui-h3.service"],
+                     ["--user", "disable", "--now", "h3-video-ui.service"]], h.calls
+    assert h.calls[0][1] == "disable", h.calls   # the sweep comes before any start
+    assert ev["verdict"] == "PASS", ev
+    assert ev["units"] == ["gemma-collm"], ev["units"]
+
+
+def check_a_server_that_answers_503_is_not_ready():
+    """Readiness is HTTP, not a socket. llama-server binds :8080 and replies 503 while it maps
+    weights; a connect-only check handed the gate a cold arm and its probe failed in 0.01 s."""
+    import http.server
+
+    state = {"code": 503}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(state["code"])
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+    try:
+        assert not g._http_ready("127.0.0.1", port), "503 = still loading"
+        state["code"] = 200
+        assert g._http_ready("127.0.0.1", port)
+        state["code"] = 404
+        assert g._http_ready("127.0.0.1", port), "no /health but serving (gradio) is up"
+        assert not g._http_ready("127.0.0.1", 1), "nothing listening"
+    finally:
+        srv.shutdown()
+
+
 def main():
     for fn in [check_pass_at_the_boundaries, check_each_threshold_alone_flips_it,
                check_a_probe_that_answers_too_slow_has_passed_nothing,
@@ -344,6 +389,8 @@ def main():
                check_swap_storm_fails_even_if_it_settles,
                check_gate_verdict_reads_evidence_and_computes_age,
                check_dry_run_starts_nothing,
+               check_the_gate_measures_the_shape_the_profile_declares,
+               check_a_server_that_answers_503_is_not_ready,
                check_repo_sha_tracks_the_measuring_code_not_the_commit]:
         fn()
         print(f"  ok  {fn.__name__}")

@@ -20,11 +20,12 @@ import importlib.util
 import json
 import os
 import pathlib
-import socket
 import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -272,11 +273,17 @@ def _journal_scan(since):
     return oom, amdgpu
 
 
-def _port_open(host: str, port: int) -> bool:
+def _http_ready(host: str, port: int) -> bool:
+    """A TCP connect is NOT readiness. llama-server binds :8080 and answers 503 while it maps
+    weights, so connect-only readiness declared a cold arm up and its first probe died in 0.01 s
+    with "Service Unavailable" (measured 260930, second gate run of `coding`). 5xx = not yet;
+    any other status = the service is serving and simply has no /health (gradio answers 404)."""
     try:
-        socket.create_connection((host, port), 2).close()
-        return True
-    except OSError:
+        with urllib.request.urlopen(f"http://{host}:{port}/health", timeout=3) as r:
+            return r.status < 500
+    except urllib.error.HTTPError as e:
+        return e.code < 500
+    except (urllib.error.URLError, OSError):
         return False
 
 
@@ -288,7 +295,7 @@ def _is_ready(unit, cfg):
     if kind is None:
         return True
     port = int(cfg.get(f"PORT_{kind.upper()}", _PROBES.DEFAULT_PORTS[kind]))
-    return _port_open("127.0.0.1", port)
+    return _http_ready("127.0.0.1", port)
 
 
 def _repo_sha(repo_dir):
@@ -320,7 +327,7 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
              active_fn=_is_active, restarts_fn=_nrestarts,
              probe_fn=None, sample_fn=read_sample, journal_scan=_journal_scan,
              ready_fn=_is_ready, schedule="concurrent", sample_interval=1.0,
-             load_ceiling_s=240):
+             load_ceiling_s=240, known_units=None):
     """Start the profile's units, load them, run every family's probe at the same time, hold the
     pressure, and write the evidence. Returns the evidence dict (and writes it, unless dry).
 
@@ -352,6 +359,15 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
 
     # phase 1/2: start everything, then wait until each unit is active AND its port answers.
     # Neither of those is "loaded"; residency is judged from RSS after the probes have run.
+    #
+    # First stop whatever is NOT in the profile: the profile declares the whole shape, so the
+    # gate must measure that shape and not whatever the box happened to be doing (a `gate coding`
+    # while lab-video was up would have measured eight units and blamed coding). It is also the
+    # only sanctioned way back into a FAILed profile's shape: `apply` refuses a measured FAIL even
+    # with --force, so without this a re-measure meant hand-editing systemd or deleting the
+    # evidence (found 260930, when `coding` FAILed on swap).
+    for u in [u for u in (known_units or UNITS) if u not in units and active_fn(u)]:
+        systemctl(["--user", "disable", "--now", f"{u}.service"])
     before = {u: restarts_fn(u) for u in units}
     for u in units:
         systemctl(["--user", "enable", "--now", f"{u}.service"])
@@ -508,7 +524,12 @@ if __name__ == "__main__":
         hold = float(args[i + 1])
         del args[i:i + 2]
     prof = sp.resolve(args[0])
-    ev = run_gate(prof, dry_run=dry, hold_s=hold)
+    # Universe for the sweep: the model library plus every unit any profile names. UNITS alone
+    # would leave a profile's UI wrappers (h3-video-ui, ltx25-ui) up against a ComfyUI the gate
+    # just stopped.
+    universe = sorted(set(UNITS) | {u for p in sp.load_profiles(sp.PROFILES_DIR).values()
+                                    for u in p.start})
+    ev = run_gate(prof, dry_run=dry, hold_s=hold, known_units=universe)
     print(json.dumps(ev, indent=1))
     print(f"gate {prof.name}: {ev['verdict']} — {'; '.join(ev['reasons']) or 'clean'}", file=sys.stderr)
     sys.exit(0 if ev["verdict"] == "PASS" else 1)
