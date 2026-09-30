@@ -240,10 +240,16 @@ def check_check_profiles_bites():
 
 def check_verified_field_is_honest():
     """Operator ruling 260930: the allow-list carries when its co-residency was verified.
-    The field is written by the tool, so an empty field must mean exactly one thing — no
-    load test has ever run this set — and no file may claim one before Task 6 exists."""
-    for n, p in sp.load_profiles(PROFILES).items():
-        assert p.verified.strip() == "", f"{n} claims a verification this tool did not produce"
+    An empty field means exactly one thing — no load test has ever run this set. A non-empty
+    one must be three fields pointing at an evidence file whose `units` still equal the
+    allow-list: edit `start` and the stamp becomes a claim about a combination nobody ran.
+    (Written at Task 2 as "every file must be empty"; that stopped being the rule the first
+    time the gate ran a profile, and said so on `main` after the merge.)"""
+    problems = [p for p in sp.check_profiles(PROFILES)
+                if "verified" in p or "allow-list changed" in p]
+    assert not problems, "\n".join(problems)
+    stamped = {n for n, p in sp.load_profiles(PROFILES).items() if p.verified.strip()}
+    assert stamped, "no profile carries a stamp — a field nothing fills is a dead field"
 
 
 def _wdir(name, body):
