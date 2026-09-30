@@ -23,11 +23,18 @@ import json
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 
 PROFILES_DIR = os.environ.get(
     "STRIX_PROFILES", os.path.expanduser("~/Piero/Work/Strix_AI_Server/configs/profiles"))
 STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
+PREVIOUS = os.environ.get(
+    "STRIX_PREVIOUS", os.path.expanduser("~/.local/state/strix/profile-previous.json"))
+# A render can be GPU-idle between diffusion steps and still be alive, so gpu_busy_percent
+# alone is not the signal: any of these logging a start recently means "do not reshuffle the
+# box right now".
+RENDER_UNITS = ("comfyui-h3", "h3-video-ui", "ltx25-ui", "ltx25-serve")
 EVIDENCE_DIR = os.environ.get(
     "STRIX_EVIDENCE", os.path.expanduser("~/.local/state/strix/profiles"))
 
@@ -253,7 +260,6 @@ def drift(profile: Profile, live: set[str]) -> dict:
 
 
 def _stamp_age(path: str = STAMP) -> str:
-    import time
     try:
         return time.strftime("%y%m%dT%H:%M", time.localtime(os.path.getmtime(path)))
     except OSError:
@@ -307,6 +313,201 @@ def _report(as_json: bool, obj: dict, reason: str) -> int:
     return 1
 
 
+def _systemctl(args: list[str], timeout: int = 180) -> int:
+    """The single place systemctl is ever called. argv is always a fixed list, never a shell
+    string, so a profile name read from a file can never become a command."""
+    try:
+        return subprocess.run(["systemctl", "--user", *args], capture_output=True,
+                              text=True, timeout=timeout).returncode
+    except Exception:
+        return 1
+
+
+def _started_recently(unit: str, minutes: int = 20) -> bool:
+    try:
+        r = subprocess.run(["journalctl", "--user", "-u", f"{unit}.service",
+                            "--since", f"{minutes} min ago", "--lines", "200", "--no-pager",
+                            "-q"], capture_output=True, text=True, timeout=20)
+        return "Started " in r.stdout
+    except Exception:
+        return False
+
+
+def _busy() -> list[str]:
+    out = []
+    pct = int(os.environ.get("PROFILE_BUSY_PCT", "20"))
+    try:
+        now = int(open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip())
+        if now > pct:
+            out.append(f"gpu_busy_percent {now} > {pct}")
+    except (OSError, ValueError):
+        pass
+    out += [u for u in RENDER_UNITS if _started_recently(u)]
+    return out
+
+
+def _wait_arm(port: int, ceiling_s: int = 180) -> bool:
+    """Poll the text arm's /health until it answers. ponytail: liveness only — the functional
+    'it actually completed a turn' check is Task 5's probe_arm, which replaces this call in
+    one line. The gate (Task 6) is what proves residency."""
+    import urllib.error
+    import urllib.request
+    deadline = time.monotonic() + ceiling_s
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=5) as r:
+                if r.status == 200:
+                    return True
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(2)
+    return False
+
+
+def write_stamp(path: str, name: str) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(name + "\n")
+    os.replace(tmp, path)   # atomic: a torn stamp is a box that lies about its profile
+
+
+def snapshot(path: str, units: list[str], *, stamp: str | None = None) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"units": units, "stamp": stamp,
+                   "at": time.strftime("%y%m%dT%H:%M:%S")}, f)
+    os.replace(tmp, path)
+
+
+def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
+          snapshot_path: str | None = None, dry_run: bool = False, force: bool = False,
+          i_know: bool = False, systemctl=_systemctl, verdict_fn=None, busy=_busy,
+          wait_arm=_wait_arm, is_active=_is_active) -> int:
+    """Put the box into a profile. Order is the contract:
+    refusals -> snapshot -> stop -> start -> wait for the text arm -> stamp LAST.
+
+    `force` bypasses a busy GPU and nothing else. `i_know` bypasses a stale gate and nothing
+    else. A FAILing gate, or no gate at all, is a hard block for both."""
+    d = PROFILES_DIR or globals()["PROFILES_DIR"]
+    stamp_p = stamp_path or globals()["STAMP"]
+    prev_p = snapshot_path or globals()["PREVIOUS"]
+    box = os.uname().nodename
+    try:
+        p = resolve(name, PROFILES_DIR=d)
+    except ProfileError as e:
+        print(f"apply: {e}", file=sys.stderr)
+        return 1
+
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    allowed = set(p.start)
+    stop = [u for u in MANAGED_UNITS if u in live and u not in allowed]
+    refusals: list[str] = []
+
+    def refuse(why: str, extra: str = "") -> int | None:
+        """A dry run reports every reason it would refuse and still prints the plan; a real
+        run stops at the first one."""
+        if dry_run:
+            refusals.append(why)
+            return None
+        print(f"apply {name}: REFUSED, {why}{extra}", file=sys.stderr)
+        return 1
+
+    if not force:
+        blockers = busy()
+        if blockers:
+            r = refuse(f"the GPU is busy ({', '.join(blockers)})",
+                       "\n        a render can be GPU-idle between steps and still be alive; "
+                       "wait for it, or pass --force if you know better.")
+            if r is not None:
+                return r
+    v = verdict_fn(box, p.name) if verdict_fn else None
+    if v is None:
+        r = refuse(f"no gate evidence for this profile on this box",
+                   f"\n        run: strix-profile verify {name}")
+        if r is not None:
+            return r
+    elif v.get("verdict") != "PASS":
+        r = refuse(f"the gate says {v.get('verdict')}: {'; '.join(v.get('reasons') or [])}")
+        if r is not None:
+            return r
+    else:
+        age = v.get("age_h")
+        if age is not None and age > p.gate_max_age_h and not i_know:
+            r = refuse(f"the PASS is {age:.0f} h old and this profile expires it at "
+                       f"{p.gate_max_age_h} h. Re-run the gate, or --i-know.")
+            if r is not None:
+                return r
+        ran = v.get("units")
+        if ran is not None and sorted(ran) != sorted(allowed):
+            r = refuse(f"the PASS was earned by {sorted(ran)} but this profile starts "
+                       f"{sorted(allowed)} — the allow-list changed since the gate ran.")
+            if r is not None:
+                return r
+
+    if dry_run:
+        svc = lambda us: " ".join(f"{u}.service" for u in us) or "(nothing)"
+        print(f"apply {name} — dry run, nothing is started or stopped:")
+        for why in refusals:
+            print(f"  WOULD REFUSE  {why}")
+        print(f"  stop    systemctl --user disable --now {svc(stop)}")
+        print(f"  start   systemctl --user enable --now {svc(p.start)}")
+        print(f"  wait    http://127.0.0.1:{p.text_port}/health, ceiling 180 s"
+              + ("" if p.text_arm else "  (no text arm declared)"))
+        print(f"  stamp   {stamp_p} <- {name}   (written last, only if all of the above worked)")
+        return 1 if refusals else 0
+
+    snapshot(prev_p, sorted(live), stamp=read_stamp(stamp_p))
+    if stop and systemctl(["disable", "--now", *[f"{u}.service" for u in stop]]) != 0:
+        print(f"apply {name}: a stop failed; continuing — the allow-list is what matters", file=sys.stderr)
+    for u in p.start:
+        if systemctl(["enable", "--now", f"{u}.service"]) != 0:
+            print(f"apply {name}: '{u}' would not start — rolling back", file=sys.stderr)
+            rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
+                     systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+            return 1
+    if p.text_arm and not wait_arm(p.text_port, 180):
+        print(f"apply {name}: text arm {p.text_arm} never answered on :{p.text_port} — "
+              f"rolling back", file=sys.stderr)
+        rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
+                 systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+        return 1
+    write_stamp(stamp_p, p.name)
+    print(f"apply {name}: ok — {len(p.start)} units, text arm {p.text_arm or 'none'}"
+          + (f" :{p.text_port}" if p.text_arm else ""))
+    return 0
+
+
+def rollback(*, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
+             snapshot_path: str | None = None, systemctl=_systemctl, wait_arm=_wait_arm,
+             is_active=_is_active) -> int:
+    """Back to the unit set the last apply snapshotted. Refuses to guess: no readable
+    snapshot means no rollback, because inventing a set is how you stop something the
+    operator started by hand."""
+    prev_p = snapshot_path or globals()["PREVIOUS"]
+    try:
+        snap = json.load(open(prev_p))
+    except (OSError, ValueError) as e:
+        print(f"rollback: no usable snapshot at {prev_p} ({e}) — refusing to guess what was "
+              f"running", file=sys.stderr)
+        return 1
+    want = set(snap.get("units") or [])
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    stop = [u for u in MANAGED_UNITS if u in live and u not in want]
+    if stop:
+        systemctl(["disable", "--now", *[f"{u}.service" for u in stop]])
+    for u in MANAGED_UNITS:
+        if u in want:
+            systemctl(["enable", "--now", f"{u}.service"])
+    stamp = snap.get("stamp")
+    if stamp:
+        write_stamp(stamp_path or globals()["STAMP"], stamp)
+    print(f"rollback: restored {len(want)} unit(s) ({' '.join(sorted(want)) or 'none'}), "
+          f"stamp -> {stamp or 'unchanged'}")
+    return 0
+
+
 def cmd_list(argv: list[str]) -> int:
     profiles = {**BUILTIN, **load_profiles(PROFILES_DIR)}
     stamp = read_stamp(STAMP)
@@ -347,7 +548,15 @@ def main(argv: list[str]) -> int:
         return cmd_list(argv[1:])
     if cmd == "check":
         return cmd_check(argv[1:])
-    print("usage: strix-profile current [--json] | list | check", file=sys.stderr)
+    if cmd == "apply" and len(argv) > 1:
+        rest = argv[2:]
+        return apply(argv[1], dry_run="--dry-run" in rest, force="--force" in rest,
+                     i_know="--i-know" in rest)
+    if cmd == "rollback":
+        return rollback()
+    print("usage: strix-profile current [--json] | list | check\n"
+          "       strix-profile apply <name> [--dry-run] [--force] [--i-know]\n"
+          "       strix-profile rollback", file=sys.stderr)
     return 2
 
 

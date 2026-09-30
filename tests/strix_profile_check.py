@@ -12,6 +12,7 @@ import importlib.util
 import io
 import json
 import pathlib
+import shutil
 import sys
 import tempfile
 
@@ -288,6 +289,173 @@ def check_check_profiles_accepts_an_honest_verification():
     assert problems == [], problems
 
 
+class _Stub:
+    """A systemctl that records argv and can fail on a chosen call. Every apply test runs
+    through this; the box is never touched."""
+    def __init__(self, fail_on=()):
+        self.calls = []
+        self.fail_on = fail_on
+
+    def __call__(self, args, timeout=180):
+        self.calls.append(list(args))
+        return 1 if any(f in " ".join(args) for f in self.fail_on) else 0
+
+
+def _ws(stamp="lab-video"):
+    d = pathlib.Path(tempfile.mkdtemp(prefix="strix-apply-"))
+    (d / "profiles").mkdir()
+    for f in (REPO / "configs" / "profiles").glob("*.ini"):
+        shutil.copy(f, d / "profiles" / f.name)
+    if stamp:
+        (d / "stamp").write_text(stamp + "\n")
+    return d
+
+
+def _pass(units=None, age_h=1):
+    def fn(box, profile):
+        v = {"verdict": "PASS", "age_h": age_h}
+        if units is not None:
+            v["units"] = units
+        return v
+    return fn
+
+
+def _apply(name, d, *, stub=None, verdict=None, busy=(), live=("27b-collm", "comfyui-h3"),
+           **kw):
+    return sp.apply(name, PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
+                    snapshot_path=str(d / "previous.json"), systemctl=stub or _Stub(),
+                    verdict_fn=verdict or _pass(), busy=lambda: list(busy),
+                    wait_arm=lambda port, ceiling: True,
+                    is_active=lambda u: u in set(live), **kw)
+
+
+def check_apply_order_and_stamp_last():
+    d = _ws()
+    stub = _Stub()
+    rc = _apply("panic", d, stub=stub)
+    assert rc == 0, rc
+    assert stub.calls[0][:2] == ["disable", "--now"], stub.calls
+    assert {"27b-collm.service", "comfyui-h3.service"} <= set(stub.calls[0][2:]), stub.calls[0]
+    assert stub.calls[-1][:2] == ["enable", "--now"] and "sos-collm.service" in stub.calls[-1]
+    assert sp.read_stamp(str(d / "stamp")) == "panic"
+    snap = json.loads((d / "previous.json").read_text())
+    assert sorted(snap["units"]) == ["27b-collm", "comfyui-h3"] and snap["stamp"] == "lab-video"
+
+
+def check_apply_stops_what_the_allow_list_forbids():
+    """The stop set is computed from the probe, not read from a file: off stops everything."""
+    d = _ws(stamp="lab-all")
+    stub = _Stub()
+    live = {"27b-collm", "acestep-serve", "whisper-stt"}
+    rc = _apply("off", d, stub=stub, live=live)
+    assert rc == 0
+    assert sorted(stub.calls[0][2:]) == ["27b-collm.service", "acestep-serve.service",
+                                         "whisper-stt.service"], stub.calls[0]
+    assert len(stub.calls) == 1, "off starts nothing"
+
+
+def check_apply_refuses_busy_gpu_before_touching_anything():
+    d, stub = _ws(), _Stub()
+    err, old = io.StringIO(), sys.stderr
+    sys.stderr = err
+    try:
+        rc = _apply("lab-image", d, stub=stub, busy=("comfyui-h3",))
+    finally:
+        sys.stderr = old
+    assert rc == 1 and "comfyui-h3" in err.getvalue(), err.getvalue()
+    assert stub.calls == [], "refusal must precede every systemctl call"
+    assert sp.read_stamp(str(d / "stamp")) == "lab-video"
+    assert _apply("lab-image", d, stub=_Stub(), busy=("comfyui-h3",), force=True) == 0
+
+
+def check_apply_refuses_stale_gate_unless_i_know():
+    d = _ws()
+    assert _apply("lab-video", d, verdict=_pass(age_h=400)) == 1
+    assert _apply("lab-video", d, verdict=_pass(age_h=400), i_know=True) == 0
+    assert _apply("lab-video", d, verdict=lambda b, p: None) == 1, "never gated = never applied"
+    assert _apply("lab-video", d, verdict=lambda b, p: {"verdict": "FAIL", "age_h": 1}) == 1
+
+
+def check_never_gated_profiles_ignore_the_clock():
+    """panic/emergency declare gate_max_age_h = 87600 (10 years): freeing the GPU must not be
+    blocked by an evidence file nobody has refreshed in months. Same age, opposite verdicts."""
+    d = _ws()
+    assert _apply("lab-video", d, verdict=_pass(age_h=4000)) == 1, "lab expires at 168 h"
+    assert _apply("panic", d, verdict=_pass(age_h=4000)) == 0
+
+
+def check_apply_refuses_a_stamp_earned_by_a_different_set():
+    d = _ws()
+    err, old = io.StringIO(), sys.stderr
+    sys.stderr = err
+    try:
+        rc = _apply("lab-video", d, verdict=_pass(units=["comfyui-h3"]))
+    finally:
+        sys.stderr = old
+    assert rc == 1 and "gemma-collm" in err.getvalue(), err.getvalue()
+
+
+def check_failed_apply_leaves_the_stamp_alone_and_rolls_back():
+    d = _ws()
+    stub = _Stub(fail_on=["enable --now qwen-image-test"])
+    rc = _apply("lab-image", d, stub=stub, live=("27b-collm",))
+    assert rc == 1
+    assert sp.read_stamp(str(d / "stamp")) == "lab-video", \
+        "a stamp written before the system agrees is a lie waiting to be believed"
+    assert ["enable", "--now", "27b-collm.service"] in stub.calls, stub.calls
+
+
+def check_rollback_restores_the_snapshot():
+    d = _ws()
+    _apply("panic", d)                      # writes previous.json with the old set
+    stub = _Stub()
+    rc = sp.rollback(PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
+                     snapshot_path=str(d / "previous.json"), systemctl=stub,
+                     is_active=lambda u: False)
+    assert rc == 0
+    assert ["enable", "--now", "27b-collm.service"] in stub.calls, stub.calls
+    assert sp.read_stamp(str(d / "stamp")) == "lab-video"
+
+
+def check_rollback_without_snapshot_is_refused():
+    d = _ws()
+    stub = _Stub()
+    rc = sp.rollback(PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
+                     snapshot_path=str(d / "absent.json"), systemctl=stub)
+    assert rc == 1 and stub.calls == []
+
+
+def check_dry_run_prints_argv_and_changes_nothing():
+    d, stub = _ws(), _Stub()
+    out, old = io.StringIO(), sys.stdout
+    sys.stdout = out
+    try:
+        rc = _apply("panic", d, stub=stub, dry_run=True)
+    finally:
+        sys.stdout = old
+    assert rc == 0 and stub.calls == []
+    assert "disable --now 27b-collm.service" in out.getvalue(), out.getvalue()
+    assert "enable --now sos-collm.service" in out.getvalue()
+    assert not (d / "stamp").exists() or sp.read_stamp(str(d / "stamp")) == "lab-video"
+
+
+def check_dry_run_reports_refusals_it_would_hit():
+    """--dry-run is how you preview before spending a GPU minute: it must show the plan AND
+    every reason it would refuse, not stop at the first one."""
+    d = _ws()
+    out, old = io.StringIO(), sys.stdout
+    sys.stdout = out
+    try:
+        rc = _apply("lab-video", d, dry_run=True, verdict=lambda b, p: None,
+                    busy=("comfyui-h3",))
+    finally:
+        sys.stdout = old
+    t = out.getvalue()
+    assert rc == 1, "a dry run that would refuse exits non-zero so a script can test it"
+    assert t.count("WOULD REFUSE") == 2, t
+    assert "enable --now comfyui-h3.service h3-video-ui.service ltx25-ui.service" in t, t
+
+
 def main():
     for fn in [check_loader_fields, check_drift_separates_claim_from_truth,
                check_unknown_profile_raises_not_empty, check_malformed_profile_raises,
@@ -302,7 +470,18 @@ def main():
                check_check_profiles_catches_verification_older_than_the_list,
                check_check_profiles_catches_missing_evidence,
                check_check_profiles_catches_a_malformed_verified_line,
-               check_check_profiles_accepts_an_honest_verification]:
+               check_check_profiles_accepts_an_honest_verification,
+               check_apply_order_and_stamp_last,
+               check_apply_stops_what_the_allow_list_forbids,
+               check_apply_refuses_busy_gpu_before_touching_anything,
+               check_apply_refuses_stale_gate_unless_i_know,
+               check_never_gated_profiles_ignore_the_clock,
+               check_apply_refuses_a_stamp_earned_by_a_different_set,
+               check_failed_apply_leaves_the_stamp_alone_and_rolls_back,
+               check_rollback_restores_the_snapshot,
+               check_rollback_without_snapshot_is_refused,
+               check_dry_run_prints_argv_and_changes_nothing,
+               check_dry_run_reports_refusals_it_would_hit]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")
