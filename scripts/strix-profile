@@ -34,6 +34,10 @@ PROFILES_DIR = os.environ.get("STRIX_PROFILES", os.path.join(_HERE, "configs", "
 STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
 PREVIOUS = os.environ.get(
     "STRIX_PREVIOUS", os.path.expanduser("~/.local/state/strix/profile-previous.json"))
+# Append-only, unlike PREVIOUS (which is one overwritten snapshot): the operator wants to see
+# when the box last changed shape, not only what it changed shape into.
+SWITCHES = os.environ.get(
+    "STRIX_SWITCHES", os.path.expanduser("~/.local/state/strix/profile-switches.jsonl"))
 
 # The units this tool owns. Anything else running on the box (open-webui, ssh-agent,
 # a stray gradio) is never reported as drift — profiles govern model serving, not
@@ -390,6 +394,21 @@ def snapshot(path: str, units: list[str], *, stamp: str | None = None) -> None:
     os.replace(tmp, path)
 
 
+def log_switch(path: str, frm: str | None, to: str, *, stopped=(), started=(),
+               why: str = "") -> None:
+    """One line per shape change. `apply` and `rollback` are the only two things that move a
+    whole unit set, so they are the only two things worth a timeline; Doctor's ARM table reads
+    it newest-first. A history that cannot be written must never fail an apply that worked."""
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a") as f:
+            f.write(json.dumps({"at": int(time.time()), "from": frm, "to": to,
+                                "stopped": sorted(stopped), "started": sorted(started),
+                                "why": why}) + "\n")
+    except OSError as e:
+        print(f"warning: switch history not written ({e})", file=sys.stderr)
+
+
 def _gate_verdict(box: str, profile: str):
     """The newest gate PASS/FAIL for this box and profile. Read here rather than imported from
     profile-gate.py because the gate already imports this file by path; a second edge would make
@@ -415,7 +434,8 @@ def _gate_verdict(box: str, profile: str):
 
 
 def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
-          snapshot_path: str | None = None, dry_run: bool = False, force: bool = False,
+          snapshot_path: str | None = None, switches_path: str | None = None,
+          dry_run: bool = False, force: bool = False,
           i_know: bool = False, systemctl=_systemctl, verdict_fn=_gate_verdict,
           busy=_busy,
           wait_arm=_wait_arm, is_active=_is_active) -> int:
@@ -427,6 +447,7 @@ def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None 
     d = PROFILES_DIR or globals()["PROFILES_DIR"]
     stamp_p = stamp_path or globals()["STAMP"]
     prev_p = snapshot_path or globals()["PREVIOUS"]
+    sw_p = switches_path or globals()["SWITCHES"]
     box = os.uname().nodename
     try:
         p = resolve(name, PROFILES_DIR=d)
@@ -499,29 +520,34 @@ def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None 
         print(f"  stamp   {stamp_p} <- {name}   (written last, only if all of the above worked)")
         return 1 if refusals else 0
 
-    snapshot(prev_p, sorted(live), stamp=read_stamp(stamp_p))
+    prev_stamp = read_stamp(stamp_p)
+    snapshot(prev_p, sorted(live), stamp=prev_stamp)
     if stop and systemctl(["disable", "--now", *[f"{u}.service" for u in stop]]) != 0:
         print(f"apply {name}: a stop failed; continuing — the allow-list is what matters", file=sys.stderr)
     for u in p.start:
         if systemctl(["enable", "--now", f"{u}.service"]) != 0:
             print(f"apply {name}: '{u}' would not start — rolling back", file=sys.stderr)
             rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
-                     systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+                     switches_path=sw_p, systemctl=systemctl, wait_arm=wait_arm,
+                 is_active=is_active)
             return 1
     if p.text_arm and not wait_arm(p.text_port, 180):
         print(f"apply {name}: text arm {p.text_arm} never answered on :{p.text_port} — "
               f"rolling back", file=sys.stderr)
         rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
-                 systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+                 switches_path=sw_p, systemctl=systemctl, wait_arm=wait_arm,
+                 is_active=is_active)
         return 1
     write_stamp(stamp_p, p.name)
+    log_switch(sw_p, prev_stamp, p.name, stopped=stop, started=p.start)
     print(f"apply {name}: ok — {len(p.start)} units, text arm {p.text_arm or 'none'}"
           + (f" :{p.text_port}" if p.text_arm else ""))
     return 0
 
 
 def rollback(*, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
-             snapshot_path: str | None = None, systemctl=_systemctl, wait_arm=_wait_arm,
+             snapshot_path: str | None = None, switches_path: str | None = None,
+             systemctl=_systemctl, wait_arm=_wait_arm,
              is_active=_is_active) -> int:
     """Back to the unit set the last apply snapshotted. Refuses to guess: no readable
     snapshot means no rollback, because inventing a set is how you stop something the
@@ -543,7 +569,10 @@ def rollback(*, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
             systemctl(["enable", "--now", f"{u}.service"])
     stamp = snap.get("stamp")
     if stamp:
+        cur = read_stamp(stamp_path or globals()["STAMP"])
         write_stamp(stamp_path or globals()["STAMP"], stamp)
+        log_switch(switches_path or globals()["SWITCHES"], cur, stamp,
+                   stopped=stop, started=sorted(want), why="rollback")
     print(f"rollback: restored {len(want)} unit(s) ({' '.join(sorted(want)) or 'none'}), "
           f"stamp -> {stamp or 'unchanged'}")
     return 0

@@ -329,7 +329,9 @@ def _pass(units=None, age_h=1):
 def _apply(name, d, *, stub=None, verdict=None, busy=(), live=("27b-collm", "comfyui-h3"),
            **kw):
     return sp.apply(name, PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
-                    snapshot_path=str(d / "previous.json"), systemctl=stub or _Stub(),
+                    snapshot_path=str(d / "previous.json"),
+                    switches_path=str(d / "switches"),   # else the suite writes the box's real history
+                    systemctl=stub or _Stub(),
                     verdict_fn=verdict or _pass(), busy=lambda: list(busy),
                     wait_arm=lambda port, ceiling: True,
                     is_active=lambda u: u in set(live), **kw)
@@ -409,6 +411,10 @@ def check_failed_apply_leaves_the_stamp_alone_and_rolls_back():
     assert sp.read_stamp(str(d / "stamp")) == "lab-video", \
         "a stamp written before the system agrees is a lie waiting to be believed"
     assert ["enable", "--now", "27b-collm.service"] in stub.calls, stub.calls
+    # The rollback this failure triggers must land in the injected history, never in the
+    # box's real one: a suite that writes ~/.local/state/strix/ teaches the ARM card lies.
+    sw = open(str(d / "switches")).read()
+    assert '"why": "rollback"' in sw and '"to": "lab-video"' in sw, sw
 
 
 def check_rollback_restores_the_snapshot():
@@ -416,7 +422,8 @@ def check_rollback_restores_the_snapshot():
     _apply("panic", d)                      # writes previous.json with the old set
     stub = _Stub()
     rc = sp.rollback(PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
-                     snapshot_path=str(d / "previous.json"), systemctl=stub,
+                     snapshot_path=str(d / "previous.json"),
+                     switches_path=str(d / "switches"), systemctl=stub,
                      is_active=lambda u: False)
     assert rc == 0
     assert ["enable", "--now", "27b-collm.service"] in stub.calls, stub.calls
@@ -427,7 +434,8 @@ def check_rollback_without_snapshot_is_refused():
     d = _ws()
     stub = _Stub()
     rc = sp.rollback(PROFILES_DIR=str(d / "profiles"), stamp_path=str(d / "stamp"),
-                     snapshot_path=str(d / "absent.json"), systemctl=stub)
+                     snapshot_path=str(d / "absent.json"),
+                     switches_path=str(d / "switches"), systemctl=stub)
     assert rc == 1 and stub.calls == []
 
 
