@@ -1,0 +1,605 @@
+#!/usr/bin/env python3
+"""strix-profile — the only thing that decides which models this box serves.
+
+    strix-profile current [--json]     # what this box is meant to be, vs what it is
+    strix-profile list                 # every profile and its text arm
+    strix-profile check                # profile files self-consistency (Task 2)
+    strix-profile apply <name>         # change the system (Task 3)
+
+A profile is data in configs/profiles/<name>.ini: the units to start, the units to
+stop, and which of them is the text arm. The stamp file holds one word — the
+profile this box is *meant* to be in — and `current` cross-checks it against the
+live units, because a stamp is a claim and /proc is the truth.
+
+Exit codes are part of the interface: `current` exits 1 when the stamp is absent,
+names a profile that does not exist, has units missing, or has its text arm down.
+A box serving no text model is a fault, not a shrug — that is the case this whole
+tool exists to catch (see proposals/serving-profiles-260930.md §1).
+"""
+from __future__ import annotations
+
+import configparser
+import json
+import os
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+
+# Beside this script, not a hardcoded checkout: the tool and its profile library move
+# together. The fixed path pointed every invocation at a worktree that has no profiles, so
+# `apply lab-video` died with "no profile named" while the box sat on the fallback (260930).
+_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROFILES_DIR = os.environ.get("STRIX_PROFILES", os.path.join(_HERE, "configs", "profiles"))
+STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
+PREVIOUS = os.environ.get(
+    "STRIX_PREVIOUS", os.path.expanduser("~/.local/state/strix/profile-previous.json"))
+
+# The units this tool owns. Anything else running on the box (open-webui, ssh-agent,
+# a stray gradio) is never reported as drift — profiles govern model serving, not
+# the operator's whole user session.
+MANAGED_UNITS = (
+    "27b-collm", "gemma-collm", "sos-collm", "llama-llm", "gufo-llm", "gufo-serve",
+    "qwen-image-test", "comfyui-h3", "h3-video-ui", "acestep-serve", "acestep-ui",
+    "whisper-stt", "ltx25-ui",
+)
+
+
+class ProfileError(Exception):
+    """A profile file is missing, unknown, or malformed. Never silently empty."""
+
+
+@dataclass
+class Profile:
+    """A shape of service. `start` is an ALLOW-list: the only managed units this box may
+    run in this profile. Everything else that is running comes down with it (operator
+    ruling 260930) — so a unit added next month is stopped by every existing profile until
+    someone puts it in one, which fails safe, instead of surviving and blowing the budget."""
+    name: str
+    summary: str = ""
+    start: list[str] = field(default_factory=list)
+    text_arm: str | None = None
+    text_port: int = 8080
+    budget_gtt_gib: int = 0
+    workload: str = "text"
+    gate_max_age_h: int = 168
+    experimental: bool = False
+    tools: bool = True
+    # "<when> <commit> <evidence.json>" once a load test has run this exact allow-list, or
+    # empty. Written by the tool, never by hand: a date typed in by a person is a claim, the
+    # same date written after a measured run is evidence.
+    verified: str = ""
+
+
+def _words(s: str) -> list[str]:
+    return s.split()
+
+
+def load_profiles(dir: str) -> dict[str, Profile]:
+    """Every valid profile in `dir`, keyed by its `name` key. A missing dir is {}
+    (the caller decides whether that is fatal — require_profile() makes it fatal)."""
+    out: dict[str, Profile] = {}
+    try:
+        names = sorted(n for n in os.listdir(dir) if n.endswith(".ini"))
+    except OSError:
+        return {}
+    for n in names:
+        path = os.path.join(dir, n)
+        cp = configparser.ConfigParser()
+        try:
+            # The spec's profile files are flat key = value with no section header, which
+            # configparser refuses. Prepend one rather than make every file carry noise.
+            raw = open(path).read()
+            cp.read_string(raw if raw.lstrip().startswith("[") else "[profile]\n" + raw, path)
+        except (configparser.Error, OSError) as e:
+            raise ProfileError(f"{path}: cannot parse: {e}") from e
+        if "profile" not in cp:
+            raise ProfileError(f"{path}: missing [profile] section")
+        s = cp["profile"]
+        missing = [k for k in ("name",) if not s.get(k, "").strip()]
+        if missing:
+            raise ProfileError(f"{path}: missing required key(s): {', '.join(missing)}")
+        p = Profile(
+            name=s.get("name").strip(),
+            summary=s.get("summary", "").strip(),
+            start=_words(s.get("start", "")),
+            text_arm=(a := s.get("text_arm", "").strip()) or None,
+            text_port=int(s.get("text_port", "8080") or 8080),
+            budget_gtt_gib=int(s.get("budget_gtt_gib", "0") or 0),
+            workload=s.get("workload", "text").strip(),
+            gate_max_age_h=int(s.get("gate_max_age_h", "168") or 168),
+            experimental=s.getboolean("experimental", fallback=False),
+            tools=s.getboolean("tools", fallback=True),
+            verified=s.get("verified", "").strip(),
+        )
+        if p.name in out:
+            raise ProfileError(f"{path}: duplicate profile name '{p.name}'")
+        out[p.name] = p
+    return out
+
+
+def require_profile(dir: str, name: str) -> Profile:
+    p = load_profiles(dir).get(name)
+    if p is None:
+        raise ProfileError(f"no profile named '{name}' in {dir}")
+    return p
+
+
+# panic and emergency exist in code as well as on disk, and check_profiles() compares them
+# field by field against their INI files. The reason is the 3 a.m. case: if ~/.config is
+# corrupt, unreadable, or on a home directory that has not mounted, the two shapes you
+# still need are the one that frees the GPU and the one that answers a question.
+BUILTIN: dict[str, Profile] = {
+    "panic": Profile(name="panic", summary="free the GPU now; only the SOS arm stays up",
+                     start=["sos-collm"], text_arm="sos-collm", text_port=8082,
+                     budget_gtt_gib=8, workload="text", gate_max_age_h=87600),
+    "emergency": Profile(name="emergency", summary="the champion alone, no experiment, no UI",
+                         start=["27b-collm"], text_arm="27b-collm", text_port=8080,
+                         budget_gtt_gib=100, workload="text", gate_max_age_h=87600),
+}
+
+
+def resolve(name: str, *, PROFILES_DIR: str | None = None) -> Profile:
+    """File if present, else the built-in, else ProfileError. A missing or broken configs
+    tree costs you the lab profiles and nothing else."""
+    d = PROFILES_DIR or globals()["PROFILES_DIR"]
+    p = load_profiles(d).get(name) or BUILTIN.get(name)
+    if p is None:
+        raise ProfileError(f"no profile named '{name}' (looked in {d})")
+    return p
+
+
+def verified_info(p: Profile) -> tuple[str, str, str]:
+    """The `verified` line as (when, commit, evidence-path); ("", "", "") when no load test
+    has ever run this allow-list. A line that is not three fields is unverified as far as
+    this goes, and check_profiles() reports it."""
+    parts = p.verified.split()
+    return (parts[0], parts[1], parts[2]) if len(parts) == 3 else ("", "", "")
+
+
+def check_profiles(dir: str, *, installed: set[str] | None = None) -> list[str]:
+    """One line per problem; empty means the profile set is sound. `strix-profile check`
+    prints this and Task 9's collector reports it."""
+    try:
+        profiles = load_profiles(dir)
+    except ProfileError as e:
+        return [str(e)]
+    if installed is None:
+        installed = {u for u in MANAGED_UNITS if os.path.exists(
+            os.path.expanduser(f"~/.config/systemd/user/{u}.service"))}
+        installed |= {u for p in BUILTIN.values() for u in p.start}
+    problems: list[str] = []
+    for name, p in sorted(profiles.items()):
+        f = os.path.join(dir, name + ".ini")
+        if len(p.start) != len(set(p.start)):
+            problems.append(f"{f}: start lists a unit twice")
+        for u in p.start:
+            if u not in MANAGED_UNITS:
+                problems.append(f"{f}: unit '{u}' is not managed by strix-profile")
+            elif u not in installed:
+                problems.append(f"{f}: no service file for '{u}' in ~/.config/systemd/user")
+        if p.text_arm and p.text_arm not in p.start:
+            problems.append(f"{f}: text_arm '{p.text_arm}' is not in start — the box would "
+                            f"claim a profile whose text arm it never starts")
+        if p.start and p.budget_gtt_gib <= 0:
+            problems.append(f"{f}: budget_gtt_gib must be > 0 for a profile that starts units")
+        if not 1024 <= p.text_port <= 65535:
+            problems.append(f"{f}: text_port {p.text_port} is not a usable port")
+        if p.gate_max_age_h <= 0:
+            problems.append(f"{f}: gate_max_age_h must be > 0 (87600 = never gate)")
+        if name in BUILTIN and BUILTIN[name] != p:
+            problems.append(f"{f}: diverges from BUILTIN['{name}'] — code is the fallback, "
+                            f"the file must agree\n    file={p}\n    code={BUILTIN[name]}")
+        if p.verified.strip():
+            parts = p.verified.split()
+            if len(parts) != 3:
+                problems.append(f"{f}: 'verified' must be '<when> <commit> <evidence.json>', "
+                                f"got {p.verified!r}")
+            else:
+                problems += _verified_still_true(f, p, parts)
+    return problems
+
+
+def _verified_still_true(f: str, p: Profile, parts: list[str]) -> list[str]:
+    """A verification stamp only vouches for the set that was measured. Edit the allow-list
+    and the stamp is a lie about a combination nobody ran."""
+    when, commit, ev = parts
+    try:
+        ran = json.load(open(ev)).get("units")
+    except (OSError, ValueError) as e:
+        return [f"{f}: verified evidence {ev} unreadable ({e}) — the stamp vouches for nothing"]
+    if ran is None:
+        return [f"{f}: verified evidence {ev} records no 'units'"]
+    if sorted(ran) == sorted(set(p.start)):
+        return []
+    new = sorted(set(p.start) - set(ran))
+    gone = sorted(set(ran) - set(p.start))
+    return [f"{f}: allow-list changed since it was verified ({when} {commit}) — the run had "
+            f"{sorted(ran)}, the profile starts {sorted(p.start)}"
+            + (f"; new since the run: {' '.join(new)}" if new else "")
+            + (f"; dropped since the run: {' '.join(gone)}" if gone else "")]
+
+
+def read_stamp(path: str = STAMP) -> str | None:
+    try:
+        s = open(path).read().strip()
+    except OSError:
+        return None
+    return s or None
+
+
+def _is_active(unit: str) -> bool:
+    try:
+        return subprocess.run(["systemctl", "--user", "is-active", f"{unit}.service"],
+                              capture_output=True, text=True, timeout=10).stdout.strip() == "active"
+    except Exception:
+        return False
+
+
+def live_units(profile: Profile, *, is_active=_is_active) -> tuple[set[str], set[str]]:
+    """(managed units running that the profile starts, managed units running that it
+    does not). Probes every MANAGED_UNIT so an arm started by hand at 02:00 shows up."""
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    start = set(profile.start)
+    return live & start, live - start
+
+
+def drift(profile: Profile, live: set[str]) -> dict:
+    """Claim vs truth. `extra` is limited to managed units on purpose: an unrelated
+    user service is not a profile violation."""
+    start = set(profile.start)
+    missing = [u for u in profile.start if u not in live]
+    extra = [u for u in MANAGED_UNITS if u in live and u not in start]
+    # A profile that declares no text arm (`off`) is satisfied by definition; it names
+    # its violation in the file instead of leaving it to be discovered.
+    arm_up = True if profile.text_arm is None else (profile.text_arm in live)
+    return {"missing": missing, "extra": extra, "text_arm_up": arm_up}
+
+
+def _stamp_age(path: str = STAMP) -> str:
+    try:
+        return time.strftime("%y%m%dT%H:%M", time.localtime(os.path.getmtime(path)))
+    except OSError:
+        return "unknown"
+
+
+def cmd_current(argv: list[str], *, is_active=_is_active) -> int:
+    as_json = "--json" in argv
+    box = os.uname().nodename
+    stamp = read_stamp(STAMP)
+    if stamp is None:
+        reason = f"{box}  no profile stamp at {STAMP} — this box has never been put into a profile"
+        return _report(as_json, {"box": box, "profile": None, "ok": False, "reason": reason}, reason)
+    try:
+        p = resolve(stamp)
+    except ProfileError as e:
+        reason = f"{box}  stamp says '{stamp}' but {e}"
+        return _report(as_json, {"box": box, "profile": stamp, "ok": False, "reason": reason}, reason)
+    running, extra = live_units(p, is_active=is_active)
+    d = drift(p, running | extra)
+    ok = not d["missing"] and d["text_arm_up"]
+    if as_json:
+        # exactly one JSON document on stdout: Task 9's collector parses it with json.loads,
+        # so the human-readable reason lives inside the object, never after it.
+        print(json.dumps({"box": box, "profile": p.name, "stamp_age": _stamp_age(STAMP),
+                          "running": sorted(running), "missing": d["missing"], "extra": d["extra"],
+                          "text_arm": p.text_arm, "text_port": p.text_port,
+                          "text_arm_up": d["text_arm_up"], "ok": ok}))
+        return 0 if ok else 1
+    print(f"{box}  profile={p.name} (stamp {_stamp_age(STAMP)})"
+          + ("  EXPERIMENTAL" if p.experimental else ""))
+    print(f"  running   {' '.join(sorted(running)) or 'nothing'}")
+    if d["missing"]:
+        print(f"  missing   {' '.join(d['missing'])}")
+    if d["extra"]:
+        print(f"  DRIFT     {' '.join(d['extra'])} running but not in profile")
+    arm = p.text_arm or "none declared"
+    print(f"  text arm  {arm}"
+          + (f" :{p.text_port} " + ("up" if d["text_arm_up"] else "DOWN") if p.text_arm else ""))
+    if not ok:
+        print(f"  FAULT     {'units missing' if d['missing'] else 'text arm down — box serves no text model'}")
+    return 0 if ok else 1
+
+
+def _report(as_json: bool, obj: dict, reason: str) -> int:
+    """Failure path for both output modes: JSON mode prints the object and nothing else."""
+    if as_json:
+        print(json.dumps(obj))
+    else:
+        print(reason, file=sys.stderr)
+    return 1
+
+
+def _systemctl(args: list[str], timeout: int = 180) -> int:
+    """The single place systemctl is ever called. argv is always a fixed list, never a shell
+    string, so a profile name read from a file can never become a command."""
+    try:
+        return subprocess.run(["systemctl", "--user", *args], capture_output=True,
+                              text=True, timeout=timeout).returncode
+    except Exception:
+        return 1
+
+
+def _queue_running(port: int = 8188):
+    """Ask the renderer whether it is rendering. True / False, or None when it cannot be asked.
+    The queue covers h3-video-ui and ltx25-ui too: they submit to this same ComfyUI."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/queue", timeout=3) as r:
+            return bool(json.load(r).get("queue_running"))
+    except Exception:
+        return None
+
+
+def _busy(ask=_queue_running, pct_fn=None) -> list[str]:
+    """Why we must not reshuffle the box right now. The renderer's queue is the only signal
+    that survives contact with this box: gpu_busy_percent sticks at 100 after any GPU op (the
+    ROCR AsyncEventsLoop bug, TheRock#7051 — OBSERVED 260930 with ComfyUI burning 111 % CPU and
+    nothing rendering), and journalctl's "Started" line means a UNIT came up, not that a job is
+    running, so it vetoed every apply for 20 min after apply's own start. Either one alone makes
+    the guard refuse forever; the queue answers the actual question. When the queue cannot be
+    reached we fall back to the crude reading and let the operator override with --force."""
+    q = ask()
+    if q is True:
+        return ["comfyui queue has a job running"]
+    if q is False:
+        return []
+    pct = int(os.environ.get("PROFILE_BUSY_PCT", "20"))
+    try:
+        now = (int(open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip())
+               if pct_fn is None else pct_fn())
+        if now > pct:
+            return [f"comfyui queue unreachable and gpu_busy_percent {now} > {pct}"]
+    except (OSError, ValueError, ZeroDivisionError):
+        pass
+    return []
+
+
+def _wait_arm(port: int, ceiling_s: int = 180) -> bool:
+    """Poll the text arm's /health until it answers. ponytail: liveness only — the functional
+    'it actually completed a turn' check is Task 5's probe_arm, which replaces this call in
+    one line. The gate (Task 6) is what proves residency."""
+    import urllib.error
+    import urllib.request
+    deadline = time.monotonic() + ceiling_s
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=5) as r:
+                if r.status == 200:
+                    return True
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(2)
+    return False
+
+
+def write_stamp(path: str, name: str) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(name + "\n")
+    os.replace(tmp, path)   # atomic: a torn stamp is a box that lies about its profile
+
+
+def snapshot(path: str, units: list[str], *, stamp: str | None = None) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"units": units, "stamp": stamp,
+                   "at": time.strftime("%y%m%dT%H:%M:%S")}, f)
+    os.replace(tmp, path)
+
+
+def _gate_verdict(box: str, profile: str):
+    """The newest gate PASS/FAIL for this box and profile. Read here rather than imported from
+    profile-gate.py because the gate already imports this file by path; a second edge would make
+    it a cycle. The filename is the gate's contract (evidence-<profile>.json) and the box field
+    is checked because evidence from another machine must never vouch for this one."""
+    path = os.path.expanduser(os.environ.get("STRIX_GATE_EVIDENCE",
+                                             "~/.local/share/strix/gate")
+                              + f"/evidence-{profile}.json")
+    try:
+        ev = json.loads(open(path).read())
+    except (OSError, ValueError):
+        return None
+    if ev.get("box") != box:
+        return None
+    try:
+        import datetime
+        ev["age_h"] = (datetime.datetime.now(datetime.timezone.utc)
+                       - datetime.datetime.fromisoformat(ev["started"])
+                       ).total_seconds() / 3600
+    except (KeyError, ValueError):
+        ev["age_h"] = None
+    return ev
+
+
+def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
+          snapshot_path: str | None = None, dry_run: bool = False, force: bool = False,
+          i_know: bool = False, systemctl=_systemctl, verdict_fn=_gate_verdict,
+          busy=_busy,
+          wait_arm=_wait_arm, is_active=_is_active) -> int:
+    """Put the box into a profile. Order is the contract:
+    refusals -> snapshot -> stop -> start -> wait for the text arm -> stamp LAST.
+
+    `force` bypasses a busy GPU and nothing else. `i_know` bypasses a stale gate and nothing
+    else. A FAILing gate, or no gate at all, is a hard block for both."""
+    d = PROFILES_DIR or globals()["PROFILES_DIR"]
+    stamp_p = stamp_path or globals()["STAMP"]
+    prev_p = snapshot_path or globals()["PREVIOUS"]
+    box = os.uname().nodename
+    try:
+        p = resolve(name, PROFILES_DIR=d)
+    except ProfileError as e:
+        print(f"apply: {e}", file=sys.stderr)
+        return 1
+
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    allowed = set(p.start)
+    stop = [u for u in MANAGED_UNITS if u in live and u not in allowed]
+    refusals: list[str] = []
+
+    def refuse(why: str, extra: str = "") -> int | None:
+        """A dry run reports every reason it would refuse and still prints the plan; a real
+        run stops at the first one."""
+        if dry_run:
+            refusals.append(why)
+            return None
+        print(f"apply {name}: REFUSED, {why}{extra}", file=sys.stderr)
+        return 1
+
+    if not force:
+        blockers = busy()
+        if blockers:
+            r = refuse(f"the GPU is busy ({', '.join(blockers)})",
+                       "\n        a render can be GPU-idle between steps and still be alive; "
+                       "wait for it, or pass --force if you know better.")
+            if r is not None:
+                return r
+    v = verdict_fn(box, p.name)
+    if v is None and not force:
+        r = refuse(f"no gate evidence for this profile on this box",
+                   f"\n        run: strix-profile verify {name}")
+        if r is not None:
+            return r
+    elif v is None:
+        # --force means "I know better than the ABSENCE of a test", which is what panic and
+        # emergency are for: the box is already wrong and a missing load test must not stand in
+        # the way of the one shape that frees memory. A measured FAIL is different evidence and
+        # is still refused below.
+        print(f"apply {name}: --force, no gate evidence on this box — proceeding unmeasured",
+              file=sys.stderr)
+    elif v.get("verdict") != "PASS":
+        r = refuse(f"the gate says {v.get('verdict')}: {'; '.join(v.get('reasons') or [])}")
+        if r is not None:
+            return r
+    else:
+        age = v.get("age_h")
+        if age is not None and age > p.gate_max_age_h and not i_know:
+            r = refuse(f"the PASS is {age:.0f} h old and this profile expires it at "
+                       f"{p.gate_max_age_h} h. Re-run the gate, or --i-know.")
+            if r is not None:
+                return r
+        ran = v.get("units")
+        if ran is not None and sorted(ran) != sorted(allowed):
+            r = refuse(f"the PASS was earned by {sorted(ran)} but this profile starts "
+                       f"{sorted(allowed)} — the allow-list changed since the gate ran.")
+            if r is not None:
+                return r
+
+    if dry_run:
+        svc = lambda us: " ".join(f"{u}.service" for u in us) or "(nothing)"
+        print(f"apply {name} — dry run, nothing is started or stopped:")
+        for why in refusals:
+            print(f"  WOULD REFUSE  {why}")
+        print(f"  stop    systemctl --user disable --now {svc(stop)}")
+        print(f"  start   systemctl --user enable --now {svc(p.start)}")
+        print(f"  wait    http://127.0.0.1:{p.text_port}/health, ceiling 180 s"
+              + ("" if p.text_arm else "  (no text arm declared)"))
+        print(f"  stamp   {stamp_p} <- {name}   (written last, only if all of the above worked)")
+        return 1 if refusals else 0
+
+    snapshot(prev_p, sorted(live), stamp=read_stamp(stamp_p))
+    if stop and systemctl(["disable", "--now", *[f"{u}.service" for u in stop]]) != 0:
+        print(f"apply {name}: a stop failed; continuing — the allow-list is what matters", file=sys.stderr)
+    for u in p.start:
+        if systemctl(["enable", "--now", f"{u}.service"]) != 0:
+            print(f"apply {name}: '{u}' would not start — rolling back", file=sys.stderr)
+            rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
+                     systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+            return 1
+    if p.text_arm and not wait_arm(p.text_port, 180):
+        print(f"apply {name}: text arm {p.text_arm} never answered on :{p.text_port} — "
+              f"rolling back", file=sys.stderr)
+        rollback(PROFILES_DIR=d, stamp_path=stamp_p, snapshot_path=prev_p,
+                 systemctl=systemctl, wait_arm=wait_arm, is_active=is_active)
+        return 1
+    write_stamp(stamp_p, p.name)
+    print(f"apply {name}: ok — {len(p.start)} units, text arm {p.text_arm or 'none'}"
+          + (f" :{p.text_port}" if p.text_arm else ""))
+    return 0
+
+
+def rollback(*, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
+             snapshot_path: str | None = None, systemctl=_systemctl, wait_arm=_wait_arm,
+             is_active=_is_active) -> int:
+    """Back to the unit set the last apply snapshotted. Refuses to guess: no readable
+    snapshot means no rollback, because inventing a set is how you stop something the
+    operator started by hand."""
+    prev_p = snapshot_path or globals()["PREVIOUS"]
+    try:
+        snap = json.load(open(prev_p))
+    except (OSError, ValueError) as e:
+        print(f"rollback: no usable snapshot at {prev_p} ({e}) — refusing to guess what was "
+              f"running", file=sys.stderr)
+        return 1
+    want = set(snap.get("units") or [])
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    stop = [u for u in MANAGED_UNITS if u in live and u not in want]
+    if stop:
+        systemctl(["disable", "--now", *[f"{u}.service" for u in stop]])
+    for u in MANAGED_UNITS:
+        if u in want:
+            systemctl(["enable", "--now", f"{u}.service"])
+    stamp = snap.get("stamp")
+    if stamp:
+        write_stamp(stamp_path or globals()["STAMP"], stamp)
+    print(f"rollback: restored {len(want)} unit(s) ({' '.join(sorted(want)) or 'none'}), "
+          f"stamp -> {stamp or 'unchanged'}")
+    return 0
+
+
+def cmd_list(argv: list[str]) -> int:
+    profiles = {**BUILTIN, **load_profiles(PROFILES_DIR)}
+    stamp = read_stamp(STAMP)
+    for name, p in sorted(profiles.items()):
+        arm = p.text_arm or "none"
+        mark = "  <- stamp" if name == stamp else ""
+        when, commit, _ = verified_info(p)
+        print(f"{name:<12} {arm:<12} :{p.text_port:<5} {len(p.start):>2} units"
+              f"{'  EXPERIMENTAL' if p.experimental else ''}  {p.summary}{mark}"
+              + (f"  verified {when} {commit}" if when else "  UNVERIFIED"))
+    return 0
+
+
+def cmd_check(argv: list[str]) -> int:
+    problems = check_profiles(PROFILES_DIR)
+    for line in problems:
+        print(line)
+    try:
+        profiles = {**BUILTIN, **load_profiles(PROFILES_DIR)}
+    except ProfileError:
+        return 1
+    # Positive evidence, not silence: a check that prints nothing when it passes is
+    # indistinguishable from a check that never ran (fault pattern, sealed 260930).
+    print(f"{PROFILES_DIR}: {len(profiles)} profiles, {len(problems)} problem(s)")
+    unverified = [n for n, p in sorted(profiles.items()) if not p.verified.strip()]
+    if unverified:
+        print(f"  NOTE  {len(unverified)} allow-list(s) never through a load test: "
+              f"{' '.join(unverified)}")
+        print("        their budgets are declared ceilings; the gate writes the stamp.")
+    return 1 if problems else 0
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "current"
+    if cmd == "current":
+        return cmd_current(argv[1:])
+    if cmd == "list":
+        return cmd_list(argv[1:])
+    if cmd == "check":
+        return cmd_check(argv[1:])
+    if cmd == "apply" and len(argv) > 1:
+        rest = argv[2:]
+        return apply(argv[1], dry_run="--dry-run" in rest, force="--force" in rest,
+                     i_know="--i-know" in rest)
+    if cmd == "rollback":
+        return rollback()
+    print("usage: strix-profile current [--json] | list | check\n"
+          "       strix-profile apply <name> [--dry-run] [--force] [--i-know]\n"
+          "       strix-profile rollback", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

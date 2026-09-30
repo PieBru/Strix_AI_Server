@@ -1,0 +1,14 @@
+[Unit]
+Description=Tick the unbreakable watchdog every 2 min (trips after 3 missed probes)
+Requires=strix-watchdog.service
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+RandomizedDelaySec=15
+# Not Persistent: a box that was off for a day should not be stampeded by a catch-up tick
+# the second it boots.
+Persistent=no
+
+[Install]
+WantedBy=timers.target

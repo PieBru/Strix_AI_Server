@@ -49,14 +49,27 @@ recently.
 ```ini
 # configs/profiles/lab-video.ini          (stdlib configparser, same shape as models.ini)
 name        = lab-video
-summary     = MiniMax-H3 + LTX-2.5 video lab, gemma as the text arm
-start       = comfyui-h3 h3-video-ui ltx25-ui gemma-collm
-stop        = 27b-collm llama-llm gufo-llm gufo-serve qwen-image-test acestep-serve acestep-ui
+summary     = H3 + LTX video bench, Gemma as the arm that survives a render
+start       = comfyui-h3 h3-video-ui ltx25-ui gemma-collm   # ALLOW-list: the only managed
+                                                              # units this shape may run
 text_arm    = gemma-collm            # the invariant, made a field instead of a sentence
-budget_gtt  = 96                     # GiB we expect to be resident at peak, all models loaded
+budget_gtt_gib = 96                  # GiB we expect to be resident at peak, all models loaded
 workload    = video                  # what the gate drives through the set (see §5)
 gate_max_age_h = 168                 # a PASS older than this is a FAIL (weekly re-prove)
+verified    =                        # "<when> <commit> <evidence.json>", written by the gate
 ```
+
+**`start` is an allow-list, not a start-list** (operator ruling 260930, after reading the
+first draft of these files). There is no `stop` key: every managed unit that is running and
+is *not* named here comes down with the profile. Two reasons, one of them decisive.
+
+- It fails in the safe direction. A unit added to this box next month is stopped by every
+  existing profile until someone puts it in one — annoying. Under a deny-list it would
+  survive every profile silently and be the reason a budget is wrong, which is the failure
+  this whole feature exists to prevent.
+- It deletes a duplicate source of truth. `apply` already has to enumerate the live units to
+  price the budget, so "what to stop" was being written twice: once by hand in eight files,
+  once by the probe that cannot be wrong.
 
 Two files of state, both tiny:
 
@@ -117,9 +130,13 @@ strix-profile verify lab-video        # run the gate (§5) without changing anyt
 `apply` does, in order:
 
 1. **Refuse** if the profile has no PASSing gate newer than `gate_max_age_h`,
-   unless `--i-know` — the gate is not advisory, it is the admission ticket.
+   unless `--i-know` — the gate is not advisory, it is the admission ticket. Also
+   refuse if `verified` names an evidence file whose unit set differs from `start`:
+   the stamp was earned by a different box-shape than the one being applied.
 2. Snapshot the current unit set to `state/profile-previous.json` (rollback data).
-3. `systemctl --user disable --now <stop list>`, then `enable --now <start list>`.
+3. `systemctl --user disable --now <live managed units not in start>`, then
+   `enable --now <start list>`. The stop set is **computed from the probe**, never read
+   from the file — there is no `stop` key to be wrong about (§2).
    `enable` is what makes the profile survive a reboot — no new systemd concept,
    no target units, no generator. The boot state *is* the profile.
 4. Wait for the text arm's `/health` and its functional probe, ceiling 180 s.
@@ -152,6 +169,40 @@ simultaneously**, and measures the machine, not the logs:
 | 2 **concurrent work** | text arm: a tool-call round-trip · image: one 512² generation · video: one 25-frame 320×192 clip · music: one 10 s clip · STT: one 10 s transcript — **all in flight at once** | peak GTT, peak RSS, `MemAvailable` at peak |
 | 3 pressure | hold phase 2 for 60 s | `pswpout`/`pswpin` delta from `/proc/vmstat`, `gpu_busy_percent`, temp, power |
 | 4 aftermath | — | `journalctl -k` OOM lines, `dmesg` amdgpu error/fault/hang, unit `NRestarts` delta |
+
+### 5.1 Concurrency is the requirement, so it is measured, not assumed
+
+Operator rule 260930: co-residency **must** be verified by running every candidate in the
+allow-list **at the same time**, to bound the risk of OOM and swap storms. Two things make
+that harder than "start them all and read a number", and the gate has to defeat both:
+
+- **Started ≠ loaded.** `27b-collm` runs the fork's `--lazy-mode on-direct`: its weights are
+  paged in on demand, so a freshly started arm reports ready while pinning almost nothing.
+  A gate that measures GTT after `is-active` would watch thirteen units sit at ~400 MiB and
+  certify a shape that OOMs on the first real request. So phase 1 ends with a **residency
+  floor assertion**: after each model's warm-up request, its process RSS plus GTT must have
+  grown past a per-family minimum, or the run is `INCONCLUSIVE`, not `PASS`.
+- **Sequential probes are not concurrency.** Issuing the five probes one after another
+  measures five separate peaks. Phase 2 launches them together and the evidence records the
+  **overlap window** — the interval in which all probes were simultaneously in flight. If
+  that window is empty (one probe finished before another started, or one timed out), the
+  run cannot claim co-residency and is recorded as `INCONCLUSIVE`.
+
+The counters are read from the machine, verified readable on this box 260930 (baseline with
+the lab idle: `gtt_used` 385 MiB, `MemAvailable` 114.5 GiB, `SwapFree` 31.5 of 32 GiB,
+`Committed_AS` 16.3 GiB):
+
+| what | path | unit |
+|---|---|---|
+| GTT resident / ceiling | `/sys/class/drm/card0/device/mem_info_gtt_used` / `_gtt_total` | bytes (ceiling here: 124 GiB) |
+| visible VRAM | `mem_info_vram_used` / `_vram_total` | bytes (1 GiB — the budget knob is GTT, not VRAM) |
+| RAM headroom | `MemAvailable` in `/proc/meminfo` | kB |
+| swap written / read | `pswpout` / `pswpin` in `/proc/vmstat` | 4 KiB pages, cumulative — use deltas |
+| swap in use | `SwapTotal` − `SwapFree` in `/proc/meminfo` | kB |
+| GPU load | `/sys/class/drm/card0/device/gpu_busy_percent` | % |
+
+Sampled at 1 Hz for the whole run, not only at the end: a swap storm that resolves before
+the final read is exactly the event that must fail the gate.
 
 Pass is binary, thresholds in `doctor.config` (retunable without touching code):
 

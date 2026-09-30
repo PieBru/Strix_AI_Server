@@ -1,0 +1,402 @@
+"""Runnable check for scripts/profile-gate.py — the measurement core and the gate itself.
+
+    uv run --no-project python tests/profile_gate_check.py
+
+Exit 0 = the pass/fail rule is data (every threshold boundary tested on both sides), a missing
+measurement is a FAIL rather than a pass, the real reader agrees with sysfs, and the gate
+refuses to certify a box whose units never actually loaded. Every gate test drives injected
+seams (systemctl, RSS, probes, /proc, journal), so nothing here can start a unit.
+"""
+import datetime
+import importlib.machinery
+import importlib.util
+import json
+import pathlib
+import sys
+import tempfile
+import threading
+import time
+import types
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+
+
+def _load():
+    loader = importlib.machinery.SourceFileLoader("profile_gate", str(REPO / "scripts" / "profile-gate.py"))
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("profile_gate", loader))
+    sys.modules["profile_gate"] = mod
+    loader.exec_module(mod)
+    return mod
+
+
+g = _load()
+Sample, verdict = g.Sample, g.verdict
+
+CFG = {
+    "PROFILE_GTT_PCT_MAX": "88",
+    "PROFILE_MEM_AVAIL_MIN_MIB": "8192",
+    "PROFILE_SWAP_MAX_MIB": "16",
+    "PROFILE_BUDGET_S_TEXT": "60",
+    "PROFILE_BUDGET_S_IMAGE": "180",
+    "PROFILE_BUDGET_S_VIDEO": "600",
+    "PROFILE_BUDGET_S_MUSIC": "300",
+    "PROFILE_BUDGET_S_STT": "120",
+}
+BASE = dict(samples=[Sample(50.0, 20000, 0, 10.0), Sample(87.9, 8192, 0, 90.0)],
+            swap_delta_pages=16 * 256, oom_lines=[], amdgpu_lines=[], restarts=0,
+            probes={"text": {"ok": True, "s": 3.4}}, cfg=CFG)
+
+
+def _v(**over):
+    return verdict(**{**BASE, **over})
+
+
+def check_pass_at_the_boundaries():
+    v = _v()
+    assert v["verdict"] == "PASS", v
+    assert v["peak_gtt_pct"] == 87.9 and v["min_mem_avail_mib"] == 8192
+    assert v["swap_delta_mib"] == 16.0
+
+
+def check_each_threshold_alone_flips_it():
+    cases = [
+        ({"samples": [Sample(88.1, 20000, 0, 10.0)]}, "gtt"),
+        ({"samples": [Sample(50.0, 8191, 0, 10.0)]}, "mem"),
+        ({"swap_delta_pages": 17 * 256}, "swap"),
+        ({"oom_lines": ["Out of memory: Killed process 4242 (llama-server)"]}, "oom"),
+        ({"amdgpu_lines": ["amdgpu 0000:c3:00.0: GPU fault detected"]}, "amdgpu"),
+        ({"restarts": 1}, "restart"),
+        ({"probes": {"text": {"ok": False, "s": 2.0}}}, "text"),
+    ]
+    for over, why in cases:
+        v = _v(**over)
+        assert v["verdict"] == "FAIL", (over, v)
+        assert why in " ".join(v["reasons"]).lower(), (over, v["reasons"])
+
+
+def check_a_probe_that_answers_too_slow_has_passed_nothing():
+    v = _v(probes={"text": {"ok": True, "s": 400}})
+    assert v["verdict"] == "FAIL" and "budget" in " ".join(v["reasons"]).lower(), v
+    # the same probe inside its family's budget is fine, and families differ
+    assert _v(probes={"video": {"ok": True, "s": 400}})["verdict"] == "PASS"
+
+
+def check_missing_measurements_fail_never_pass():
+    for over, why in [({"samples": []}, "samples"),
+                      ({"swap_delta_pages": None}, "swap"),
+                      ({"oom_lines": None}, "oom"),
+                      ({"amdgpu_lines": None}, "amdgpu"),
+                      ({"probes": {}}, "probe")]:
+        v = _v(**over)
+        assert v["verdict"] == "FAIL", (over, v)
+        assert why in " ".join(v["reasons"]).lower(), (over, v["reasons"])
+
+
+def check_an_unreadable_metric_in_one_sample_is_not_a_pass():
+    v = _v(samples=[Sample(None, 20000, 0, None), Sample(None, 19000, 0, None)])
+    assert v["verdict"] == "FAIL" and "gtt" in " ".join(v["reasons"]).lower(), v
+    # gpu_pct is informational: a box that cannot read it still passes on the real criteria
+    assert _v(samples=[Sample(50.0, 20000, 0, None)])["verdict"] == "PASS"
+
+
+def check_reasons_are_specific_enough_to_act_on():
+    v = _v(samples=[Sample(95.0, 4000, 0, 10.0)], swap_delta_pages=99 * 256,
+           oom_lines=["Killed process"], restarts=2)
+    r = " ".join(v["reasons"])
+    assert "95.0" in r and "4000" in r and "99" in r, r
+
+
+def check_sampler_collects_at_interval():
+    stop, out = threading.Event(), []
+    t = threading.Thread(target=g.sampler, args=(stop, out), kwargs={"interval": 0.05})
+    t.start()
+    time.sleep(0.3)
+    stop.set()
+    t.join(timeout=2)
+    assert not t.is_alive(), "sampler must stop when the event is set"
+    assert 3 <= len(out) <= 12, len(out)
+
+
+def check_load_cfg_is_lenient():
+    d = pathlib.Path(__file__).resolve().parent
+    f = d / "_gate_cfg_tmp"
+    f.write_text("# comment\n\nPROFILE_GTT_PCT_MAX=88\nPROFILE_SWAP_MAX_MIB = 16\n"
+                 "PROFILE_BUDGET_S_VIDEO=600   # one short clip, x5 slack\n")
+    try:
+        cfg = g.load_cfg(str(f))
+        assert cfg["PROFILE_GTT_PCT_MAX"] == "88" and cfg["PROFILE_SWAP_MAX_MIB"] == "16"
+        # The real doctor.config annotates every line this way; a value carrying its comment
+        # is not a number, and the gate dies in verdict() with ValueError instead of running.
+        assert cfg["PROFILE_BUDGET_S_VIDEO"] == "600", cfg
+    finally:
+        f.unlink()
+    assert g.load_cfg(str(d / "definitely-absent")) == {}
+
+
+def check_read_sample_reads_this_box():
+    s = g.read_sample()
+    assert s.gtt_pct is not None and 0.0 <= s.gtt_pct < 100.0, s
+    assert s.mem_avail_mib is not None and s.mem_avail_mib > 1024, s
+    assert s.swap_pages is not None and s.swap_pages >= 0, s
+    assert 0 <= s.gpu_pct <= 100, s
+
+
+def _gate_ns(**over):
+    """A stand-in for Profile: run_gate only reads these fields."""
+    d = dict(name="lab-video", start=["comfyui-h3", "gemma-collm"], text_arm="gemma-collm",
+             text_port=8080, gate_max_age_h=168)
+    d.update(over)
+    return types.SimpleNamespace(**d)
+
+
+def _unit_dir():
+    d = pathlib.Path(tempfile.mkdtemp(prefix="strix-units-"))
+    for u in ("comfyui-h3", "gemma-collm", "27b-collm"):
+        (d / f"{u}.service").write_text(f"[Service]\nExecStart=/bin/{u}\n")
+    return d
+
+
+class GateHarness:
+    """Drives run_gate with every machine seam replaced: systemd, RSS, probes, /proc, journal.
+    Nothing here can start a unit, which is the only way the concurrency rule is testable."""
+
+    def __init__(self, units=("comfyui-h3", "gemma-collm"), probe_s=0.2,
+                 samples=None, schedule="concurrent", evidence=None, fail_kinds=()):
+        self.units = list(units)
+        self.probe_s = probe_s
+        self.fail_kinds = set(fail_kinds)
+        self.calls = []
+        self.spans = {}
+        self.lock = threading.Lock()
+        self.evidence = evidence or tempfile.mkdtemp(prefix="strix-ev-")
+        self.p = _gate_ns(start=list(units))
+        # 60 GiB of GTT clears the video+llm floor (30 + 6) so the happy path stays happy
+        self.samples = samples or [g.Sample(50.0, 20000, 0, 10.0, 60.0)]
+        self._i = 0
+        self._lock2 = threading.Lock()
+        self.schedule = schedule
+
+    def systemctl(self, argv):
+        self.calls.append(argv)
+        return 0
+
+    def active(self, u):
+        return True
+
+    def restarts(self, u):
+        return 0
+
+    def probe(self, name, kind, cfg):
+        t0 = time.monotonic()
+        time.sleep(self.probe_s)
+        with self.lock:
+            self.spans[kind] = (t0, time.monotonic())
+        ok = kind not in self.fail_kinds
+        return {"ok": ok, "s": self.probe_s,
+                "detail": "stub" if ok else "stub refused to produce anything"}
+
+    def sample_fn(self):
+        with self._lock2:
+            s = self.samples[min(self._i, len(self.samples) - 1)]
+            self._i += 1
+        return s
+
+    def journal(self, since):
+        return [], []
+
+    def run(self, **over):
+        kw = dict(cfg={}, hold_s=0, evidence_dir=self.evidence, unit_dir=str(_unit_dir()),
+                  repo_dir=str(REPO), box="testbox", systemctl=self.systemctl,
+                  active_fn=self.active, restarts_fn=self.restarts,
+                  probe_fn=self.probe, sample_fn=self.sample_fn, journal_scan=self.journal,
+                  ready_fn=lambda u, cfg: True, schedule=self.schedule,
+                  sample_interval=0.01)
+        kw.update(over)
+        return g.run_gate(self.p, **kw)
+
+
+def check_unit_hash_covers_dropins():
+    d = _unit_dir()
+    h = g.unit_hash(["gemma-collm"], unit_dir=str(d))
+    assert h.startswith("sha256:")
+    # a PASS earned before this edit is void: the drop-in changes what the unit really is
+    (d / "gemma-collm.service.d").mkdir()
+    (d / "gemma-collm.service.d" / "ctx.conf").write_text("[Service]\nExecStart=\n")
+    assert g.unit_hash(["gemma-collm"], unit_dir=str(d)) != h
+    assert g.unit_hash(["comfyui-h3"], unit_dir=str(d)) != h
+    assert g.unit_hash(["nope-collm"], unit_dir=str(d)).endswith("missing"), "absent unit file"
+
+
+def check_gate_writes_evidence_or_fails():
+    r = GateHarness(evidence="/proc/nope").run()
+    assert r["verdict"] == "FAIL" and "evidence" in " ".join(r["reasons"]), r
+
+
+def check_concurrent_not_sequential():
+    h = GateHarness(probe_s=0.25)
+    r = h.run(evidence_dir=tempfile.mkdtemp(prefix="strix-ev-"))
+    assert r["verdict"] == "PASS", r
+    assert max(s[0] for s in h.spans.values()) < min(s[1] for s in h.spans.values()), \
+        "probes ran sequentially; the gate proves nothing"
+    assert r["overlap_ms"] > 0 and r["resident_units"] == 2 and r["samples"] > 1, r
+
+
+def check_evidence_file_matches_the_schema():
+    d = tempfile.mkdtemp(prefix="strix-ev-")
+    r = GateHarness(probe_s=0.05).run(evidence_dir=d)
+    on_disk = json.loads((pathlib.Path(d) / "evidence-lab-video.json").read_text())
+    assert on_disk == r, (on_disk, r)
+    for key in ["box", "profile", "started", "duration_s", "verdict", "reasons", "units",
+                "unit_hash", "repo_sha", "peak_gtt_pct", "min_mem_avail_mib", "swap_delta_mib",
+                "oom_lines", "amdgpu_lines", "unit_restarts", "overlap_ms", "resident_units",
+                "samples", "probes"]:
+        assert key in on_disk, key
+    assert on_disk["box"] == "testbox" and on_disk["profile"] == "lab-video"
+    assert set(on_disk["probes"]) == {"video", "text"}, on_disk["probes"]
+
+
+def check_a_failed_probe_fails_the_gate_and_the_resident_count():
+    """A probe that produced nothing is a FAIL, not a shrug: the profile claims it renders, and
+    the render did not happen. resident_units counts proof of life, so it drops with it."""
+    r = GateHarness(fail_kinds=["video"]).run()
+    assert r["verdict"] == "FAIL", r
+    assert r["resident_units"] < 2, r
+
+
+def check_the_set_must_actually_occupy_its_gtt_floor():
+    """On this box the weights live in GTT, not in process RSS (a loaded gemma-collm is 2.6 GiB
+    RSS while GTT holds 49 GiB), so 'did the memory move' is the residency signal. Probes alone
+    cannot tell a loaded model from a cached answer — ComfyUI proved that in 2.01 s."""
+    r = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0, 5.0)]).run()
+    assert r["verdict"] == "INCONCLUSIVE" and "floor" in " ".join(r["reasons"]), r
+
+
+def check_no_overlap_window_is_inconclusive():
+    r = GateHarness(schedule="sequential", probe_s=0.05).run()
+    assert r["verdict"] == "INCONCLUSIVE" and r["overlap_ms"] == 0, r
+
+
+def check_swap_storm_fails_even_if_it_settles():
+    h = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0, 60.0),
+                             g.Sample(52.0, 19000, 9_000_000, 40.0, 60.0),
+                             g.Sample(51.0, 19500, 9_000_010, 20.0, 60.0)])
+    r = h.run()
+    assert r["verdict"] == "FAIL" and "swap" in " ".join(r["reasons"]), r
+
+
+def check_active_but_never_ready_is_inconclusive():
+    """systemd says active the instant it execs; a cold llama-server needs tens of seconds
+    before it binds the port. Probing anyway reports 'no listener' and blames the box."""
+    h = GateHarness()
+    r = h.run(ready_fn=lambda u, cfg: False, load_ceiling_s=0.05)
+    assert r["verdict"] == "INCONCLUSIVE" and "ready" in " ".join(r["reasons"]), r
+
+
+def check_gate_verdict_reads_evidence_and_computes_age():
+    d = tempfile.mkdtemp(prefix="strix-ev-")
+    assert g.gate_verdict("testbox", "lab-video", evidence_dir=d) is None
+    started = (datetime.datetime.now().astimezone()
+               - datetime.timedelta(hours=3)).isoformat(timespec="seconds")
+    (pathlib.Path(d) / "evidence-lab-video.json").write_text(json.dumps(
+        {"box": "testbox", "profile": "lab-video", "started": started, "verdict": "PASS",
+         "units": ["comfyui-h3", "gemma-collm"], "reasons": []}))
+    v = g.gate_verdict("testbox", "lab-video", evidence_dir=d)
+    assert v["verdict"] == "PASS" and 2.9 < v["age_h"] < 3.1, v
+    assert v["units"] == ["comfyui-h3", "gemma-collm"]
+
+
+def check_dry_run_starts_nothing():
+    h = GateHarness()
+    r = h.run(dry_run=True)
+    assert h.calls == [], h.calls
+    assert r["verdict"] == "INCONCLUSIVE" and "dry run" in " ".join(r["reasons"]), r
+
+
+def check_repo_sha_tracks_the_measuring_code_not_the_commit():
+    # HEAD moves on every logical commit in this repo. If the evidence fingerprint were HEAD,
+    # a docs commit would invalidate a 40 GiB load test, and an operator whose emergency cord
+    # keeps going stale learns to type --force — which is the end of the gate.
+    d = pathlib.Path(tempfile.mkdtemp())
+    (d / "scripts").mkdir()
+    (d / "scripts" / "profile-gate.py").write_text("gate")
+    (d / "scripts" / "profile_probes.py").write_text("probes")
+    a = g._repo_sha(str(d))
+    (d / "README.md").write_text("a plan nobody asked for")
+    assert g._repo_sha(str(d)) == a, "an unrelated file must not invalidate a load test"
+    (d / "scripts" / "profile_probes.py").write_text("probes v2")
+    assert g._repo_sha(str(d)) != a, "the probe code moving MUST invalidate it"
+    assert g._repo_sha(str(d / "nowhere")) == "unknown"
+
+
+def check_the_gate_measures_the_shape_the_profile_declares():
+    """A foreign unit is stopped before the profile's units are started, and the stop comes
+    first: otherwise the run measures the union of two profiles and blames the wrong one."""
+    h = GateHarness(units=("gemma-collm",))
+    up = {"gemma-collm", "comfyui-h3", "h3-video-ui"}   # box is actually on lab-video
+    ev = h.run(active_fn=lambda u: u in up,
+               known_units=["gemma-collm", "comfyui-h3", "h3-video-ui"])
+    stops = [c for c in h.calls if "disable" in c]
+    assert stops == [["--user", "disable", "--now", "comfyui-h3.service"],
+                     ["--user", "disable", "--now", "h3-video-ui.service"]], h.calls
+    assert h.calls[0][1] == "disable", h.calls   # the sweep comes before any start
+    assert ev["verdict"] == "PASS", ev
+    assert ev["units"] == ["gemma-collm"], ev["units"]
+
+
+def check_a_server_that_answers_503_is_not_ready():
+    """Readiness is HTTP, not a socket. llama-server binds :8080 and replies 503 while it maps
+    weights; a connect-only check handed the gate a cold arm and its probe failed in 0.01 s."""
+    import http.server
+
+    state = {"code": 503}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(state["code"])
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+    try:
+        assert not g._http_ready("127.0.0.1", port), "503 = still loading"
+        state["code"] = 200
+        assert g._http_ready("127.0.0.1", port)
+        state["code"] = 404
+        assert g._http_ready("127.0.0.1", port), "no /health but serving (gradio) is up"
+        assert not g._http_ready("127.0.0.1", 1), "nothing listening"
+    finally:
+        srv.shutdown()
+
+
+def main():
+    for fn in [check_pass_at_the_boundaries, check_each_threshold_alone_flips_it,
+               check_a_probe_that_answers_too_slow_has_passed_nothing,
+               check_missing_measurements_fail_never_pass,
+               check_an_unreadable_metric_in_one_sample_is_not_a_pass,
+               check_reasons_are_specific_enough_to_act_on, check_sampler_collects_at_interval,
+               check_load_cfg_is_lenient, check_read_sample_reads_this_box,
+               check_unit_hash_covers_dropins, check_gate_writes_evidence_or_fails,
+               check_concurrent_not_sequential, check_evidence_file_matches_the_schema,
+               check_a_failed_probe_fails_the_gate_and_the_resident_count,
+               check_the_set_must_actually_occupy_its_gtt_floor,
+               check_active_but_never_ready_is_inconclusive,
+               check_no_overlap_window_is_inconclusive,
+               check_swap_storm_fails_even_if_it_settles,
+               check_gate_verdict_reads_evidence_and_computes_age,
+               check_dry_run_starts_nothing,
+               check_the_gate_measures_the_shape_the_profile_declares,
+               check_a_server_that_answers_503_is_not_ready,
+               check_repo_sha_tracks_the_measuring_code_not_the_commit]:
+        fn()
+        print(f"  ok  {fn.__name__}")
+    print("SELF-TEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
