@@ -47,10 +47,13 @@ class ProfileError(Exception):
 
 @dataclass
 class Profile:
+    """A shape of service. `start` is an ALLOW-list: the only managed units this box may
+    run in this profile. Everything else that is running comes down with it (operator
+    ruling 260930) — so a unit added next month is stopped by every existing profile until
+    someone puts it in one, which fails safe, instead of surviving and blowing the budget."""
     name: str
     summary: str = ""
     start: list[str] = field(default_factory=list)
-    stop: list[str] = field(default_factory=list)
     text_arm: str | None = None
     text_port: int = 8080
     budget_gtt_gib: int = 0
@@ -58,6 +61,10 @@ class Profile:
     gate_max_age_h: int = 168
     experimental: bool = False
     tools: bool = True
+    # "<when> <commit> <evidence.json>" once a load test has run this exact allow-list, or
+    # empty. Written by the tool, never by hand: a date typed in by a person is a claim, the
+    # same date written after a measured run is evidence.
+    verified: str = ""
 
 
 def _words(s: str) -> list[str]:
@@ -85,14 +92,13 @@ def load_profiles(dir: str) -> dict[str, Profile]:
         if "profile" not in cp:
             raise ProfileError(f"{path}: missing [profile] section")
         s = cp["profile"]
-        missing = [k for k in ("name", "start") if not s.get(k, "").strip()]
+        missing = [k for k in ("name",) if not s.get(k, "").strip()]
         if missing:
             raise ProfileError(f"{path}: missing required key(s): {', '.join(missing)}")
         p = Profile(
             name=s.get("name").strip(),
             summary=s.get("summary", "").strip(),
             start=_words(s.get("start", "")),
-            stop=_words(s.get("stop", "")),
             text_arm=(a := s.get("text_arm", "").strip()) or None,
             text_port=int(s.get("text_port", "8080") or 8080),
             budget_gtt_gib=int(s.get("budget_gtt_gib", "0") or 0),
@@ -100,6 +106,7 @@ def load_profiles(dir: str) -> dict[str, Profile]:
             gate_max_age_h=int(s.get("gate_max_age_h", "168") or 168),
             experimental=s.getboolean("experimental", fallback=False),
             tools=s.getboolean("tools", fallback=True),
+            verified=s.get("verified", "").strip(),
         )
         if p.name in out:
             raise ProfileError(f"{path}: duplicate profile name '{p.name}'")
@@ -112,6 +119,101 @@ def require_profile(dir: str, name: str) -> Profile:
     if p is None:
         raise ProfileError(f"no profile named '{name}' in {dir}")
     return p
+
+
+# panic and emergency exist in code as well as on disk, and check_profiles() compares them
+# field by field against their INI files. The reason is the 3 a.m. case: if ~/.config is
+# corrupt, unreadable, or on a home directory that has not mounted, the two shapes you
+# still need are the one that frees the GPU and the one that answers a question.
+BUILTIN: dict[str, Profile] = {
+    "panic": Profile(name="panic", summary="free the GPU now; only the SOS arm stays up",
+                     start=["sos-collm"], text_arm="sos-collm", text_port=8082,
+                     budget_gtt_gib=8, workload="text", gate_max_age_h=87600),
+    "emergency": Profile(name="emergency", summary="the champion alone, no experiment, no UI",
+                         start=["27b-collm"], text_arm="27b-collm", text_port=8080,
+                         budget_gtt_gib=100, workload="text", gate_max_age_h=87600),
+}
+
+
+def resolve(name: str, *, PROFILES_DIR: str | None = None) -> Profile:
+    """File if present, else the built-in, else ProfileError. A missing or broken configs
+    tree costs you the lab profiles and nothing else."""
+    d = PROFILES_DIR or globals()["PROFILES_DIR"]
+    p = load_profiles(d).get(name) or BUILTIN.get(name)
+    if p is None:
+        raise ProfileError(f"no profile named '{name}' (looked in {d})")
+    return p
+
+
+def verified_info(p: Profile) -> tuple[str, str, str]:
+    """The `verified` line as (when, commit, evidence-path); ("", "", "") when no load test
+    has ever run this allow-list. A line that is not three fields is unverified as far as
+    this goes, and check_profiles() reports it."""
+    parts = p.verified.split()
+    return (parts[0], parts[1], parts[2]) if len(parts) == 3 else ("", "", "")
+
+
+def check_profiles(dir: str, *, installed: set[str] | None = None) -> list[str]:
+    """One line per problem; empty means the profile set is sound. `strix-profile check`
+    prints this and Task 9's collector reports it."""
+    try:
+        profiles = load_profiles(dir)
+    except ProfileError as e:
+        return [str(e)]
+    if installed is None:
+        installed = {u for u in MANAGED_UNITS if os.path.exists(
+            os.path.expanduser(f"~/.config/systemd/user/{u}.service"))}
+        installed |= {u for p in BUILTIN.values() for u in p.start}
+    problems: list[str] = []
+    for name, p in sorted(profiles.items()):
+        f = os.path.join(dir, name + ".ini")
+        if len(p.start) != len(set(p.start)):
+            problems.append(f"{f}: start lists a unit twice")
+        for u in p.start:
+            if u not in MANAGED_UNITS:
+                problems.append(f"{f}: unit '{u}' is not managed by strix-profile")
+            elif u not in installed:
+                problems.append(f"{f}: no service file for '{u}' in ~/.config/systemd/user")
+        if p.text_arm and p.text_arm not in p.start:
+            problems.append(f"{f}: text_arm '{p.text_arm}' is not in start — the box would "
+                            f"claim a profile whose text arm it never starts")
+        if p.start and p.budget_gtt_gib <= 0:
+            problems.append(f"{f}: budget_gtt_gib must be > 0 for a profile that starts units")
+        if not 1024 <= p.text_port <= 65535:
+            problems.append(f"{f}: text_port {p.text_port} is not a usable port")
+        if p.gate_max_age_h <= 0:
+            problems.append(f"{f}: gate_max_age_h must be > 0 (87600 = never gate)")
+        if name in BUILTIN and BUILTIN[name] != p:
+            problems.append(f"{f}: diverges from BUILTIN['{name}'] — code is the fallback, "
+                            f"the file must agree\n    file={p}\n    code={BUILTIN[name]}")
+        if p.verified.strip():
+            parts = p.verified.split()
+            if len(parts) != 3:
+                problems.append(f"{f}: 'verified' must be '<when> <commit> <evidence.json>', "
+                                f"got {p.verified!r}")
+            else:
+                problems += _verified_still_true(f, p, parts)
+    return problems
+
+
+def _verified_still_true(f: str, p: Profile, parts: list[str]) -> list[str]:
+    """A verification stamp only vouches for the set that was measured. Edit the allow-list
+    and the stamp is a lie about a combination nobody ran."""
+    when, commit, ev = parts
+    try:
+        ran = json.load(open(ev)).get("units")
+    except (OSError, ValueError) as e:
+        return [f"{f}: verified evidence {ev} unreadable ({e}) — the stamp vouches for nothing"]
+    if ran is None:
+        return [f"{f}: verified evidence {ev} records no 'units'"]
+    if sorted(ran) == sorted(set(p.start)):
+        return []
+    new = sorted(set(p.start) - set(ran))
+    gone = sorted(set(ran) - set(p.start))
+    return [f"{f}: allow-list changed since it was verified ({when} {commit}) — the run had "
+            f"{sorted(ran)}, the profile starts {sorted(p.start)}"
+            + (f"; new since the run: {' '.join(new)}" if new else "")
+            + (f"; dropped since the run: {' '.join(gone)}" if gone else "")]
 
 
 def read_stamp(path: str = STAMP) -> str | None:
@@ -166,7 +268,7 @@ def cmd_current(argv: list[str], *, is_active=_is_active) -> int:
         reason = f"{box}  no profile stamp at {STAMP} — this box has never been put into a profile"
         return _report(as_json, {"box": box, "profile": None, "ok": False, "reason": reason}, reason)
     try:
-        p = require_profile(PROFILES_DIR, stamp)
+        p = resolve(stamp)
     except ProfileError as e:
         reason = f"{box}  stamp says '{stamp}' but {e}"
         return _report(as_json, {"box": box, "profile": stamp, "ok": False, "reason": reason}, reason)
@@ -206,15 +308,35 @@ def _report(as_json: bool, obj: dict, reason: str) -> int:
 
 
 def cmd_list(argv: list[str]) -> int:
-    profiles = load_profiles(PROFILES_DIR)
-    if not profiles:
-        print(f"no profiles found in {PROFILES_DIR}", file=sys.stderr)
-        return 1
-    for name, p in profiles.items():
+    profiles = {**BUILTIN, **load_profiles(PROFILES_DIR)}
+    stamp = read_stamp(STAMP)
+    for name, p in sorted(profiles.items()):
         arm = p.text_arm or "none"
-        print(f"{name:<12} {arm:<12} :{p.text_port:<5} {len(p.start)} units"
-              f"{'  EXPERIMENTAL' if p.experimental else ''}  {p.summary}")
+        mark = "  <- stamp" if name == stamp else ""
+        when, commit, _ = verified_info(p)
+        print(f"{name:<12} {arm:<12} :{p.text_port:<5} {len(p.start):>2} units"
+              f"{'  EXPERIMENTAL' if p.experimental else ''}  {p.summary}{mark}"
+              + (f"  verified {when} {commit}" if when else "  UNVERIFIED"))
     return 0
+
+
+def cmd_check(argv: list[str]) -> int:
+    problems = check_profiles(PROFILES_DIR)
+    for line in problems:
+        print(line)
+    try:
+        profiles = {**BUILTIN, **load_profiles(PROFILES_DIR)}
+    except ProfileError:
+        return 1
+    # Positive evidence, not silence: a check that prints nothing when it passes is
+    # indistinguishable from a check that never ran (fault pattern, sealed 260930).
+    print(f"{PROFILES_DIR}: {len(profiles)} profiles, {len(problems)} problem(s)")
+    unverified = [n for n, p in sorted(profiles.items()) if not p.verified.strip()]
+    if unverified:
+        print(f"  NOTE  {len(unverified)} allow-list(s) never through a load test: "
+              f"{' '.join(unverified)}")
+        print("        their budgets are declared ceilings; the gate writes the stamp.")
+    return 1 if problems else 0
 
 
 def main(argv: list[str]) -> int:
@@ -223,7 +345,9 @@ def main(argv: list[str]) -> int:
         return cmd_current(argv[1:])
     if cmd == "list":
         return cmd_list(argv[1:])
-    print(f"usage: strix-profile current [--json] | list", file=sys.stderr)
+    if cmd == "check":
+        return cmd_check(argv[1:])
+    print("usage: strix-profile current [--json] | list | check", file=sys.stderr)
     return 2
 
 

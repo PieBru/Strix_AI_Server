@@ -38,7 +38,6 @@ LAB_VIDEO = """\
 name = lab-video
 summary = MiniMax-H3 + LTX video lab, gemma as the text arm
 start = comfyui-h3 gemma-collm
-stop = 27b-collm llama-llm
 text_arm = gemma-collm
 text_port = 8080
 budget_gtt_gib = 96
@@ -59,7 +58,7 @@ def check_loader_fields():
     assert p.start == ["comfyui-h3", "gemma-collm"] and p.text_arm == "gemma-collm"
     assert p.gate_max_age_h == 168 and p.experimental is False
     assert p.text_port == 8080 and p.budget_gtt_gib == 96 and p.workload == "video"
-    assert isinstance(p.tools, bool) and isinstance(p.stop, list)
+    assert isinstance(p.tools, bool)
 
 
 def check_drift_separates_claim_from_truth():
@@ -165,12 +164,145 @@ def check_json_output_when_no_stamp():
     assert rc == 1 and out["profile"] is None and "absent-stamp" in out["reason"]
 
 
+PROFILES = str(REPO / "configs" / "profiles")
+NAMES = {"panic", "emergency", "coding", "lab-image", "lab-video", "lab-audio", "lab-all", "off"}
+
+
+def check_panic_survives_missing_config():
+    """The whole point of BUILTIN: a corrupt or missing configs tree must not be able to
+    take away the profile you reach for when the box is misbehaving."""
+    assert sp.resolve("panic", PROFILES_DIR="/nonexistent").start == ["sos-collm"]
+    assert sp.resolve("emergency", PROFILES_DIR="/nonexistent").text_arm == "27b-collm"
+
+
+def check_builtin_matches_its_ini_file():
+    for name in ("panic", "emergency"):
+        f = sp.resolve(name, PROFILES_DIR=PROFILES)
+        b = sp.resolve(name, PROFILES_DIR="/nonexistent")
+        assert f == b, f"{name} diverges from BUILTIN — the 3 a.m. bug:\n file={f}\n code={b}"
+
+
+def check_resolve_unknown_raises():
+    try:
+        sp.resolve("nope", PROFILES_DIR=PROFILES)
+    except sp.ProfileError:
+        pass
+    else:
+        raise AssertionError("resolve() must raise for an unknown profile")
+
+
+def check_profile_files_are_self_consistent():
+    problems = sp.check_profiles(PROFILES)
+    assert problems == [], problems
+    profiles = sp.load_profiles(PROFILES)
+    assert set(profiles) == NAMES, set(profiles) ^ NAMES
+    for n, p in profiles.items():
+        assert p.text_arm or n == "off", f"{n} serves no text model and does not declare it"
+        assert len(p.start) == len(set(p.start)), f"{n} lists a unit twice"
+        assert set(p.start) <= set(sp.MANAGED_UNITS), f"{n} names a unit outside MANAGED_UNITS"
+
+
+def check_allow_list_not_deny_list():
+    """Operator ruling 260930: a profile lists what MAY run, not what may not. A managed
+    unit that is running and not listed is drift to be stopped, so a unit added next month
+    fails safe (stopped by every profile) instead of silently blowing a budget."""
+    p = sp.resolve("lab-video", PROFILES_DIR=PROFILES)
+    d = sp.drift(p, live={"27b-collm", "comfyui-h3"})
+    assert d["extra"] == ["27b-collm"], d
+    assert "stop" not in vars(p), "the deny-list field must be gone"
+
+
+def check_off_profile_stops_everything():
+    off = sp.load_profiles(PROFILES)["off"]
+    assert off.start == [] and off.text_arm is None
+    d = sp.drift(off, live=set(sp.MANAGED_UNITS))
+    assert d["missing"] == [] and d["extra"] == list(sp.MANAGED_UNITS), d
+
+
+def check_lab_all_is_experimental_and_names_the_forbidden_stack():
+    p = sp.resolve("lab-all", PROFILES_DIR=PROFILES)
+    assert p.experimental is True
+    assert {"27b-collm", "comfyui-h3", "acestep-serve"} <= set(p.start), \
+        "27B + ACE-Step + H3 is the stack AGENTS.md forbids; the gate must be handed it"
+
+
+def check_check_profiles_bites():
+    d = tempfile.mkdtemp(prefix="strix-badset-")
+    (pathlib.Path(d) / "bad.ini").write_text(
+        "name = bad\nstart = comfyui-h3 not-a-unit comfyui-h3\n"
+        "text_arm = gemma-collm\nbudget_gtt_gib = 0\ntext_port = 99999\ngate_max_age_h = 0\n")
+    problems = sp.check_profiles(d)
+    joined = "\n".join(problems)
+    for want in ("not-a-unit", "twice", "text_arm", "budget", "text_port", "gate_max_age_h"):
+        assert want in joined, f"check_profiles missed {want!r} in:\n{joined}"
+
+
+def check_verified_field_is_honest():
+    """Operator ruling 260930: the allow-list carries when its co-residency was verified.
+    The field is written by the tool, so an empty field must mean exactly one thing — no
+    load test has ever run this set — and no file may claim one before Task 6 exists."""
+    for n, p in sp.load_profiles(PROFILES).items():
+        assert p.verified.strip() == "", f"{n} claims a verification this tool did not produce"
+
+
+def _wdir(name, body):
+    d = tempfile.mkdtemp(prefix="strix-vchk-")
+    (pathlib.Path(d) / f"{name}.ini").write_text(body)
+    return d
+
+
+def check_check_profiles_catches_verification_older_than_the_list():
+    d = tempfile.mkdtemp(prefix="strix-stale-")
+    ev = pathlib.Path(d) / "ev.json"
+    ev.write_text(json.dumps({"units": ["comfyui-h3", "gemma-collm"]}))
+    problems = sp.check_profiles(_wdir("lab-video", (
+        "name = lab-video\nstart = comfyui-h3 gemma-collm ltx25-ui\n"
+        "text_arm = comfyui-h3\nbudget_gtt_gib = 96\n"
+        f"verified = 260930T02:14 a966c83 {ev}\n")))
+    joined = "\n".join(problems)
+    assert "changed since" in joined, f"adding a unit after the stamp must be a problem:\n{joined}"
+    assert "ltx25-ui" in joined, "the line must name what is new"
+
+
+def check_check_profiles_catches_missing_evidence():
+    joined = "\n".join(sp.check_profiles(_wdir("lab-video", (
+        "name = lab-video\nstart = comfyui-h3 gemma-collm\ntext_arm = comfyui-h3\n"
+        "budget_gtt_gib = 96\nverified = 260930T02:14 a966c83 /nonexistent/ev.json\n"))))
+    assert "evidence" in joined and "nonexistent" in joined, joined
+
+
+def check_check_profiles_catches_a_malformed_verified_line():
+    joined = "\n".join(sp.check_profiles(_wdir("lab-video", (
+        "name = lab-video\nstart = comfyui-h3 gemma-collm\ntext_arm = comfyui-h3\n"
+        "budget_gtt_gib = 96\nverified = whenever\n"))))
+    assert "verified" in joined, joined
+
+
+def check_check_profiles_accepts_an_honest_verification():
+    d = tempfile.mkdtemp(prefix="strix-good-")
+    ev = pathlib.Path(d) / "ev.json"
+    ev.write_text(json.dumps({"units": ["comfyui-h3", "gemma-collm"]}))
+    problems = sp.check_profiles(_wdir("lab-video", (
+        "name = lab-video\nstart = comfyui-h3 gemma-collm\ntext_arm = comfyui-h3\n"
+        "budget_gtt_gib = 96\n" + f"verified = 260930T02:14 a966c83 {ev}\n")))
+    assert problems == [], problems
+
+
 def main():
     for fn in [check_loader_fields, check_drift_separates_claim_from_truth,
                check_unknown_profile_raises_not_empty, check_malformed_profile_raises,
                check_missing_dir_yields_empty_dict, check_live_units_reads_through_injected_runner,
                check_stamp_read, check_json_output_is_one_parseable_document,
-               check_json_output_when_no_stamp]:
+               check_json_output_when_no_stamp, check_panic_survives_missing_config,
+               check_builtin_matches_its_ini_file, check_resolve_unknown_raises,
+               check_profile_files_are_self_consistent, check_allow_list_not_deny_list,
+               check_off_profile_stops_everything,
+               check_lab_all_is_experimental_and_names_the_forbidden_stack,
+               check_check_profiles_bites, check_verified_field_is_honest,
+               check_check_profiles_catches_verification_older_than_the_list,
+               check_check_profiles_catches_missing_evidence,
+               check_check_profiles_catches_a_malformed_verified_line,
+               check_check_profiles_accepts_an_honest_verification]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")
