@@ -49,6 +49,49 @@ JN_TW = lambda m=30: subprocess.run(["journalctl","--user"]+_JU+[f"--since=-{m}m
 
 PEAKS = {}   # key -> {v: max value, t: when set}; accrued in refresh() (always-on sampler)
 
+# Swap-storm latch (operator 260930): the badge used to follow the instantaneous 2 s
+# rate, so it blinked during a storm and was white again before anyone could read it.
+# Trip on STORM_N consecutive samples over STORM_MBPS (idle floor measured 260930 is
+# 0.00 MB/s, so it cannot trip on noise), then HOLD until the ✕ on the card clears it:
+# a past storm is exactly the evidence you want to look at. Survives a Doctor restart.
+STORM_MBPS, STORM_N = 1.0, 3
+STORM_FILE = os.path.expanduser("~/.local/state/strix/doctor-storm.json")
+STORM = {}
+try:
+    STORM.update(json.load(open(STORM_FILE)))
+except Exception:
+    pass
+
+def storm_save():
+    """Atomic: a half-written latch file would read back as 'no storm' and lose evidence."""
+    try:
+        os.makedirs(os.path.dirname(STORM_FILE), exist_ok=True)
+        with open(STORM_FILE + ".tmp", "w") as f:
+            json.dump(STORM, f)
+        os.replace(STORM_FILE + ".tmp", STORM_FILE)
+    except OSError:
+        pass
+
+def storm_tick(r, pg):
+    """The swap-storm latch, one sample at a time: trip on STORM_N consecutive samples over
+    STORM_MBPS, then hold. `r` = MB/s in+out, `pg` = (pswpin, pswpout) cumulative pages.
+    Split out of refresh() so tests/storm_latch_check.py can drive it without the sampler."""
+    _SW["hits"] = _SW.get("hits", 0) + 1 if r > STORM_MBPS else 0
+    if _SW["hits"] < STORM_N:
+        return
+    if not STORM.get("t0"):
+        STORM.update(t0=time.time(), peak=r, moved=0.0, p0=list(pg), wt=0.0)
+        storm_save()
+    else:
+        moved = ((pg[0] - STORM["p0"][0]) + (pg[1] - STORM["p0"][1])) * 4096 / 2**20
+        was = (STORM.get("moved", 0.0), STORM.get("peak", 0.0))
+        STORM["moved"] = max(moved, was[0])          # the card always shows the current tally
+        STORM["peak"] = max(r, was[1])
+        if (moved > was[0] + 64 or r > was[1] * 1.2) \
+           and time.time() - STORM.get("wt", 0) > 30:   # ponytail: 30 s write ceiling
+            STORM["wt"] = time.time()
+            storm_save()
+
 def track(key, val):
     """Update a card's high-water mark."""
     try:
@@ -529,6 +572,17 @@ def stats():
     # beyond (may signal a loading problem). The bar fills toward the 2 GiB
     # red threshold so the emergency scale is readable at a glance.
     heat_swap = lambda g: "hsl(120,90%,55%)" if g < 0.5 else ("hsl(60,90%,55%)" if g <= 2 else "hsl(0,90%,55%)")
+    def storm_html():
+        """(title extra, value extra) for the latched swap storm: red while still over the
+        line, amber once it subsided, plus the ✕ that clears the latch by hand."""
+        if not STORM.get("t0"): return "", ""
+        live = sum(CACHE.get("swio", (0.0, 0.0))) > STORM_MBPS
+        badge = '<span class="bad">STORM</span>' if live else '<span style="color:#d9a441">STORM past</span>'
+        btn = ('<button class="cp" style="float:right;margin-left:6px" onclick="stormReset(this)"'
+               ' title="clear the storm latch">\u2715</button>')
+        det = (f" · since {time.strftime('%H:%M:%S', time.localtime(STORM['t0']))}"
+               f" · peak {STORM.get('peak', 0):.0f} MB/s · {STORM.get('moved', 0)/1024:.1f} GiB moved")
+        return f"{btn}{badge}", det
     card = lambda l, v, b="", w=1, h=1: f'<div class="card"{f" style=\"grid-column:span {w}{f';grid-row:span {h}' if h>1 else ''}\"" if w>1 or h>1 else ""}><b>{l}</b><span>{v}</span>{b}</div>'
     try: tm = float(gt[:-2]) if gt.endswith("°C") else 0
     except ValueError: tm = 0
@@ -567,8 +621,8 @@ def stats():
     sysrow = (card("VRAM" + pchip("VRAM", "%", hf=heat_vram), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
               + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat), gpw, bar(pw, heat(pw)))
               + card("RAM · GiB" + pchip("RAM", "%", hf=heat_ram), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
-              + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + (" <span class=\"bad\">STORM</span>" if sum(CACHE.get("swio", (0.0, 0.0))) > 1.0 else ""),
-                     (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))),
+              + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + storm_html()[0],
+                     (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))) + storm_html()[1],
                      bar(min((sg := float((st.replace(' GiB','') or '0').split('/')[0])) / 2.0 * 100, 100), heat_swap(sg)))
               + card("DISK · GiB" + pchip("DISK", "%", hf=heat_disk), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
               + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}", hf=heat_io, xform=lambda v: min(v/500*100, 100)), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
@@ -664,6 +718,7 @@ if(lastTgV)document.getElementById('tgv').innerHTML=lastTgV;
 if(lastAccV)document.getElementById('accv').innerHTML=lastAccV}})</script>
 <script>function cpBox(btn,sel){var L=btn.closest(sel);var ls=L.textContent.trim();function done(ok){if(ok){btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u29C9',900)}}if(navigator.clipboard){navigator.clipboard.writeText(ls).then(()=>done(1),()=>done(0));return}var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();done(ok)}
 function peakReset(btn,key){fetch('/peak/reset'+(key?'/'+encodeURIComponent(key):'')).then(()=>{btn.textContent='\u2713';setTimeout(()=>btn.textContent='\u21ba',900)})}
+function stormReset(btn){fetch('/storm/reset',{method:'POST'}).then(()=>{btn.textContent='\u2713';setTimeout(()=>location.reload(),500)})}
 function cpLog(btn){var L=btn.closest('.log');var ls=[].map.call(L.querySelectorAll('.l'),d=>d.textContent).join('\\n');
 function fallback(){var ta=document.createElement('textarea');ta.value=ls;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';L.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ls.length);
 var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
@@ -873,6 +928,10 @@ class H(BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
+        elif self.path == "/storm/reset":
+            # POST-only, like /restart: a link or prefetch must not erase storm evidence.
+            STORM.clear(); storm_save()
+            body, ct = "storm latch cleared", "text/plain"
         elif self.path == "/llmtoggle":
             # 260925; 260926: toggle the LIVE :8080 arm if any (llama-llm /
             # 27b-collm / gufo-llm), else start the preferred one. POST-only.
