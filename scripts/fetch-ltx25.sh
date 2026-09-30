@@ -59,8 +59,10 @@ VERIFY_ONLY=0
 FILES=(
   "diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|18721432024|f9c4c2ae9a6aa8f732eb02a1c4c3b34888caad3dd35bb65deaf3b5043cda78fa"
   "text_encoders/gemma4-12b-with-proj-nvfp4-torchao.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|5a40ba9ab209a90ddb7943d1e3d374c51cfd3256|7423624178|12132b7157925332d2b21de9fc6f507c14f4f0cbc7081484d1968ebf8a19b4bf"
-  # GATED: 403 with the current token. Kept as the record of what is still missing.
-  "vae/ltx-2.5-video-vae-conv-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|1452269922|685b06ee3d9b2039647698fc4ea33175112462fc374e2777312c907897dfce8d"
+  # GATED: 403 with the current token. Kept as the record of what is still missing, and
+  # excused from --verify's exit code: the render path runs on the non-conv stand-in below,
+  # so "incomplete" here means "not the officially pinned build", not "cannot render".
+  "vae/ltx-2.5-video-vae-conv-bf16.safetensors|Lightricks/LTX-2.5|8a4ff96f581e72bedc1b44367581c49d544a05f1|1452269922|685b06ee3d9b2039647698fc4ea33175112462fc374e2777312c907897dfce8d|gated"
   # Stand-in for the conv build above -- different artifact, hence no pin: the script
   # prints the sha256 it got so it can be recorded once the official one is comparable.
   "vae/ltx-2.5-video-vae-bf16.safetensors|vonkaiser/LTX-2.5-FP8-NVFP4|main|0|"
@@ -77,7 +79,7 @@ mkdir -p "$ROOT"/{diffusion_models,text_encoders,vae,latent_upscale_models,loras
 fail=0
 
 for entry in "${FILES[@]}"; do
-  IFS='|' read -r rel repo rev bytes want <<<"$entry"
+  IFS='|' read -r rel repo rev bytes want note <<<"$entry"
   dest="$ROOT/$rel"
   url="https://huggingface.co/$repo/resolve/$rev/$rel"
 
@@ -93,7 +95,7 @@ for entry in "${FILES[@]}"; do
     fail=1
     continue
   fi
-  [ "$VERIFY_ONLY" = "1" ] && { echo "MISSING  $rel"; fail=1; continue; }
+  [ "$VERIFY_ONLY" = "1" ] && { echo "MISSING  $rel${note:+  ($note - excused)}"; [ "$note" = gated ] || fail=1; continue; }
 
   echo "FETCH    $rel"
   # --speed-limit: the only uplink is a phone tether that goes quiet for minutes at a

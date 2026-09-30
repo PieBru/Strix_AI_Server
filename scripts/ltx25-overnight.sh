@@ -31,7 +31,16 @@ while pgrep -f "[f]etch-ltx25-loop.sh" > /dev/null; do
   sleep 60
 done
 echo "=== fetcher finished or abandoned: $(date -Is) ==="
-bash scripts/fetch-ltx25.sh --verify | grep -E "^(OK|BAD|MISSING)"
+bash scripts/fetch-ltx25.sh --verify > /tmp/ltx25-verify.log 2>&1; vrc=$?
+grep -E "^(OK|BAD|MISSING)" /tmp/ltx25-verify.log
+# Do not stop the GPU arms for a render that preflight will refuse in 0.2 s: on the night
+# of 260930 the fetcher gave up 6.9 GiB short, and this script still took ComfyUI,
+# ACE-Step and gufo-serve down and back up for nothing. A write failure here must not be
+# mistaken for "incomplete", so the rc is checked, not the text.
+if [ "$vrc" -ne 0 ]; then
+  echo "weights still incomplete (verify exit $vrc) - leaving the other arms running; re-run this script once the fetch completes"
+  exit 1
+fi
 
 for u in "${UNITS[@]}"; do
   if systemctl --user is-active --quiet "$u"; then
