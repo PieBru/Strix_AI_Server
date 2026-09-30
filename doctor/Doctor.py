@@ -47,7 +47,16 @@ JN = lambda n=300: subprocess.run(["journalctl","--user"]+_JU+["-n",str(n),"--no
 JN_TW = lambda m=30: subprocess.run(["journalctl","--user"]+_JU+[f"--since=-{m}min","--no-pager"],
                                     capture_output=True, text=True, timeout=8).stdout.splitlines()
 
-PEAKS = {}   # key -> {v: max value, t: when set}; accrued in refresh() (always-on sampler)
+PEAKS = {}   # key -> {v: highest SUSTAINED level, t: when set}; accrued in refresh() (always-on sampler)
+_HIST = {}   # key -> deque of the last PEAK_N samples; the sustained floor is min(window)
+# A peak must be held, not touched (operator 260930): the high-water mark used to follow
+# single samples, so one 2 s reading of a transient set the chip for the rest of the day.
+# Same logic as the swap-storm latch below — N consecutive samples are a state, one sample
+# is a spike. min(window) is the level that held across the whole window, so a spike cannot
+# raise the peak and a real plateau converges on its true level within PEAK_N samples (~6 s
+# at the 2 s sampler). Cost, accepted: a single-sample I/O burst is no longer a peak — the
+# card's live bar still shows it and metrics.csv still keeps every sample.
+PEAK_N = 3
 
 # Swap-storm latch (operator 260930): the badge used to follow the instantaneous 2 s
 # rate, so it blinked during a storm and was white again before anyone could read it.
@@ -93,14 +102,19 @@ def storm_tick(r, pg):
             storm_save()
 
 def track(key, val):
-    """Update a card's high-water mark."""
+    """Update a card's high-water mark — sustained levels only, see PEAK_N."""
     try:
         v = float(val)
     except (TypeError, ValueError):
         return
+    w = _HIST.setdefault(key, deque(maxlen=PEAK_N))
+    w.append(v)
+    if len(w) < PEAK_N:
+        return                      # nothing is known about a level until the window is full
+    s = min(w)
     p = PEAKS.get(key)
-    if p is None or v > p["v"]:
-        PEAKS[key] = {"v": v, "t": time.time()}
+    if p is None or s > p["v"]:
+        PEAKS[key] = {"v": s, "t": time.time()}
 
 def gpu():
     # pure sysfs (UMA truth 260914): rocm-smi's VRAM% is the 1GiB carve-out (always ~90%),
@@ -1000,8 +1014,8 @@ class H(BaseHTTPRequestHandler):
             # every per-card reset fell through to PEAKS.clear() (all cards).
             # Also unquote: multi-word keys arrive percent-encoded from the UI.
             k = unquote(self.path[12:]) or None
-            if k: PEAKS.pop(k, None)
-            else: PEAKS.clear()
+            if k: PEAKS.pop(k, None); _HIST.pop(k, None)   # window too: a reset while the level
+            else: PEAKS.clear(); _HIST.clear()             # is still held would re-arm next sample
             body, ct = "ok", "text/plain"
         elif self.path == "/chk":
             try: body, ct = checkup_html(), "text/html"   # swapped into the STATIC morning-report box (60s cadence, not 2s)
