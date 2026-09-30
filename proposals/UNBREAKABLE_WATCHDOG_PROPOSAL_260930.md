@@ -183,6 +183,21 @@ its 30-min lockfile.
 
 ## 9. Tasks, in order
 
+> **Step 1 (measure before tuning) — done 260930.** Functional probe = a real completion that
+> must call a tool (`profile_probes.probe_text`), timed end to end on this box:
+>
+> | arm | state | seconds |
+> |---|---|---|
+> | `gemma-collm` :8080 | warm, idle | 0.88, 1.49 |
+> | `gemma-collm` :8080 | warm, **mid H3 render** (24 frames) | 2.13, 3.12, 3.17, 2.13 |
+> | `27b-collm` :8080 | warm, idle (during its gate) | 4.35 |
+> | either arm | cold (unit start → first answer) | < 50 s for the 27 B, `apply` returned inside a 50 s window |
+>
+> Worst warm completion is **4.35 s**, so the 60 s default budget is ~14× headroom. Keeping it:
+> the budget decides "is this probe dead", detection latency is set by `N_TRIP × timer` (3 × 2 min
+> ≈ 6 min), and a tighter budget buys no detection speed while adding false trips. Cold loads are
+> the cooldown's problem, not the budget's. Revisit if a probe ever completes in > 15 s.
+
 > **Done 260930 (steps 1–4 partially).** `scripts/strix-watchdog.py` + `systemd/strix-watchdog.{service,timer}`
 > exist on `feat/serving-profiles`; `tests/watchdog_check.py` covers the ladder. Installed in
 > `~/.config/systemd/user/` but **left disabled** — enabling an unattended actor is the operator's
