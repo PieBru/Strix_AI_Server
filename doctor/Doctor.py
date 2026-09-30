@@ -299,7 +299,12 @@ def _io_bytes():
 ARM_SORT_MODE = 0   # server-side row order: 0 = recency (default), 1 = load time
 BENIGN = re.compile(r"request cancelled while waiting for model|requires ctx_other|failed to measure the memory of the extra model"
                     r"|attention rotation force disabled|Qwen-VL models require|image-min-tokens|issues/16842"
-                    r"|preserving reasoning|exceeds the available context size")  # routine: arm-swap probe race, memory-fit pre-pass, per-load advisories, client sent an oversized request (probe noise, not a fault)
+                    r"|preserving reasoning|exceeds the available context size"
+                    # The arm's HF model manager phoning home when something opens its /models —
+                    # the llama-ui's own model picker does exactly that. This box has no internet
+                    # by design, so the lookup always fails and the UI still works: 9 lines in 7 d,
+                    # all of them from opening http://<box>:8080/ (seen 260930).
+                    r"|http client error: Could not establish connection")  # routine: arm-swap probe race, memory-fit pre-pass, per-load advisories, client sent an oversized request (probe noise, not a fault)
 
 def _models_max():
     try:
