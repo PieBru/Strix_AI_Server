@@ -292,9 +292,23 @@ def _is_ready(unit, cfg):
 
 
 def _repo_sha(repo_dir):
-    out = subprocess.run(["git", "-C", str(repo_dir), "rev-parse", "--short", "HEAD"],
-                         capture_output=True)
-    return out.stdout.decode().strip() or "unknown"
+    """Fingerprint of the code and thresholds that PRODUCE a measurement — deliberately not
+    `git HEAD`. This repo takes a commit per logical change, so HEAD would invalidate a 40 GiB
+    load test on every docs commit; an operator whose emergency cord keeps going stale learns
+    to type --force, and the gate stops meaning anything. Missing thresholds file = defaults,
+    hashed as empty; a directory with no gate in it is not a repo.
+    """
+    root = pathlib.Path(repo_dir)
+    if not (root / "scripts" / "profile-gate.py").exists():
+        return "unknown"
+    h = hashlib.sha256()
+    for p in (root / "scripts" / "profile-gate.py", root / "scripts" / "profile_probes.py",
+              pathlib.Path(DOCTOR_CONFIG)):
+        try:
+            h.update(p.read_bytes())
+        except OSError:
+            h.update(b"")
+    return h.hexdigest()[:12]
 
 
 def _floor(family, cfg):

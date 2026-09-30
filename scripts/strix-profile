@@ -328,7 +328,7 @@ def _queue_running(port: int = 8188):
         return None
 
 
-def _busy(ask=_queue_running) -> list[str]:
+def _busy(ask=_queue_running, pct_fn=None) -> list[str]:
     """Why we must not reshuffle the box right now. The renderer's queue is the only signal
     that survives contact with this box: gpu_busy_percent sticks at 100 after any GPU op (the
     ROCR AsyncEventsLoop bug, TheRock#7051 — OBSERVED 260930 with ComfyUI burning 111 % CPU and
@@ -343,10 +343,11 @@ def _busy(ask=_queue_running) -> list[str]:
         return []
     pct = int(os.environ.get("PROFILE_BUSY_PCT", "20"))
     try:
-        now = int(open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip())
+        now = (int(open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip())
+               if pct_fn is None else pct_fn())
         if now > pct:
             return [f"comfyui queue unreachable and gpu_busy_percent {now} > {pct}"]
-    except (OSError, ValueError):
+    except (OSError, ValueError, ZeroDivisionError):
         pass
     return []
 

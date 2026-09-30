@@ -460,12 +460,15 @@ def check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage():
     # OBSERVED 260930: gpu_busy_percent pinned at 100 with nothing rendering (ROCR
     # AsyncEventsLoop, TheRock#7051) while ComfyUI burned 111 % CPU. A guard built on that
     # number refuses every apply from the first render onwards, so the queue decides.
-    assert open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip() == "100", \
-        "this check is only meaningful while the box shows the spin"
-    assert sp._busy(ask=lambda: False) == [], "queue idle means apply, whatever the percentage says"
-    assert sp._busy(ask=lambda: True) == ["comfyui queue has a job running"]
-    r = sp._busy(ask=lambda: None)
-    assert r and "unreachable" in r[0], "no queue -> the crude reading votes, and says why"
+    # The percentage is injected, NOT read from sysfs: a test that asserts the spin is live
+    # breaks the moment the box behaves, and then nobody knows which half regressed.
+    assert sp._busy(ask=lambda: False, pct_fn=lambda: 100) == [], \
+        "queue idle means apply, whatever the percentage says"
+    assert sp._busy(ask=lambda: True, pct_fn=lambda: 0) == ["comfyui queue has a job running"]
+    r = sp._busy(ask=lambda: None, pct_fn=lambda: 100)
+    assert r and "unreachable" in r[0] and "100" in r[0], "no queue -> the crude reading votes"
+    assert sp._busy(ask=lambda: None, pct_fn=lambda: 5) == [], "and a quiet crude reading does not"
+    assert sp._busy(ask=lambda: None, pct_fn=lambda: 1 / 0) == [], "an unreadable metric is not busy"
 
 
 def check_force_reaches_an_ungated_profile_but_never_a_measured_fail():

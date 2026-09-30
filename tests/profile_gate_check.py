@@ -312,6 +312,22 @@ def check_dry_run_starts_nothing():
     assert r["verdict"] == "INCONCLUSIVE" and "dry run" in " ".join(r["reasons"]), r
 
 
+def check_repo_sha_tracks_the_measuring_code_not_the_commit():
+    # HEAD moves on every logical commit in this repo. If the evidence fingerprint were HEAD,
+    # a docs commit would invalidate a 40 GiB load test, and an operator whose emergency cord
+    # keeps going stale learns to type --force — which is the end of the gate.
+    d = pathlib.Path(tempfile.mkdtemp())
+    (d / "scripts").mkdir()
+    (d / "scripts" / "profile-gate.py").write_text("gate")
+    (d / "scripts" / "profile_probes.py").write_text("probes")
+    a = g._repo_sha(str(d))
+    (d / "README.md").write_text("a plan nobody asked for")
+    assert g._repo_sha(str(d)) == a, "an unrelated file must not invalidate a load test"
+    (d / "scripts" / "profile_probes.py").write_text("probes v2")
+    assert g._repo_sha(str(d)) != a, "the probe code moving MUST invalidate it"
+    assert g._repo_sha(str(d / "nowhere")) == "unknown"
+
+
 def main():
     for fn in [check_pass_at_the_boundaries, check_each_threshold_alone_flips_it,
                check_a_probe_that_answers_too_slow_has_passed_nothing,
@@ -327,7 +343,8 @@ def main():
                check_no_overlap_window_is_inconclusive,
                check_swap_storm_fails_even_if_it_settles,
                check_gate_verdict_reads_evidence_and_computes_age,
-               check_dry_run_starts_nothing]:
+               check_dry_run_starts_nothing,
+               check_repo_sha_tracks_the_measuring_code_not_the_commit]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")
