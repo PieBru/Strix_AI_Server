@@ -82,6 +82,7 @@ rm -f "$clip"
 
 echo "=== render (device=$DEV ${W}x${H} frames=$FRAMES seed=$SEED) ==="
 start=$(date +%s)
+log="$OUT/renderer.log"
 "$BIN" \
   --dit "$LTX/diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors" \
   --model-version 2.5 --checkpoint-class distilled \
@@ -92,11 +93,29 @@ start=$(date +%s)
   --encoder-config "$GEMMA_CFG" \
   --prompt "$PROMPT" \
   --frames "$FRAMES" --width "$W" --height "$H" --seed "$SEED" \
-  --device "$DEV" --ffmpeg "$FF" --workdir "$OUT" --out "$clip" 2>&1 | tail -40
-rc=${PIPESTATUS[0]}
+  --device "$DEV" --ffmpeg "$FF" --workdir "$OUT" --out "$clip" > "$log" 2>&1
+rc=$?
+tail -40 "$log"
 wall=$(( $(date +%s) - start ))
 echo "=== renderer exit=$rc in ${wall}s ==="
-[ "$rc" = 0 ] || exit 2
+if [ "$rc" != 0 ]; then
+  # Measured 260930, twice: the DiT and the Gemma tower load fine (106 s / 110 s, 13.75 GiB
+  # host) and the load then dies here. Say WHY in one screen instead of leaving a C++ string.
+  if grep -q "decoder_blocks is empty" "$log"; then
+    echo "WHY  the only video VAE we hold is the DIFFUSION decoder (config.vae.decoder is"
+    echo "     NADiffusionDecoder: stage_channels / diff_blocks). This engine refuses that class"
+    echo "     BY NAME - ltx2_video_vae.h:8 'NOT ported', it needs the neighbourhood-attention"
+    echo "     kernel. --allow-unported does NOT help: it is a DiT option (verified 260930, same"
+    echo "     refusal, exit 1, after 110 s). The non-conv file is a stand-in for SIZE only."
+    echo "FIX  the licence-gated conv build. Accept the terms at"
+    echo "       https://huggingface.co/Lightricks/LTX-2.5"
+    echo "     then:  HF_TOKEN=<token> bash scripts/fetch-ltx25.sh"
+    echo "     (pinned rev 8a4ff96f581e72bedc1b44367581c49d544a05f1, 1452269922 B,"
+    echo "      sha256 685b06ee3d9b2039647698fc4ea33175112462fc374e2777312c907897dfce8d)."
+    echo "     This script picks the conv build up by itself the moment it is on disk."
+  fi
+  exit 2
+fi
 
 # No ffprobe in the static build; ffmpeg itself probes when given -i.
 probe=$("$FF" -hide_banner -i "$clip" 2>&1)
