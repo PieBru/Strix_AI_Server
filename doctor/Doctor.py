@@ -122,12 +122,18 @@ def gpu():
 def ram_disk_cpu():
     with open("/proc/meminfo") as f: d = dict(l.split(":",1) for l in f)
     tot, avail = int(d["MemTotal"].split()[0]), int(d["MemAvailable"].split()[0])
-    swt, swf, swc = (int(d.get(k, "0 kB").split()[0]) for k in ("SwapTotal", "SwapFree", "SwapCached"))
+    swt, swf, swc, zaw = (int(d.get(k, "0 kB").split()[0]) for k in ("SwapTotal", "SwapFree", "SwapCached", "Zswapped"))
     swu = max(swt - swf - swc, 0)          # cached swap pages are reclaimable, not "used"
+    # Zswapped = uncompressed bytes of the pages zswap is holding compressed IN RAM: swap slots
+    # that never reached the NVMe. htop subtracts it too (linux/Platform.c: "subtract Zswapped from
+    # SwapUsed"), which is why htop and `free` disagree on this box (measured 260930: 121 MiB vs
+    # 1461 MiB). We keep the kernel's committed figure and name the zswap share instead of hiding
+    # it — the committed number is the one that cannot understate how close we are to out of swap.
     s = shutil.disk_usage("/"); ld = open("/proc/loadavg").read().split()[0]
     return (f"{100*(tot-avail)/tot:.0f}%", f"{(tot-avail)/1048576:.0f}/{tot/1048576:.0f} GiB",
             f"{100*s.used/s.total:.0f}%", f"{s.free/2**30:.0f} GiB free", ld,
-            f"{100*swu/swt:.0f}%" if swt else "0%", f"{swu/1048576:.1f}/{swt/1048576:.0f} GiB")
+            f"{100*swu/swt:.0f}%" if swt else "0%", f"{swu/1048576:.1f}/{swt/1048576:.0f} GiB"
+            + (f" \u00b7 {zaw/1048576:.1f} in zswap" if zaw > 51200 else ""))  # bar parses the number before '/', suffix-safe
 
 def _load_mod(name, path):
     """Import a sibling script that is not an importable module name (strix-profile has no
