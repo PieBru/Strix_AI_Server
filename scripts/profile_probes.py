@@ -26,6 +26,7 @@ import base64
 import io
 import json
 import pathlib
+import random
 import socket
 import time
 import urllib.error
@@ -76,19 +77,21 @@ def probe_text(port: int, timeout: float = 60, tools: bool = True,
     raw = json.loads(_post(f"http://127.0.0.1:{port}/v1/chat/completions", body, timeout))
     msg = (raw.get("choices") or [{}])[0].get("message") or {}
     content = (msg.get("content") or "").strip()
+    calls = msg.get("tool_calls") or []
+    # A correct tool call has EMPTY content — checking content first fails the arm for doing
+    # exactly what was asked (observed live 260930 against gemma-collm: "empty completion").
+    if tools:
+        if not calls:
+            return _fail(f"chatted instead of calling the tool: {content[:60]!r}")
+        args = (calls[0].get("function") or {}).get("arguments") or ""
+        try:
+            json.loads(args)
+        except ValueError:
+            return _fail(f"tool call arguments are not JSON: {args[:80]!r}")
+        return True, f"tool call {calls[0]['function'].get('name')}({args[:40]})"
     if not content:
         return _fail("empty completion")
-    if not tools:
-        return True, f"{len(content)} chars"
-    calls = msg.get("tool_calls") or []
-    if not calls:
-        return _fail(f"chatted instead of calling the tool: {content[:60]!r}")
-    args = (calls[0].get("function") or {}).get("arguments") or ""
-    try:
-        json.loads(args)
-    except ValueError:
-        return _fail(f"tool call arguments are not JSON: {args[:80]!r}")
-    return True, f"tool call {calls[0]['function'].get('name')}({args[:40]})"
+    return True, f"{len(content)} chars"
 
 
 def probe_image(port: int, timeout: float = 180, model: str = "Qwen-Image-2.1") -> tuple[bool, str]:
@@ -120,6 +123,24 @@ def probe_music(port: int, timeout: float = 300, model: str = "acestep") -> tupl
     return True, f"{n / w.getframerate():.1f} s audio rms={rms:.0f}"
 
 
+def _deseed(wf: dict) -> tuple[dict, int]:
+    """ComfyUI caches by prompt hash. Submit the same workflow twice and the second "render"
+    is a cache hit that returns in seconds and proves nothing about the GPU or the weights —
+    observed live 260930: a 138 s H3 render came back in 2.01 s. Every seed field gets a fresh
+    value, so the prompt is never the one that is already in the cache."""
+    seed = random.randint(1, 2**53)
+    n = 0
+    for node in wf.values():
+        inp = node.get("inputs") if isinstance(node, dict) else None
+        if not isinstance(inp, dict):
+            continue
+        for k in list(inp):
+            if k in ("seed", "noise_seed", "random_seed"):
+                inp[k] = seed
+                n += 1
+    return wf, n
+
+
 def probe_video(port: int, timeout: float = 600, workflow: str | None = None,
                 poll: float = 2.0) -> tuple[bool, str]:
     """Submit the operator's real ComfyUI workflow and wait for the job to complete. Queued is
@@ -128,9 +149,15 @@ def probe_video(port: int, timeout: float = 600, workflow: str | None = None,
     path = pathlib.Path(workflow or (pathlib.Path.home() / "Piero/Work/H3/h3_turbo_workflow.json"))
     if not path.is_file():
         return _fail(f"no workflow at {path}")
+    wf, seeds = _deseed(json.loads(path.read_text()))
+    if not seeds:
+        # a workflow with no seed is cacheable no matter what we do; say so instead of
+        # reporting a cache hit as a render
+        return _fail(f"{path.name} has no seed input — the probe cannot tell a render from a "
+                     f"cache hit")
     cid = uuid.uuid4().hex
     pid = json.loads(_post(f"http://127.0.0.1:{port}/prompt",
-                           {"prompt": json.loads(path.read_text()), "client_id": cid},
+                           {"prompt": wf, "client_id": cid},
                            min(timeout, 30)))["prompt_id"]
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -141,7 +168,7 @@ def probe_video(port: int, timeout: float = 600, workflow: str | None = None,
         status = h.get("status") or {}
         if status.get("status_str") == "error" or not status.get("completed"):
             return _fail(f"job {status.get('status_str')}")
-        return True, f"job {pid[:8]} completed"
+        return True, f"job {pid[:8]} completed ({seeds} seed(s) randomised)"
     return _fail(f"job {pid[:8]} still queued after {timeout:.0f} s")
 
 

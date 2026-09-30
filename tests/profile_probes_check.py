@@ -72,9 +72,10 @@ def stub(routes):
 
 
 def _wf():
-    """A workflow the probe can read; the stub accepts anything, so its contents do not matter."""
+    """A workflow the probe can read. Its contents DO matter now: the probe randomises every
+    seed field, so a workflow without one is refused rather than reported as a render."""
     f = pathlib.Path(tempfile.mkstemp(suffix=".json")[1])
-    f.write_text('{"1": {"class_type": "EmptyLatentImage"}}')
+    f.write_text('{"1": {"class_type": "KSampler", "inputs": {"seed": 42}}}')
     return str(f)
 
 
@@ -133,6 +134,15 @@ def check_text_needs_a_tool_call_that_is_valid_json():
     try:
         ok, detail = pp.probe_text(srv.server_address[1], 5, tools=True)
         assert ok is False and "tool" in detail, detail
+    finally:
+        srv.shutdown()
+
+    # the live shape: a correct tool call carries NO content at all. This is the case the first
+    # real run got wrong — it reported "empty completion" for an arm that had done the right thing.
+    srv = stub({"/v1/chat/completions": lambda b: mk('{"command":"df -h /"}', content="")})
+    try:
+        ok, detail = pp.probe_text(srv.server_address[1], 5, tools=True)
+        assert ok is True and "run_shell" in detail, detail
     finally:
         srv.shutdown()
 
@@ -196,6 +206,30 @@ def check_video_needs_the_job_to_finish_not_just_be_queued():
         srv.shutdown()
 
 
+def check_video_defeats_the_comfyui_cache():
+    """ComfyUI caches by prompt hash. Observed live 260930: a 138 s H3 render came back in
+    2.01 s on the second identical submit — the probe measured the cache, not the GPU."""
+    seen = []
+    srv = stub({"/prompt": lambda b: (seen.append(b.decode()),
+                                      (200, {"prompt_id": "p"}))[1],
+                "/history/p": lambda b: (200, {"p": {"status": {"status_str": "success",
+                                                                "completed": True}}})})
+    try:
+        wf = _wf()
+        for _ in range(2):
+            assert pp.probe_video(srv.server_address[1], 30, poll=0.01, workflow=wf)[0] is True
+    finally:
+        srv.shutdown()
+    assert len(seen) == 2 and seen[0] != seen[1], "identical prompt — ComfyUI answers from cache"
+
+
+def check_a_workflow_without_a_seed_is_refused_not_trusted():
+    f = pathlib.Path(tempfile.mkstemp(suffix=".json")[1])
+    f.write_text('{"1": {"class_type": "EmptyLatentImage"}}')
+    ok, detail = pp.probe_video(1, 5, workflow=str(f))
+    assert ok is False and "seed" in detail, detail
+
+
 def check_stt_transcript_comes_out_of_the_sse_stream():
     good = 'event: complete\ndata: ["The quick brown fox.", "model=large-v3-turbo"]\n\n'
     assert pp.parse_sse_transcript(good) == "The quick brown fox."
@@ -248,6 +282,8 @@ def main():
                check_text_needs_a_tool_call_that_is_valid_json,
                check_image_needs_real_png_bytes, check_music_needs_sound_not_silence,
                check_video_needs_the_job_to_finish_not_just_be_queued,
+               check_video_defeats_the_comfyui_cache,
+               check_a_workflow_without_a_seed_is_refused_not_trusted,
                check_stt_transcript_comes_out_of_the_sse_stream,
                check_no_listener_is_not_the_same_as_a_timeout,
                check_over_budget_is_a_failure_even_when_the_answer_arrives,

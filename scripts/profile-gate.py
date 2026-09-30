@@ -20,6 +20,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import socket
 import subprocess
 import sys
 import threading
@@ -40,7 +41,26 @@ UNITS = {
     "comfyui-h3": ("video", "video"),
     "acestep-serve": ("audio", "music"), "whisper-stt": ("audio", "stt"),
 }
-FLOOR_DEFAULTS = {"llm": "4", "image": "4", "video": "8", "audio": "4"}
+# Minimum GTT the profile's model units must occupy TOGETHER, per family, in GiB. Not RSS: on
+# this box the weights live in GTT, and a fully loaded gemma-collm shows 2.6 GiB of process RSS
+# while GTT holds 49 GiB (measured 260930). Per-process GTT would need /sys/kernel/debug as
+# root, so residency is a set property — the units must collectively move GTT past the sum of
+# their floors, and each must answer its own probe. Values are the real weight sizes rounded
+# down (Gemma4-12B-QAT 7.15 GB, MiniMax-H3 46.5 GB, ACE-Step turbo ~13 GB).
+FLOOR_DEFAULTS = {"llm": "6", "image": "4", "video": "30", "audio": "6"}
+
+
+def _load(name: str, path):
+    """Import a sibling script that has no .py extension (strix-profile) or that the tests
+    cannot import by name. sys.modules must be populated or @dataclass inside it cannot resolve."""
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    sys.modules[name] = mod
+    loader.exec_module(mod)
+    return mod
+
+
+_PROBES = _load("profile_probes", REPO / "scripts" / "profile_probes.py")
 
 GTT_USED = "/sys/class/drm/card0/device/mem_info_gtt_used"
 GTT_TOTAL = "/sys/class/drm/card0/device/mem_info_gtt_total"
@@ -69,6 +89,7 @@ class Sample:
     mem_avail_mib: int | None
     swap_pages: int | None
     gpu_pct: float | None
+    gtt_used_gib: float | None = None
 
 
 def _int(path: str) -> int | None:
@@ -81,6 +102,7 @@ def _int(path: str) -> int | None:
 def read_sample() -> Sample:
     used, total = _int(GTT_USED), _int(GTT_TOTAL)
     gtt = round(used * 100.0 / total, 2) if used is not None and total else None
+    gib = round(used / 2**30, 2) if used is not None else None
 
     mem = None
     try:
@@ -105,15 +127,16 @@ def read_sample() -> Sample:
         pass
 
     gpu = _int(GPU_BUSY)
-    return Sample(gtt, mem, swap, float(gpu) if gpu is not None else None)
+    return Sample(gtt, mem, swap, float(gpu) if gpu is not None else None, gib)
 
 
-def sampler(stop: threading.Event, out: list[Sample], interval: float = 1.0) -> None:
+def sampler(stop: threading.Event, out: list[Sample], interval: float = 1.0,
+            read=read_sample) -> None:
     """1 Hz for the whole run. Peaks and deltas come from the series, never from a single
     end-of-run read: a swap storm that settles before the last sample is exactly the event
     that must fail the gate."""
     while not stop.is_set():
-        out.append(read_sample())
+        out.append(read())
         stop.wait(interval)
 
 
@@ -223,23 +246,6 @@ def _is_active(unit):
     return out.stdout.decode().strip() == "active"
 
 
-def _rss_gib(unit):
-    """Main process RSS. This is the residency signal because `is-active` is not: with
-    --lazy-mode on-direct a 44 GiB arm reports active while pinning 400 MiB."""
-    out = subprocess.run(["systemctl", "--user", "show", "-p", "MainPID", "--value", unit],
-                         capture_output=True)
-    pid = out.stdout.decode().strip()
-    if not pid.isdigit() or pid == "0":
-        return 0.0
-    try:
-        for line in open(f"/proc/{pid}/status"):
-            if line.startswith("VmRSS:"):
-                return int(line.split()[1]) / 2**20  # KiB -> GiB
-    except (OSError, ValueError):
-        return 0.0
-    return 0.0
-
-
 def _nrestarts(unit):
     out = subprocess.run(["systemctl", "--user", "show", "-p", "NRestarts", "--value", unit],
                          capture_output=True)
@@ -260,6 +266,25 @@ def _journal_scan(since):
     return oom, amdgpu
 
 
+def _port_open(host: str, port: int) -> bool:
+    try:
+        socket.create_connection((host, port), 2).close()
+        return True
+    except OSError:
+        return False
+
+
+def _is_ready(unit, cfg):
+    """systemd reports `active` the instant it execs; llama-server then spends tens of seconds
+    mapping weights before it binds :8080. Readiness is a TCP connect, not a unit state —
+    without this wait the first probe of a cold arm always reports "no listener"."""
+    kind = UNITS.get(unit, (None, None))[1]
+    if kind is None:
+        return True
+    port = int(cfg.get(f"PORT_{kind.upper()}", _PROBES.DEFAULT_PORTS[kind]))
+    return _port_open("127.0.0.1", port)
+
+
 def _repo_sha(repo_dir):
     out = subprocess.run(["git", "-C", str(repo_dir), "rev-parse", "--short", "HEAD"],
                          capture_output=True)
@@ -272,9 +297,10 @@ def _floor(family, cfg):
 
 def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDENCE_DIR,
              unit_dir=UNIT_DIR, repo_dir=REPO, box=None, systemctl=_systemctl,
-             active_fn=_is_active, rss_gib_fn=_rss_gib, restarts_fn=_nrestarts,
+             active_fn=_is_active, restarts_fn=_nrestarts,
              probe_fn=None, sample_fn=read_sample, journal_scan=_journal_scan,
-             schedule="concurrent", sample_interval=1.0, load_ceiling_s=240):
+             ready_fn=_is_ready, schedule="concurrent", sample_interval=1.0,
+             load_ceiling_s=240):
     """Start the profile's units, load them, run every family's probe at the same time, hold the
     pressure, and write the evidence. Returns the evidence dict (and writes it, unless dry).
 
@@ -283,14 +309,7 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
     against a box that does not exist.
     """
     cfg = load_cfg(DOCTOR_CONFIG) if cfg is None else cfg
-    if probe_fn is None:
-        loader = importlib.machinery.SourceFileLoader(
-            "profile_probes", str(REPO / "scripts" / "profile_probes.py"))
-        mod = importlib.util.module_from_spec(
-            importlib.util.spec_from_loader("profile_probes", loader))
-        sys.modules["profile_probes"] = mod
-        loader.exec_module(mod)
-        probe_fn = mod.probe
+    probe_fn = probe_fn or _PROBES.probe
     box = box or os.uname().nodename
     units = list(profile.start)
     started = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
@@ -311,40 +330,28 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
                           "evidence and will not be written"],
                          "INCONCLUSIVE", None, None, None, None, None, 0, 0, 0, 0, {})
 
-    # phase 1/2: start everything, then wait for the units to be at least `active`. Being active
-    # is not being loaded; residency is judged from RSS below, after the probes have run.
+    # phase 1/2: start everything, then wait until each unit is active AND its port answers.
+    # Neither of those is "loaded"; residency is judged from RSS after the probes have run.
     before = {u: restarts_fn(u) for u in units}
     for u in units:
         systemctl(["--user", "enable", "--now", f"{u}.service"])
     deadline = time.monotonic() + load_ceiling_s
-    pending = [u for u in units if not active_fn(u)]
+
+    def not_up(u):
+        return not active_fn(u) or not ready_fn(u, cfg)
+
+    pending = [u for u in units if not_up(u)]
     while pending and time.monotonic() < deadline:
         time.sleep(2)
-        pending = [u for u in pending if not active_fn(u)]
+        pending = [u for u in pending if not_up(u)]
 
     # phase 3: the sampler starts BEFORE the first probe, and every probe is in flight at the
     # same time. Sequential probes measure N separate peaks, which is not the claim being made.
     samples: list[Sample] = []
-    rss_peaks = {u: 0.0 for u in units}
     stop = threading.Event()
-
-    def sample_loop():
-        while not stop.is_set():
-            samples.append(sample_fn())
-            stop.wait(sample_interval)
-
-    def rss_loop():
-        while not stop.is_set():
-            for u in units:
-                v = rss_gib_fn(u)
-                if v > rss_peaks[u]:
-                    rss_peaks[u] = v
-            stop.wait(sample_interval)
-
-    sam = threading.Thread(target=sample_loop)
-    rsst = threading.Thread(target=rss_loop)
+    sam = threading.Thread(target=sampler, args=(stop, samples, sample_interval),
+                           kwargs={"read": sample_fn})
     sam.start()
-    rsst.start()
 
     spans: dict[str, tuple] = {}
     lock = threading.Lock()
@@ -366,7 +373,6 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
     time.sleep(hold_s)  # keep the weights hot while the sampler keeps reading
     stop.set()
     sam.join(timeout=10)
-    rsst.join(timeout=10)
 
     # phase 4: aftermath. The OOM killer and a GPU fault live in the kernel journal, not in the
     # unit's own log, and a unit that restarted mid-run is a unit that died and came back.
@@ -386,15 +392,26 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
         window = (min(s[1] for s in spans.values()) - max(s[0] for s in spans.values())) * 1000
         overlap_ms = int(max(0, window))
 
-    resident = [u for u in units if u in UNITS and rss_peaks[u] >= _floor(UNITS[u][0], cfg)]
+    resident = [u for u in units if u in UNITS and probes_out.get(UNITS[u][1], {}).get("ok")]
     below = [u for u in units if u in UNITS and u not in resident]
+    peak_gib = max((s.gtt_used_gib for s in samples if s.gtt_used_gib is not None), default=None)
+    need = sum(_floor(UNITS[u][0], cfg) for u in units if u in UNITS)
+    if pending and final != "FAIL":
+        final = "INCONCLUSIVE"
+        reasons.append("never became ready within "
+                       f"{load_ceiling_s:.0f} s: {', '.join(pending)}")
     if below and final != "FAIL":
         # INCONCLUSIVE, not FAIL: the box may be fine and the unit just slow. What must never
         # happen is a PASS that licenses apply on a shape that OOMs on first use.
         final = "INCONCLUSIVE"
-        reasons.append("never reached its residency floor: " +
-                       ", ".join(f"{u} peaked at {rss_peaks[u]:.1f} GiB "
-                                 f"(floor {_floor(UNITS[u][0], cfg):g} GiB)" for u in below))
+        reasons.append("did not answer its probe, so it is not proven resident: "
+                       + ", ".join(f"{u} ({UNITS[u][1]})" for u in below))
+    elif peak_gib is not None and peak_gib < need and final != "FAIL":
+        final = "INCONCLUSIVE"
+        reasons.append(f"never occupied its floor: GTT peaked at {peak_gib:.1f} GiB, the "
+                       f"{len([u for u in units if u in UNITS])} model unit(s) need "
+                       f">= {need:.0f} GiB together — probes alone cannot tell a loaded model "
+                       f"from a cached answer")
     if overlap_ms <= 0 and final != "FAIL":
         final = "INCONCLUSIVE"
         reasons.append(f"no overlap window (overlap_ms={overlap_ms}) — the probes did not run "
@@ -462,11 +479,7 @@ if __name__ == "__main__":
               f"swap_pages {s.swap_pages}  gpu {s.gpu_pct}%")
         sys.exit(0)
 
-    loader = importlib.machinery.SourceFileLoader("strix_profile",
-                                                  str(REPO / "scripts" / "strix-profile"))
-    sp = importlib.util.module_from_spec(importlib.util.spec_from_loader("strix_profile", loader))
-    sys.modules["strix_profile"] = sp  # @dataclass in the loaded module resolves via sys.modules
-    loader.exec_module(sp)
+    sp = _load("strix_profile", REPO / "scripts" / "strix-profile")
     dry = "--dry-run" in args
     args = [a for a in args if a != "--dry-run"]
     hold = 60

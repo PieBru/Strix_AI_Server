@@ -156,17 +156,18 @@ class GateHarness:
     """Drives run_gate with every machine seam replaced: systemd, RSS, probes, /proc, journal.
     Nothing here can start a unit, which is the only way the concurrency rule is testable."""
 
-    def __init__(self, units=("comfyui-h3", "gemma-collm"), rss=30.0, probe_s=0.2,
-                 samples=None, schedule="concurrent", evidence=None):
+    def __init__(self, units=("comfyui-h3", "gemma-collm"), probe_s=0.2,
+                 samples=None, schedule="concurrent", evidence=None, fail_kinds=()):
         self.units = list(units)
-        self.rss = rss
         self.probe_s = probe_s
+        self.fail_kinds = set(fail_kinds)
         self.calls = []
         self.spans = {}
         self.lock = threading.Lock()
         self.evidence = evidence or tempfile.mkdtemp(prefix="strix-ev-")
         self.p = _gate_ns(start=list(units))
-        self.samples = samples or [g.Sample(50.0, 20000, 0, 10.0)]
+        # 60 GiB of GTT clears the video+llm floor (30 + 6) so the happy path stays happy
+        self.samples = samples or [g.Sample(50.0, 20000, 0, 10.0, 60.0)]
         self._i = 0
         self._lock2 = threading.Lock()
         self.schedule = schedule
@@ -178,9 +179,6 @@ class GateHarness:
     def active(self, u):
         return True
 
-    def rss_gib(self, u):
-        return self.rss
-
     def restarts(self, u):
         return 0
 
@@ -189,7 +187,9 @@ class GateHarness:
         time.sleep(self.probe_s)
         with self.lock:
             self.spans[kind] = (t0, time.monotonic())
-        return {"ok": True, "s": self.probe_s, "detail": "stub"}
+        ok = kind not in self.fail_kinds
+        return {"ok": ok, "s": self.probe_s,
+                "detail": "stub" if ok else "stub refused to produce anything"}
 
     def sample_fn(self):
         with self._lock2:
@@ -203,9 +203,10 @@ class GateHarness:
     def run(self, **over):
         kw = dict(cfg={}, hold_s=0, evidence_dir=self.evidence, unit_dir=str(_unit_dir()),
                   repo_dir=str(REPO), box="testbox", systemctl=self.systemctl,
-                  active_fn=self.active, rss_gib_fn=self.rss_gib, restarts_fn=self.restarts,
+                  active_fn=self.active, restarts_fn=self.restarts,
                   probe_fn=self.probe, sample_fn=self.sample_fn, journal_scan=self.journal,
-                  schedule=self.schedule, sample_interval=0.01)
+                  ready_fn=lambda u, cfg: True, schedule=self.schedule,
+                  sample_interval=0.01)
         kw.update(over)
         return g.run_gate(self.p, **kw)
 
@@ -250,13 +251,20 @@ def check_evidence_file_matches_the_schema():
     assert set(on_disk["probes"]) == {"video", "text"}, on_disk["probes"]
 
 
-def check_a_unit_that_never_loaded_is_inconclusive():
-    """27b-collm runs --lazy-mode on-direct: `active` with 400 MiB pinned is NOT loaded.
-    Certifying that shape is worse than not testing — it licenses apply."""
-    r = GateHarness(rss=0.4).run()
-    assert r["verdict"] == "INCONCLUSIVE", r
-    assert r["resident_units"] < 2
-    assert "floor" in " ".join(r["reasons"]).lower(), r
+def check_a_failed_probe_fails_the_gate_and_the_resident_count():
+    """A probe that produced nothing is a FAIL, not a shrug: the profile claims it renders, and
+    the render did not happen. resident_units counts proof of life, so it drops with it."""
+    r = GateHarness(fail_kinds=["video"]).run()
+    assert r["verdict"] == "FAIL", r
+    assert r["resident_units"] < 2, r
+
+
+def check_the_set_must_actually_occupy_its_gtt_floor():
+    """On this box the weights live in GTT, not in process RSS (a loaded gemma-collm is 2.6 GiB
+    RSS while GTT holds 49 GiB), so 'did the memory move' is the residency signal. Probes alone
+    cannot tell a loaded model from a cached answer — ComfyUI proved that in 2.01 s."""
+    r = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0, 5.0)]).run()
+    assert r["verdict"] == "INCONCLUSIVE" and "floor" in " ".join(r["reasons"]), r
 
 
 def check_no_overlap_window_is_inconclusive():
@@ -265,11 +273,19 @@ def check_no_overlap_window_is_inconclusive():
 
 
 def check_swap_storm_fails_even_if_it_settles():
-    h = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0),
-                             g.Sample(52.0, 19000, 9_000_000, 40.0),
-                             g.Sample(51.0, 19500, 9_000_010, 20.0)])
+    h = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0, 60.0),
+                             g.Sample(52.0, 19000, 9_000_000, 40.0, 60.0),
+                             g.Sample(51.0, 19500, 9_000_010, 20.0, 60.0)])
     r = h.run()
     assert r["verdict"] == "FAIL" and "swap" in " ".join(r["reasons"]), r
+
+
+def check_active_but_never_ready_is_inconclusive():
+    """systemd says active the instant it execs; a cold llama-server needs tens of seconds
+    before it binds the port. Probing anyway reports 'no listener' and blames the box."""
+    h = GateHarness()
+    r = h.run(ready_fn=lambda u, cfg: False, load_ceiling_s=0.05)
+    assert r["verdict"] == "INCONCLUSIVE" and "ready" in " ".join(r["reasons"]), r
 
 
 def check_gate_verdict_reads_evidence_and_computes_age():
@@ -301,7 +317,9 @@ def main():
                check_load_cfg_is_lenient, check_read_sample_reads_this_box,
                check_unit_hash_covers_dropins, check_gate_writes_evidence_or_fails,
                check_concurrent_not_sequential, check_evidence_file_matches_the_schema,
-               check_a_unit_that_never_loaded_is_inconclusive,
+               check_a_failed_probe_fails_the_gate_and_the_resident_count,
+               check_the_set_must_actually_occupy_its_gtt_floor,
+               check_active_but_never_ready_is_inconclusive,
                check_no_overlap_window_is_inconclusive,
                check_swap_storm_fails_even_if_it_settles,
                check_gate_verdict_reads_evidence_and_computes_age,
