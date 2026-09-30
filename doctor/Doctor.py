@@ -7,11 +7,14 @@ live tg + draft acceptance from the model-router journal), error banner
 (health/service/journal/dmesg), tail-f activity log, operator links (+ /res/*
 read-only excerpts: ini header, latest morning report, live sweep results).
 Design: session 260913, operator-approved."""
-import json, shutil, subprocess, socket, glob, re, html, time, threading, os
+import json, shutil, subprocess, socket, glob, re, html, time, threading, os, sys, shlex
+import importlib.machinery, importlib.util
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import urlopen
-from urllib.parse import unquote
+from urllib.parse import unquote, parse_qs, urlparse
+
+REPO = os.path.dirname(os.path.abspath(__file__)).rsplit("/doctor", 1)[0]
 
 # Router unit names this panel watches (journal + is-active). Reference box:
 # model-router-pwilkin / model-router-vanilla. This repo's units: llama-hip, llama-vulkan.
@@ -23,7 +26,7 @@ from urllib.parse import unquote
 # separated) set in the unit — keeps the checkout pristine, no re-edits on
 # git pull.
 ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
-    "llama-llm,gufo-llm,27b-collm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
+    "llama-llm,gufo-llm,27b-collm,gemma-collm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
 def _router_ini():
@@ -82,7 +85,90 @@ def ram_disk_cpu():
             f"{100*s.used/s.total:.0f}%", f"{s.free/2**30:.0f} GiB free", ld,
             f"{100*swu/swt:.0f}%" if swt else "0%", f"{swu/1048576:.1f}/{swt/1048576:.0f} GiB")
 
+def _load_mod(name, path):
+    """Import a sibling script that is not an importable module name (strix-profile has no
+    .py). sys.modules must be set or @dataclass inside the loaded file cannot resolve."""
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(name, loader))
+    sys.modules[name] = mod
+    loader.exec_module(mod)
+    return mod
+
+
+SP = _load_mod("strix_profile", f"{REPO}/scripts/strix-profile")
+GATE = _load_mod("profile_gate", f"{REPO}/scripts/profile-gate.py")
+
+
+def profile_line_html(stamp, missing, extra, gate):
+    """One line in the ARM card: what the stamp claims, whether the gate still stands for it,
+    and where reality disagrees. Everything is escaped — there is no auth on this LAN, so the
+    profile name is somebody-else-editable text appearing in a page."""
+    if not stamp:
+        return '<span class="m">no profile — units were started by hand</span>'
+    parts = [f"profile <b>{html.escape(stamp)}</b>"]
+    if gate:
+        v = str(gate.get("verdict", "?"))
+        cls = "bad" if v == "FAIL" else ("m" if v == "INCONCLUSIVE" else "on")
+        parts.append(f'gate <b class="{cls}">{html.escape(v)}</b> '
+                     f'{html.escape(str(gate.get("started", ""))[:10])}'
+                     f' (peak GTT {gate.get("peak_gtt_pct")} %)')
+    else:
+        parts.append('gate <b class="m">never gated</b>')
+    if missing:
+        parts.append('<span class="bad">DRIFT: missing ' + html.escape(", ".join(missing))
+                     + "</span>")
+    if extra:
+        parts.append('<span class="bad">DRIFT: extra ' + html.escape(", ".join(extra))
+                     + "</span>")
+    return " · ".join(parts)
+
+
+def profile_select_html(names, current):
+    """The dropdown in the title row. panic and emergency are always offered even if the
+    profiles dir is gone or unreadable — they are the way out, not a preference."""
+    opts = list(dict.fromkeys(list(names) + ["panic", "emergency"]))
+    return ('<select id="prof" onchange="profGo(this)">' + "".join(
+        f'<option value="{html.escape(n)}"' + (' selected' if n == current else '') +
+        f'>{html.escape(n)}</option>' for n in opts) + "</select>")
+
+
+def profile_apply(path, known, spawn):
+    """POST /profile?name=X -> (code, body). The name is checked against the profile keys
+    BEFORE anything is spawned: with no auth on this box the validator is the only thing
+    between a stray request and systemctl. Returns (404, ...) and spawns nothing otherwise."""
+    name = (parse_qs(urlparse(path).query).get("name") or [""])[0]
+    if name not in known:
+        return 404, f"unknown profile {name!r}"
+    spawn(name)
+    return 200, f"starting profile '{name}'…"
+
+
+def profile_state():
+    """(stamp, missing, extra, gate) for this box. Called by the collector, not per render:
+    it probes every managed unit with systemctl."""
+    stamp = SP.read_stamp()
+    if stamp is None:
+        return None, [], [], None
+    try:
+        prof = SP.resolve(stamp)
+    except Exception as e:
+        return stamp, [], [], None
+    live, extra = SP.live_units(prof)
+    d = SP.drift(prof, live)
+    return stamp, d["missing"], [u for u in extra if u in SP.MANAGED_UNITS], \
+        GATE.gate_verdict(socket.gethostname(), stamp)
+
+
+def _spawn_apply(name):
+    """Detached, like /restart: the request must never wait on a model load. `apply` can take
+    minutes (weights), and a browser POST that blocks is a browser that retries."""
+    subprocess.Popen(["/bin/bash", "-c",
+                      f"sleep 1; {REPO}/scripts/strix-profile apply {shlex.quote(name)}"],
+                     start_new_session=True)
+
+
 CACHE = {"h": "?", "svc": "?", "arm": "?", "tg": None, "acc": None, "jn": [], "errs": [], "gpu_err": [], "sig": None, "sig_t": 0.0}
+
 TG_H, ACC_H = deque(maxlen=120), deque(maxlen=120)  # ~4 min at live pace
 _IO = {"t": 0.0, "r": 0, "w": 0}   # prev /sys/block/nvme0n1/stat snapshot for I/O deltas
 
@@ -209,6 +295,7 @@ def refresh():
     if time.time() - CACHE.get("loads_t", 0) > 30:
         CACHE["loads"] = _loads_recent(); CACHE["loads_t"] = time.time()
     CACHE["res"] = _resident()
+    CACHE["prof"] = profile_state()   # stamp vs truth vs last gate; probes units, so only here
     tg = acc = None
     for l in reversed(jn):
         if tg is None and (m := re.search(r"print_timing: id\s+\d+ \| task\s+(\d+) \| n_gen =\s*(\d+), tg =\s*([\d.]+)", l)):
@@ -401,7 +488,7 @@ def stats():
               f'<b class="{"on h" if ARM_SORT_MODE else "h"}" onclick="armOrd(1)">load</b>'
               f'<b class="{"h on" if not ARM_SORT_MODE else "h"}" onclick="armOrd(0)">at</b>'
               + _rows + '</div>')
-    infrow = (card(f'ARM {_pills}', armtxt, w=2, h=2)
+    infrow = (card(f'ARM {_pills}', '<div class="prof">' + profile_line_html(*CACHE.get("prof") or (None, [], [], None)) + '</div>' + armtxt, w=2, h=2)
               + '<div class="card" style="grid-column:span 2"><b>LIVE tg ' + pchip("LIVE tg", " t/s", "{:.1f}") + ' <span id="tgv" style="color:#4c9aff">…</span></b>'
               '<svg class="sp" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline id="tgline" fill="none" stroke="#4c9aff" stroke-width="1.3"/></svg></div>'
               '<div class="card" style="grid-column:span 2"><b>DRAFT acc ' + pchip("DRAFT acc", "", "{:.2f}") + ' <span id="accv" style="color:#6dd66d">…</span></b>'
@@ -430,7 +517,11 @@ def stats():
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="/htmx.min.js"></script>
-<script>function armOrd(m){fetch('/armorder?mode='+m)}</script>
+<script>function armOrd(m){fetch('/armorder?mode='+m)}
+function profGo(s){const m=document.getElementById('profmsg');m.textContent='…';
+ fetch('/profile?name='+encodeURIComponent(s.value),{method:'POST'}).then(r=>r.text()).then(t=>{m.textContent=t})
+ .catch(()=>{m.textContent='request failed'})}
+</script>
 <script>const H_TG=[],H_ACC=[];let lastSig=null,N=180;
 function draw(id,arr){if(arr.length<2)return;var t0=arr[0][0],t1=arr[arr.length-1][0],dt=(t1-t0)||1;
 var vs=arr.map(p=>p[1]),lo=Math.min(...vs),hi=Math.max(...vs),dv=(hi-lo)||1;
@@ -488,6 +579,9 @@ details.chk[open] summary::before{content:"▾ "}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
 .artab *{font-size:.78em !important}
 .pill{display:inline-block;background:#1d7a2e;color:#eaffea;border-radius:9px;padding:1px 8px;font-size:1.25em;margin-left:8px;vertical-align:middle}
+#prof{margin-left:12px;font-size:.85em;background:#101418;color:#cfe3ff;border:1px solid #2a3a4a;border-radius:6px;padding:2px 6px}
+.prof{display:block;font-weight:400;font-size:.8em;margin-top:4px;opacity:.95}
+.prof .on{color:#6dd66d}.prof .bad{color:#ff6b6b}.prof .m{color:#8b98a5}
 .pill.off{background:#3a3a3a;color:#999}
 .artab{display:grid;grid-template-columns:minmax(0,max-content) minmax(52px,max-content) minmax(44px,max-content);gap:0 14px;font-size:.78em;margin-top:2px;line-height:1.5}
 .artab > :nth-child(6n+4),.artab > :nth-child(6n+5),.artab > :nth-child(6n+6){background:#1d1d1d}
@@ -503,7 +597,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
+<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -642,6 +736,16 @@ class H(BaseHTTPRequestHandler):
             body, ct = body, "text/plain"
             self.send_header("Content-Length", str(len(body))); self.end_headers()
             self.wfile.write(body.encode())
+        elif self.path.startswith("/profile"):
+            # Apply a profile from the panel. The name is validated against the profile keys
+            # before anything is spawned (profile_apply), and the apply is detached like
+            # /restart: loading weights takes minutes and a blocked POST gets retried.
+            code, body = profile_apply(self.path, set(SP.load_profiles(SP.PROFILES_DIR))
+                                       | {"panic", "emergency"}, _spawn_apply)
+            ct = "text/plain"
+            self.send_response(code); self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body.encode())
         else:
             self.send_response(404); self.end_headers()
 
@@ -698,11 +802,12 @@ class H(BaseHTTPRequestHandler):
         else:
             body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__UPTIME__",
             (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
-            (float(open("/proc/uptime").read().split()[0])))), "text/html"
+            (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
+            profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp()))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
 
 if __name__ == "__main__":
     threading.Thread(target=_sampler, daemon=True).start()
     threading.Thread(target=_metrics_logger, daemon=True).start()
-    ThreadingHTTPServer(("0.0.0.0", 8667), H).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("DOCTOR_PORT", "8667"))), H).serve_forever()

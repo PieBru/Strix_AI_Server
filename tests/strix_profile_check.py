@@ -456,6 +456,18 @@ def check_dry_run_reports_refusals_it_would_hit():
     assert "enable --now comfyui-h3.service h3-video-ui.service ltx25-ui.service" in t, t
 
 
+def check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage():
+    # OBSERVED 260930: gpu_busy_percent pinned at 100 with nothing rendering (ROCR
+    # AsyncEventsLoop, TheRock#7051) while ComfyUI burned 111 % CPU. A guard built on that
+    # number refuses every apply from the first render onwards, so the queue decides.
+    assert open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip() == "100", \
+        "this check is only meaningful while the box shows the spin"
+    assert sp._busy(ask=lambda: False) == [], "queue idle means apply, whatever the percentage says"
+    assert sp._busy(ask=lambda: True) == ["comfyui queue has a job running"]
+    r = sp._busy(ask=lambda: None)
+    assert r and "unreachable" in r[0], "no queue -> the crude reading votes, and says why"
+
+
 def main():
     for fn in [check_loader_fields, check_drift_separates_claim_from_truth,
                check_unknown_profile_raises_not_empty, check_malformed_profile_raises,
@@ -474,6 +486,7 @@ def main():
                check_apply_order_and_stamp_last,
                check_apply_stops_what_the_allow_list_forbids,
                check_apply_refuses_busy_gpu_before_touching_anything,
+               check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage,
                check_apply_refuses_stale_gate_unless_i_know,
                check_never_gated_profiles_ignore_the_clock,
                check_apply_refuses_a_stamp_earned_by_a_different_set,

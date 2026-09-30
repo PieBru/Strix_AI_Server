@@ -323,27 +323,38 @@ def _systemctl(args: list[str], timeout: int = 180) -> int:
         return 1
 
 
-def _started_recently(unit: str, minutes: int = 20) -> bool:
+def _queue_running(port: int = 8188):
+    """Ask the renderer whether it is rendering. True / False, or None when it cannot be asked.
+    The queue covers h3-video-ui and ltx25-ui too: they submit to this same ComfyUI."""
+    import urllib.request
     try:
-        r = subprocess.run(["journalctl", "--user", "-u", f"{unit}.service",
-                            "--since", f"{minutes} min ago", "--lines", "200", "--no-pager",
-                            "-q"], capture_output=True, text=True, timeout=20)
-        return "Started " in r.stdout
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/queue", timeout=3) as r:
+            return bool(json.load(r).get("queue_running"))
     except Exception:
-        return False
+        return None
 
 
-def _busy() -> list[str]:
-    out = []
+def _busy(ask=_queue_running) -> list[str]:
+    """Why we must not reshuffle the box right now. The renderer's queue is the only signal
+    that survives contact with this box: gpu_busy_percent sticks at 100 after any GPU op (the
+    ROCR AsyncEventsLoop bug, TheRock#7051 — OBSERVED 260930 with ComfyUI burning 111 % CPU and
+    nothing rendering), and journalctl's "Started" line means a UNIT came up, not that a job is
+    running, so it vetoed every apply for 20 min after apply's own start. Either one alone makes
+    the guard refuse forever; the queue answers the actual question. When the queue cannot be
+    reached we fall back to the crude reading and let the operator override with --force."""
+    q = ask()
+    if q is True:
+        return ["comfyui queue has a job running"]
+    if q is False:
+        return []
     pct = int(os.environ.get("PROFILE_BUSY_PCT", "20"))
     try:
         now = int(open("/sys/class/drm/card0/device/gpu_busy_percent").read().strip())
         if now > pct:
-            out.append(f"gpu_busy_percent {now} > {pct}")
+            return [f"comfyui queue unreachable and gpu_busy_percent {now} > {pct}"]
     except (OSError, ValueError):
         pass
-    out += [u for u in RENDER_UNITS if _started_recently(u)]
-    return out
+    return []
 
 
 def _wait_arm(port: int, ceiling_s: int = 180) -> bool:
@@ -381,9 +392,34 @@ def snapshot(path: str, units: list[str], *, stamp: str | None = None) -> None:
     os.replace(tmp, path)
 
 
+def _gate_verdict(box: str, profile: str):
+    """The newest gate PASS/FAIL for this box and profile. Read here rather than imported from
+    profile-gate.py because the gate already imports this file by path; a second edge would make
+    it a cycle. The filename is the gate's contract (evidence-<profile>.json) and the box field
+    is checked because evidence from another machine must never vouch for this one."""
+    path = os.path.expanduser(os.environ.get("STRIX_GATE_EVIDENCE",
+                                             "~/.local/share/strix/gate")
+                              + f"/evidence-{profile}.json")
+    try:
+        ev = json.loads(open(path).read())
+    except (OSError, ValueError):
+        return None
+    if ev.get("box") != box:
+        return None
+    try:
+        import datetime
+        ev["age_h"] = (datetime.datetime.now(datetime.timezone.utc)
+                       - datetime.datetime.fromisoformat(ev["started"])
+                       ).total_seconds() / 3600
+    except (KeyError, ValueError):
+        ev["age_h"] = None
+    return ev
+
+
 def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None = None,
           snapshot_path: str | None = None, dry_run: bool = False, force: bool = False,
-          i_know: bool = False, systemctl=_systemctl, verdict_fn=None, busy=_busy,
+          i_know: bool = False, systemctl=_systemctl, verdict_fn=_gate_verdict,
+          busy=_busy,
           wait_arm=_wait_arm, is_active=_is_active) -> int:
     """Put the box into a profile. Order is the contract:
     refusals -> snapshot -> stop -> start -> wait for the text arm -> stamp LAST.
