@@ -31,12 +31,6 @@ PROFILES_DIR = os.environ.get(
 STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
 PREVIOUS = os.environ.get(
     "STRIX_PREVIOUS", os.path.expanduser("~/.local/state/strix/profile-previous.json"))
-# A render can be GPU-idle between diffusion steps and still be alive, so gpu_busy_percent
-# alone is not the signal: any of these logging a start recently means "do not reshuffle the
-# box right now".
-RENDER_UNITS = ("comfyui-h3", "h3-video-ui", "ltx25-ui", "ltx25-serve")
-EVIDENCE_DIR = os.environ.get(
-    "STRIX_EVIDENCE", os.path.expanduser("~/.local/state/strix/profiles"))
 
 # The units this tool owns. Anything else running on the box (open-webui, ssh-agent,
 # a stray gradio) is never reported as drift — profiles govern model serving, not
