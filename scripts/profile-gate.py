@@ -30,7 +30,13 @@ from dataclasses import dataclass
 REPO = pathlib.Path(__file__).resolve().parent.parent
 EVIDENCE_DIR = os.path.expanduser("~/.local/share/strix/gate")
 UNIT_DIR = os.path.expanduser("~/.config/systemd/user")
-DOCTOR_CONFIG = os.environ.get("STRIX_DOCTOR_CONFIG", str(REPO / "doctor" / "doctor.config"))
+# One config file for the whole doctor family: the dream skill's. The repo has no
+# doctor.config and Doctor.py reads none (verified 260930), so a repo-local default would be
+# a file nobody edits. A missing file or key falls back to DEFAULTS, so a box without the
+# skill (strixy2) still gates.
+DOCTOR_CONFIG = os.environ.get(
+    "STRIX_DOCTOR_CONFIG",
+    os.path.expanduser("~/.pi/agent/skills/doctor-dream/doctor.config"))
 
 # unit -> (family, probe kind). A unit that is not listed has no floor and no probe: a gradio
 # page is not a model, and the gate must not fail a profile for not loading one.
