@@ -31,6 +31,7 @@
 - [The "sharp" chat template](#the-sharp-chat-template)
 - [RAM accounting](#ram-accounting)
 - [Speed at depth — how much wall-time you actually wait](#speed-at-depth--how-much-wall-time-you-actually-wait)
+  - [The stall you can only see in `queue_ms` — and the disk cache that removed it](#the-stall-you-can-only-see-in-queue_ms--and-the-disk-cache-that-removed-it)
 - [Got a new model? Test it, then compare it to the podium](#got-a-new-model-test-it-then-compare-it-to-the-podium)
   - [1. Serve it](#1-serve-it)
   - [2. Quality — the batteries, with a confidence interval](#2-quality--the-batteries-with-a-confidence-interval)
@@ -51,6 +52,11 @@
   - [The WebUI (:8667)](#the-webui-8667)
   - [The nightly job (03:00, unattended, read-only)](#the-nightly-job-0300-unattended-read-only)
   - [The loop it enables — proposals out, human seal on every change](#the-loop-it-enables--proposals-out-human-seal-on-every-change)
+- [Serving profiles, the gate, and the watchdog](#serving-profiles-the-gate-and-the-watchdog)
+  - [The tool: `strix-profile`](#the-tool-strix-profile)
+  - [The gate: measured, not declared](#the-gate-measured-not-declared)
+  - [The watchdog: the ladder that is built and disarmed](#the-watchdog-the-ladder-that-is-built-and-disarmed)
+- [The lab — video, image, music, speech, and the SOS arm](#the-lab--video-image-music-speech-and-the-sos-arm)
 - [Methodology](#methodology)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -69,6 +75,14 @@ default is **Qwen3.8 Flash-Next UD-Q4_K_XL** — see
 against DeepSeek V4.1 Flash and both GLM-5.3 variants, so you can see
 what staying local costs or saves. Everything else in this file is
 evidence, method, or operations.
+
+Two chapters describe how the box is *run* rather than what it scores
+(both landed 2026-09-30): [Serving profiles, the gate, and the
+watchdog](#serving-profiles-the-gate-and-the-watchdog) — the box has eight
+named shapes of service, and a switch only happens if a real load test
+passes — and [The lab](#the-lab--video-image-music-speech-and-the-sos-arm)
+— the video/image/music/speech stack that shares the same 124 GiB with the
+LLM, with the measured co-residency numbers.
 
 ## Our podium
 
@@ -1047,6 +1061,42 @@ pp/tg podium cells — is committed as
 reproduce from [benchmarks/](benchmarks/). What is still owed is the raw
 per-cell console logs behind the individual podium numbers.
 
+### The stall you can only see in `queue_ms` — and the disk cache that removed it
+
+Wall-clock at depth hides a second axis: **waiting for the engine to admit
+you at all**. The champion retains one continuation per `--sessions` slot and
+schedules serially, so a client whose prefix does not match the retained one
+re-prefills from scratch (~1000 t/s: 75k tokens ≈ 80 s) while every other
+client sits in `queue_ms` — its own decode still running at a healthy ~40 t/s,
+which is exactly why a t/s dashboard cannot see this. Measured 2026-09-29:
+**4 of 24 requests waited 77–110 s**. `scripts/stall-audit.py` is the probe —
+it reads the access log off the serving box and splits every completed request
+into `queue_ms` / `ttft_ms` / decode.
+
+The fix is `--cache-disk` (`systemd/zz-cache-disk.conf`): restore the evicted
+prefix instead of recomputing it. Chosen over `--sessions 2`, which
+preallocates a second full 262k executor (~7 GiB GTT on an arm already at
+88/122) and changes decode batching for every request, to fix a wait that
+restoring the prefix removes at the source. Both flags are what gufo's own
+docs prescribe for Flash-Next/MTP at 262k — and without the staging flag it
+auto-caps at 1 GiB, so our ~2.7 GiB snapshots would be silently skipped.
+
+A/B under the same two-shape condition: **0/24 queue-blocked (was 4/24), worst
+`queue_ms` 27.9 s (was 83 s)**, alternating requests now hit `cache=disk`
+instead of `cache=miss`, decode unchanged at 35–47 t/s, 12/12 tool calls
+parsed. The cost is recorded in the file: ~2.7 GiB written per turn, a few
+hundred TBW a year on the NVMe — worth watching.
+
+Two honest footnotes from the same day. The flag was **retracted once** (a
+commit claimed it was not restart-safe) and then restored: both apparent
+misses were `-j` key changes, not the cache failing. And the repo's
+`systemd/gufo-llm.service` mirror had drifted from the live unit in three ways
+(binary path, `-c 196608` vs `262144`, `WorkingDirectory` back inside the repo)
+with nothing noticing — so the drop-ins are built from the live `ExecStart`
+and [scripts/mirror-check.sh](scripts/mirror-check.sh) now fails if a mirror
+drifts from the box. `scripts/llama-gate` (the readiness gate) had a MiB/GB
+mix-up that made **every documented call a no-op**; fixed the same day.
+
 ## Got a new model? Test it, then compare it to the podium
 
 Everything the podium rows are made of is reproducible from this repo with
@@ -1221,6 +1271,19 @@ Everything is in the repo:
  vanilla), switchable with one command
 - [doctor/](doctor/) — the Doctor WebUI + its unit — 24/7 monitoring and
  the nightly auto-improve loop (see the chapter below)
+- [scripts/](scripts/) — the operational surface: `strix-profile` and
+  `profile-gate.py` (service shapes and their load test), `strix-watchdog.py`
+  (the disarmed ladder), `profile_probes.py` (functional probes),
+  `stall-audit.py`, `mirror-check.sh`, `nvme-health.py`, `tcspec.py`
+  (per-request latency with a temperature knob), `fetch-ltx25.sh`
+  (mirror + pins + bounded retry)
+- [tests/](tests/) — `sh tests/run-all.sh` is the **"main stays green"
+  command**: one exit code over every check (7 as of 2026-09-30 — the gate
+  verdict, the profile loader, the probes, the profile card, the `/llm`
+  proxy, the watchdog, the swap-storm latch). Each file is the smallest thing
+  that fails when its logic breaks, and each was sabotage-checked: break the
+  function, watch the check go red, restore, watch it go green. Green tests
+  that cannot bite are theater.
 
 
 ## Italian (iten12)
@@ -1636,18 +1699,49 @@ web app (htmx, 2 s poll) — and its user unit
 
 ### The WebUI (:8667)
 
-- **System cards** — GPU (GTT counters — the real UMA numbers, not the
- 1 GiB carve-out %), RAM, disk, CPU
+- **System cards** — VRAM (GTT counters — the real UMA numbers, not the
+ 1 GiB carve-out %), GPU temp, GPU power, RAM, SWAP, DISK, DISK I/O, CPU,
+ each with a high-water chip you can reset per card. There is deliberately
+ **no "GPU busy" card**: on this APU `gpu_busy_percent` reads 100 whenever
+ any process holds `/dev/kfd` — measured 2026-09-30 at a flat 100 across
+ 41 W idle and a 111 W generation. A permanently red card is not an alarm,
+ it is the loss of one; GTT and power are the two GPU signals that move.
+- **SWAP carries a latched storm badge** — the instantaneous rate made the
+ old badge blink during real paging and go white before anyone could read
+ it. It now trips on 3 consecutive samples over 1 MB/s (the idle floor
+ measured 2026-09-30 is 0.00 MB/s, so it cannot trip on noise) and then
+ **holds** — red while the storm runs, amber `STORM past` once it subsides,
+ with `since HH:MM:SS · peak MB/s · GiB moved` — until the ✕ on the card
+ clears it. A past storm is the evidence you wanted.
 - **Inference cards** — resident arm and recent loads, live tg and draft
- acceptance sparklines, service and `/health` state
+ acceptance sparklines, service and `/health` state, the **profile claim
+ line** (what the stamp claims vs what is actually up — see
+ [Serving profiles](#serving-profiles-the-gate-and-the-watchdog)), the
+ **switch history**, and the **watchdog card**, which reports for itself:
+ `off`, `ok`, `SILENT` (installed but not ticking), and what it did today
+- **Anvil** (`/anvil`) — a chat + agent console served same-origin, talking
+ to the arm through our `/llm` proxy (no CORS, no second port to expose).
+ The proxy relays the arm's own error body instead of swallowing it into a
+ `502`, and streams with `read1` — measured 2026-09-30: first chunk 0.08 s
+ over a 4.75 s generation, where `read(8192)` delivered the whole reply
+ 0.50 s late. Both links open in a new tab so the dashboard keeps polling.
+- **webui** — appears beside `anvil` only when `:8080` answers with
+ `Server: llama.cpp`, and links to that arm's own chat UI (verified in
+ Chromium: 200, title `llama-ui`). The href is built from the request's
+ `Host`, so a laptop reading `strixy-9ad3.local:8667` gets a link it can
+ actually open
 - **Error banner** — health / service / journal / dmesg, minus
- known-benign patterns; **activity log** — live tail of the router
- journal
+ known-benign patterns, windowed by **time** (30 min) rather than line
+ count: a `-n 300` window on an idle router shows hours-old storm tails
+ forever; **activity log** — live tail of the router journal
 - **Resource links** (`/res/*`) — read-only excerpts: the router ini
  header, latest morning report, spec-sweep results, harvest stats, and
  `/res/doctor` — the latest nightly report
-- **Read-only by design** — no ini writes, no arm swaps, no privileged
- calls; ~25 MB RSS (resident memory) flat, sub-1% of one core
+- **Not read-only any more, and every write is gated** — the profile
+ dropdown switches the box's service shape through the gate (a measured
+ FAIL stops it; see below), `↻` restarts `Doctor.service`, and the peak /
+ storm resets clear their own state. What is still true: no ini writes, no
+ privileged calls, ~25 MB RSS (resident memory) flat, sub-1% of one core
 
 Install — the app runs straight from the checkout (no files in `$HOME`).
 Set `DOCTOR_UNITS` in the unit to the router units to watch (default:
@@ -1709,6 +1803,132 @@ services, or policy). Two worked examples from the same day:
  lazy-loading footprint; identical GTT/RAM after a clean reboot
  falsified the leak. The doctor proposed; the reboot's natural
  experiment disposed — no change landed on a wrong inference.
+
+## Serving profiles, the gate, and the watchdog
+
+One box, eight shapes of service: the coding API, a video lab, an image
+lab, a music lab, everything off, and the two ways out. Until 2026-09-30
+switching shape meant hand-typed `systemctl` calls and a prayer that the
+set fitted in 124 GiB. Two failures made that unacceptable: an OOM that
+takes the session with it, and a 03:00 watchdog cheerfully starting a
+40 GiB model while the operator had parked the box for an H3 render.
+
+The layer is three pieces: a loader with an exit code, a gate that
+measures the shape before trusting it, and a watchdog whose contract is
+the *stamp* rather than "`:8080` answers".
+
+### The tool: `strix-profile`
+
+```bash
+scripts/strix-profile current [--json]   # the stamp: what this box claims to be
+scripts/strix-profile list | check
+scripts/strix-profile apply lab-video [--dry-run] [--force] [--i-know]
+scripts/strix-profile rollback
+```
+
+- **Profiles are ALLOW-lists** ([configs/profiles/](configs/profiles/)):
+ `coding`, `emergency`, `lab-all`, `lab-audio`, `lab-image`, `lab-video`,
+ `off`, plus `panic`. A profile names what may be up; everything else goes
+ down. An allow-list cannot forget a unit the way a start-list can.
+- **`panic` and `emergency` are BUILTIN** — offered even when the profiles
+ directory is gone or unreadable. They are the way out, not a preference.
+- **The stamp is the contract.** `current`'s exit code is the answer, so
+ scripts and the Doctor read the same truth. No stamp means the operator
+ parked the box deliberately — which is information, not a fault.
+- **Refusals happen before any `systemctl` call, and the stamp is written
+ last.** A half-applied switch is visible as a claim/truth mismatch on the
+ Doctor's ARM card rather than as a silent lie.
+- **Switches are append-only logged** (`profile-history.jsonl`) and shown
+ in the inference card. The test suite writes its own log, never the box's.
+
+### The gate: measured, not declared
+
+`scripts/profile-gate.py <profile>` brings the shape up, probes it
+**concurrently**, and issues a verdict with an evidence JSON. The pass/fail
+rule is a pure function over samples (`verdict()`), so the whole contract is
+testable on synthetic input ([tests/profile_gate_check.py](tests/profile_gate_check.py)).
+Every rule below was paid for:
+
+| rule | why |
+|---|---|
+| **GTT is the only GPU truth** | this is a Strix Halo: visible VRAM is a 1 GiB carve-out, so `rocm-smi`'s VRAM% reads ~90% on an idle box. The number that matters is `mem_info_gtt_used` over 124 GiB |
+| **Readiness is HTTP** | "unit active" is not "model loaded" |
+| **Probes are functional** | a 200 with an empty body is a FAIL; a wedged generation loop answers `/health` with 200 forever |
+| **A missing metric is a FAIL, never a pass** | the first honest run found three bugs, all in the gate, none in the box |
+| **Co-residency is proven concurrently** | two units that each fit alone do not fit together |
+| **The evidence fingerprint is the measuring code**, not git HEAD | a stamp must not survive the change that invalidated it |
+| **Thresholds are read from the config the operator edits** | a copy of a threshold is a lie waiting to diverge |
+| **`apply --force` reaches an ungated profile; a measured FAIL still stops it** | ungated ≠ known-bad |
+
+`coding` and `lab-video` carry real verification stamps; `lab-audio` got its
+first measured four-unit co-residency on 2026-09-30. `lab-image` and
+`lab-all` are **still ungated on purpose** — an ~112 GiB budget whose OOM
+could take the session, so they need an operator at the keyboard.
+
+### The watchdog: the ladder that is built and disarmed
+
+`scripts/strix-watchdog.py` — one tick per run; a systemd timer runs the
+ticks. It keeps a *text* arm answering, and its contract is the stamp: no
+stamp means the box is parked on purpose and the watchdog has no business
+starting a 40 GiB model at 03:00.
+
+- **The probe is functional, never `/health`** — it reuses the gate's
+ `probe_text`: one implementation of "this model completed a turn with a
+ tool call", not two.
+- **The ladder** is `restart` → `emergency` → `panic` → `shout`: restart the
+ arm, then fall to the SOS arm, then to the panic profile, then make noise.
+ The probe budget is a measured number, not a guess.
+- **stdlib only, no uv, no venv, no network at start** — a unit that has
+ only ever started online is an untested unit (the `qwen-image-test` lesson,
+ 2026-09-27).
+- **Installed, and disabled.** Arming it is the operator's call, not ours.
+ The Doctor's watchdog card says which state it is in (`off` / `ok` /
+ `SILENT`) and what it did today — including the bug the card itself caught:
+ `tier_hits` was keyed to the wrong tier, so a parked arm's ordinary restart
+ was being reported as `emergency×1`.
+
+## The lab — video, image, music, speech, and the SOS arm
+
+The same 124 GiB serves text and media. What is up follows the stamp; the
+inventory below is the whole set (checked 2026-09-30, no auth — the
+LAN-trusted decision of 2026-09-11, so keep this list current when adding a
+listener).
+
+| service | port | what it is |
+|---|---|---|
+| Doctor | `:8667` | this dashboard |
+| the arm | `:8080` | whatever the stamp says; always aliased `default` |
+| ComfyUI + MiniMax-H3 | `:8188` | text-to-video, ~120–130 s per 56-frame clip |
+| h3-video-ui | `:7861` | the one-box video generator over ComfyUI |
+| Qwen-Image | `:8081` / `:7860` | image generation/editing web app |
+| ltx25-ui | `:7864` | LTX-2.5 render path |
+| ACE-Step 1.5 | `:7862` UI, `:8001` engine | music (audio.cpp, Vulkan, turbo q8_0) |
+| whisper-stt | `:7863` | faster-whisper, CPU int8 |
+| SOS arm | `:8082` | Spark-X2.5-4B Q4 — the arm you start *beside* the others |
+
+Measured, not assumed:
+
+- **ACE-Step RTF 0.60 solo, 3.94 while an H3 render runs** — it still
+ completes. What does *not* work is stacking `27b-collm` + ACE-Step + an H3
+ render: 27B-Q8 alongside the render **OOMs**, Gemma4-Q4 **passes** (render
+ 120 s, LLM replying in 3.5 s mid-render, 60 Gi free at peak).
+- **The SOS arm costs 7 GB GTT, decodes at 61.6 t/s, loads in under 5 s**
+ co-resident with the full lab stack, and is started by hand. It serves with
+ `--chat-template-file`, never `--jinja`: the embedded template prepends a
+ canned persona ahead of our system prompt. Its gate fires the tool call N
+ times — one sample cannot see how this arm fails — and `drive-test.sh`
+ hands it a real agent task rather than one request.
+- **LTX-2.5 is behind a gated HF repo.** The fetch script takes the public
+ mirror with the pins kept, repairs a corrupt `.part`, holds a single writer,
+ retries on a bounded loop so a dead tether cannot stall the night, defaults
+ the relay proxy, and never reads silence as "complete". The smoke test says
+ **why** the render refuses, on one screen: the renderer is ported, the
+ licence-gated conv VAE is what is missing. A probe that can never pass is
+ the same mistake as the GPU-busy card, so there is none.
+- **A doomed render must not cost the box its GPU arms** — the orchestrator
+ used to stop them for a render that could not start.
+- **STT is CPU int8** (ctranslate2 wheels here are CPU-only), offline by
+ default, and coexists with everything at ~2.6 GB when a model is loaded.
 
 ## Methodology
 
