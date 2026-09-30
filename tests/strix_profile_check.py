@@ -468,6 +468,24 @@ def check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage():
     assert r and "unreachable" in r[0], "no queue -> the crude reading votes, and says why"
 
 
+def check_force_reaches_an_ungated_profile_but_never_a_measured_fail():
+    # The emergency cord must be reachable without a load test: panic IS the response to the box
+    # already being wrong, and absence of evidence is not evidence of safety. A FAIL is different
+    # evidence — we measured it and it broke — so --force does not touch it.
+    d = _ws()
+    err, old = io.StringIO(), sys.stderr
+    sys.stderr = err
+    try:
+        assert _apply("panic", d, verdict=lambda b, p: None) == 1, "ungated + no force = refuse"
+        assert _apply("panic", d, verdict=lambda b, p: None, force=True) == 0
+        assert "unmeasured" in err.getvalue(), err.getvalue()
+        assert _apply("panic", d, verdict=lambda b, p: {"verdict": "FAIL",
+                                                        "reasons": ["swap written"]},
+                      force=True) == 1, "force must not override a measured FAIL"
+    finally:
+        sys.stderr = old
+
+
 def main():
     for fn in [check_loader_fields, check_drift_separates_claim_from_truth,
                check_unknown_profile_raises_not_empty, check_malformed_profile_raises,
@@ -487,6 +505,7 @@ def main():
                check_apply_stops_what_the_allow_list_forbids,
                check_apply_refuses_busy_gpu_before_touching_anything,
                check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage,
+               check_force_reaches_an_ungated_profile_but_never_a_measured_fail,
                check_apply_refuses_stale_gate_unless_i_know,
                check_never_gated_profiles_ignore_the_clock,
                check_apply_refuses_a_stamp_earned_by_a_different_set,

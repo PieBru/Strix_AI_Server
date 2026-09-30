@@ -458,12 +458,19 @@ def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None 
                        "wait for it, or pass --force if you know better.")
             if r is not None:
                 return r
-    v = verdict_fn(box, p.name) if verdict_fn else None
-    if v is None:
+    v = verdict_fn(box, p.name)
+    if v is None and not force:
         r = refuse(f"no gate evidence for this profile on this box",
                    f"\n        run: strix-profile verify {name}")
         if r is not None:
             return r
+    elif v is None:
+        # --force means "I know better than the ABSENCE of a test", which is what panic and
+        # emergency are for: the box is already wrong and a missing load test must not stand in
+        # the way of the one shape that frees memory. A measured FAIL is different evidence and
+        # is still refused below.
+        print(f"apply {name}: --force, no gate evidence on this box — proceeding unmeasured",
+              file=sys.stderr)
     elif v.get("verdict") != "PASS":
         r = refuse(f"the gate says {v.get('verdict')}: {'; '.join(v.get('reasons') or [])}")
         if r is not None:
