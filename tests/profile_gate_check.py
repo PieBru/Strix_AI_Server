@@ -1,17 +1,22 @@
-"""Runnable check for scripts/profile-gate's measurement core.
+"""Runnable check for scripts/profile-gate.py — the measurement core and the gate itself.
 
     uv run --no-project python tests/profile_gate_check.py
 
-Exit 0 = the pass/fail rule is data (every threshold boundary tested on both sides), a
-missing measurement is a FAIL rather than a pass, and the real reader agrees with sysfs.
-`verdict` is a pure function so the whole rule can be tested without touching the box.
+Exit 0 = the pass/fail rule is data (every threshold boundary tested on both sides), a missing
+measurement is a FAIL rather than a pass, the real reader agrees with sysfs, and the gate
+refuses to certify a box whose units never actually loaded. Every gate test drives injected
+seams (systemctl, RSS, probes, /proc, journal), so nothing here can start a unit.
 """
+import datetime
 import importlib.machinery
 import importlib.util
+import json
 import pathlib
 import sys
+import tempfile
 import threading
 import time
+import types
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -132,13 +137,175 @@ def check_read_sample_reads_this_box():
     assert 0 <= s.gpu_pct <= 100, s
 
 
+def _gate_ns(**over):
+    """A stand-in for Profile: run_gate only reads these fields."""
+    d = dict(name="lab-video", start=["comfyui-h3", "gemma-collm"], text_arm="gemma-collm",
+             text_port=8080, gate_max_age_h=168)
+    d.update(over)
+    return types.SimpleNamespace(**d)
+
+
+def _unit_dir():
+    d = pathlib.Path(tempfile.mkdtemp(prefix="strix-units-"))
+    for u in ("comfyui-h3", "gemma-collm", "27b-collm"):
+        (d / f"{u}.service").write_text(f"[Service]\nExecStart=/bin/{u}\n")
+    return d
+
+
+class GateHarness:
+    """Drives run_gate with every machine seam replaced: systemd, RSS, probes, /proc, journal.
+    Nothing here can start a unit, which is the only way the concurrency rule is testable."""
+
+    def __init__(self, units=("comfyui-h3", "gemma-collm"), rss=30.0, probe_s=0.2,
+                 samples=None, schedule="concurrent", evidence=None):
+        self.units = list(units)
+        self.rss = rss
+        self.probe_s = probe_s
+        self.calls = []
+        self.spans = {}
+        self.lock = threading.Lock()
+        self.evidence = evidence or tempfile.mkdtemp(prefix="strix-ev-")
+        self.p = _gate_ns(start=list(units))
+        self.samples = samples or [g.Sample(50.0, 20000, 0, 10.0)]
+        self._i = 0
+        self._lock2 = threading.Lock()
+        self.schedule = schedule
+
+    def systemctl(self, argv):
+        self.calls.append(argv)
+        return 0
+
+    def active(self, u):
+        return True
+
+    def rss_gib(self, u):
+        return self.rss
+
+    def restarts(self, u):
+        return 0
+
+    def probe(self, kind, cfg):
+        t0 = time.monotonic()
+        time.sleep(self.probe_s)
+        with self.lock:
+            self.spans[kind] = (t0, time.monotonic())
+        return {"ok": True, "s": self.probe_s, "detail": "stub"}
+
+    def sample_fn(self):
+        with self._lock2:
+            s = self.samples[min(self._i, len(self.samples) - 1)]
+            self._i += 1
+        return s
+
+    def journal(self, since):
+        return [], []
+
+    def run(self, **over):
+        kw = dict(cfg={}, hold_s=0, evidence_dir=self.evidence, unit_dir=str(_unit_dir()),
+                  repo_dir=str(REPO), box="testbox", systemctl=self.systemctl,
+                  active_fn=self.active, rss_gib_fn=self.rss_gib, restarts_fn=self.restarts,
+                  probe_fn=self.probe, sample_fn=self.sample_fn, journal_scan=self.journal,
+                  schedule=self.schedule, sample_interval=0.01)
+        kw.update(over)
+        return g.run_gate(self.p, **kw)
+
+
+def check_unit_hash_covers_dropins():
+    d = _unit_dir()
+    h = g.unit_hash(["gemma-collm"], unit_dir=str(d))
+    assert h.startswith("sha256:")
+    # a PASS earned before this edit is void: the drop-in changes what the unit really is
+    (d / "gemma-collm.service.d").mkdir()
+    (d / "gemma-collm.service.d" / "ctx.conf").write_text("[Service]\nExecStart=\n")
+    assert g.unit_hash(["gemma-collm"], unit_dir=str(d)) != h
+    assert g.unit_hash(["comfyui-h3"], unit_dir=str(d)) != h
+    assert g.unit_hash(["nope-collm"], unit_dir=str(d)).endswith("missing"), "absent unit file"
+
+
+def check_gate_writes_evidence_or_fails():
+    r = GateHarness(evidence="/proc/nope").run()
+    assert r["verdict"] == "FAIL" and "evidence" in " ".join(r["reasons"]), r
+
+
+def check_concurrent_not_sequential():
+    h = GateHarness(probe_s=0.25)
+    r = h.run(evidence_dir=tempfile.mkdtemp(prefix="strix-ev-"))
+    assert r["verdict"] == "PASS", r
+    assert max(s[0] for s in h.spans.values()) < min(s[1] for s in h.spans.values()), \
+        "probes ran sequentially; the gate proves nothing"
+    assert r["overlap_ms"] > 0 and r["resident_units"] == 2 and r["samples"] > 1, r
+
+
+def check_evidence_file_matches_the_schema():
+    d = tempfile.mkdtemp(prefix="strix-ev-")
+    r = GateHarness(probe_s=0.05).run(evidence_dir=d)
+    on_disk = json.loads((pathlib.Path(d) / "evidence-lab-video.json").read_text())
+    assert on_disk == r, (on_disk, r)
+    for key in ["box", "profile", "started", "duration_s", "verdict", "reasons", "units",
+                "unit_hash", "repo_sha", "peak_gtt_pct", "min_mem_avail_mib", "swap_delta_mib",
+                "oom_lines", "amdgpu_lines", "unit_restarts", "overlap_ms", "resident_units",
+                "samples", "probes"]:
+        assert key in on_disk, key
+    assert on_disk["box"] == "testbox" and on_disk["profile"] == "lab-video"
+    assert set(on_disk["probes"]) == {"video", "text"}, on_disk["probes"]
+
+
+def check_a_unit_that_never_loaded_is_inconclusive():
+    """27b-collm runs --lazy-mode on-direct: `active` with 400 MiB pinned is NOT loaded.
+    Certifying that shape is worse than not testing — it licenses apply."""
+    r = GateHarness(rss=0.4).run()
+    assert r["verdict"] == "INCONCLUSIVE", r
+    assert r["resident_units"] < 2
+    assert "floor" in " ".join(r["reasons"]).lower(), r
+
+
+def check_no_overlap_window_is_inconclusive():
+    r = GateHarness(schedule="sequential", probe_s=0.05).run()
+    assert r["verdict"] == "INCONCLUSIVE" and r["overlap_ms"] == 0, r
+
+
+def check_swap_storm_fails_even_if_it_settles():
+    h = GateHarness(samples=[g.Sample(50.0, 20000, 0, 10.0),
+                             g.Sample(52.0, 19000, 9_000_000, 40.0),
+                             g.Sample(51.0, 19500, 9_000_010, 20.0)])
+    r = h.run()
+    assert r["verdict"] == "FAIL" and "swap" in " ".join(r["reasons"]), r
+
+
+def check_gate_verdict_reads_evidence_and_computes_age():
+    d = tempfile.mkdtemp(prefix="strix-ev-")
+    assert g.gate_verdict("testbox", "lab-video", evidence_dir=d) is None
+    started = (datetime.datetime.now().astimezone()
+               - datetime.timedelta(hours=3)).isoformat(timespec="seconds")
+    (pathlib.Path(d) / "evidence-lab-video.json").write_text(json.dumps(
+        {"box": "testbox", "profile": "lab-video", "started": started, "verdict": "PASS",
+         "units": ["comfyui-h3", "gemma-collm"], "reasons": []}))
+    v = g.gate_verdict("testbox", "lab-video", evidence_dir=d)
+    assert v["verdict"] == "PASS" and 2.9 < v["age_h"] < 3.1, v
+    assert v["units"] == ["comfyui-h3", "gemma-collm"]
+
+
+def check_dry_run_starts_nothing():
+    h = GateHarness()
+    r = h.run(dry_run=True)
+    assert h.calls == [], h.calls
+    assert r["verdict"] == "INCONCLUSIVE" and "dry run" in " ".join(r["reasons"]), r
+
+
 def main():
     for fn in [check_pass_at_the_boundaries, check_each_threshold_alone_flips_it,
                check_a_probe_that_answers_too_slow_has_passed_nothing,
                check_missing_measurements_fail_never_pass,
                check_an_unreadable_metric_in_one_sample_is_not_a_pass,
                check_reasons_are_specific_enough_to_act_on, check_sampler_collects_at_interval,
-               check_load_cfg_is_lenient, check_read_sample_reads_this_box]:
+               check_load_cfg_is_lenient, check_read_sample_reads_this_box,
+               check_unit_hash_covers_dropins, check_gate_writes_evidence_or_fails,
+               check_concurrent_not_sequential, check_evidence_file_matches_the_schema,
+               check_a_unit_that_never_loaded_is_inconclusive,
+               check_no_overlap_window_is_inconclusive,
+               check_swap_storm_fails_even_if_it_settles,
+               check_gate_verdict_reads_evidence_and_computes_age,
+               check_dry_run_starts_nothing]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")
