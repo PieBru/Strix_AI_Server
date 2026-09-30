@@ -121,7 +121,7 @@ def check_profile_files_are_self_consistent():
     # every profile names a text arm unless it declares the violation
     for n, p in load_profiles("configs/profiles").items():
         assert p.text_arm or n == "off", f"{n} serves no text model and does not declare it"
-        assert not (set(p.start) & set(p.stop)), f"{n} both starts and stops {set(p.start) & set(p.stop)}"
+        assert set(p.start) <= set(sp.MANAGED_UNITS), f"{n} names a unit outside the allow-list"
 ```
 
 - [ ] **Step 2: Run; expect FAIL.**
@@ -144,6 +144,7 @@ def check_profile_files_are_self_consistent():
   - `snapshot(path=PREVIOUS, units: list[str]) -> None` / `rollback(*, systemctl=_systemctl) -> int`
   - `_systemctl(args: list[str], timeout=180) -> int` — the single place `systemctl` is ever called; argv is always a fixed list, never a shell string.
 - Order is the contract: **gate check → snapshot → stop → start → wait-for-text-arm → write stamp.** A stamp written before the system agrees is a lie waiting to be believed.
+- The stop set is **computed, never read**: `live ∩ (MANAGED_UNITS − profile.start)`, from the same probe that prices the budget (allow-list ruling 260930 — there is no `stop` key). `apply off` therefore stops all thirteen. Gate refusal also covers a `verified` stamp whose evidence unit set differs from `start`.
 
 - [ ] **Step 1: Write the failing tests.** All three run against a stub `systemctl` injected as `systemctl=`; nothing touches the box.
 
@@ -278,8 +279,14 @@ def test_probe_rejects_empty_completion():               # Review Focus 5
  "units": ["comfyui-h3", "gemma-collm"], "unit_hash": "sha256:…", "repo_sha": "ceb8460",
  "peak_gtt_pct": 84.2, "min_mem_avail_mib": 19120, "swap_delta_mib": 2.1,
  "oom_lines": 0, "amdgpu_lines": 0, "unit_restarts": 0,
+ "overlap_ms": 61234, "resident_units": 2, "samples": 412,
  "probes": {"text": {"ok": true, "s": 3.4}, "video": {"ok": true, "s": 118.0}}}
 ```
+
+  `verdict` is one of `PASS` / `FAIL` / `INCONCLUSIVE`. `overlap_ms` is the interval in which
+  every probe was simultaneously in flight; `resident_units` is how many units passed their
+  residency floor; `samples` is the number of 1 Hz machine samples the peaks came from.
+  Tasks 7 and 9 read the earlier keys only, so these three are additive.
 
 - [ ] **Step 1: Write the failing tests.**
 
@@ -298,10 +305,44 @@ def check_concurrent_not_sequential():
     # the whole point: probes overlap in time
     started, finished = run_gate_recorded(P)
     assert max(started) < min(finished), "probes ran sequentially; the gate proves nothing"
+
+def check_a_unit_that_never_loaded_is_inconclusive():      # operator rule 260930
+    # 27b-collm runs --lazy-mode on-direct: is-active with 400 MiB pinned is NOT loaded.
+    # Certifying that shape is worse than not testing — it licenses apply.
+    r = run_gate(P, load=lambda u: ResidentRss(u, gib=0.4))   # started, weights absent
+    assert r["verdict"] == "INCONCLUSIVE" and r["resident_units"] < len(P.start)
+
+def check_no_overlap_window_is_inconclusive():
+    # probes that never overlap measure five separate peaks, not one co-resident set
+    r = run_gate(P, schedule="sequential")
+    assert r["verdict"] == "INCONCLUSIVE" and r["overlap_ms"] == 0
+
+def check_swap_storm_fails_even_if_it_settles():
+    # a storm that resolves before the final read must still fail → sample at 1 Hz, judge on
+    # the delta, never on the last sample
+    r = run_gate(P, vmstat=[("pswpout", 0), ("pswpout", 9_000_000), ("pswpout", 9_000_010)])
+    assert r["verdict"] == "FAIL" and "swap" in " ".join(r["reasons"])
 ```
 
 - [ ] **Step 2: Run; expect FAIL.**
 - [ ] **Step 3: Implement the four phases** from spec §5 (preflight budget → load → concurrent work → 60 s pressure hold → aftermath scan). Phase 2 launches every probe in a `threading.Thread` and starts the sampler before the first one. Phase 4 is `journalctl -k --since <started> | grep -i 'killed process\|out of memory'` plus the amdgpu scan the Doctor already uses, and `systemctl show -p NRestarts` before/after each unit. `--dry-run` prints the plan and the budget arithmetic without starting a unit.
+
+  **Concurrency is the requirement (operator 260930), so two rules are load-bearing:**
+
+  1. **Residency floor per family, asserted before phase 2 measures anything.** A unit is
+     `resident` only after its warm-up request AND its RSS plus system GTT have grown past
+     the per-family minimum (`PROFILE_FLOOR_LLM_GIB`, `PROFILE_FLOOR_IMAGE_GIB`,
+     `PROFILE_FLOOR_VIDEO_GIB`, `PROFILE_FLOOR_AUDIO_GIB` in `doctor.config`). Reason is on
+     disk: `--lazy-mode on-direct` lets a 44 GiB arm report `active` at 400 MiB, and a gate
+     that measured that would certify a shape that OOMs on first use. Any unit below its
+     floor → `INCONCLUSIVE`, never `PASS`.
+  2. **The overlap window is computed and recorded.** `overlap_ms = min(finish) - max(start)`
+     over the probes that were launched; `<= 0` → `INCONCLUSIVE` with the reason naming which
+     probe never overlapped.
+
+  Sampler: 1 Hz for the whole run (spec §5.1 has the verified paths — `mem_info_gtt_used`,
+  `MemAvailable`, `pswpin`/`pswpout` deltas, `gpu_busy_percent`). Peaks and deltas come from
+  the sample series, never from a single end-of-run read.
 - [ ] **Step 4: Run; expect PASS.** Then the **manual sabotage run** (spec §5, not automated — it costs a GPU minute and can OOM the box): `apply` a throwaway profile of `27b-collm` + `comfyui-h3` and confirm the gate **FAILS**. Record the observed peak in the commit message. A gate that passes this set is broken; stop and fix it before Task 7.
 - [ ] **Step 5: Commit** with the sabotage observation quoted in the message.
 
