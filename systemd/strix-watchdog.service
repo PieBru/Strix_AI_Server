@@ -1,6 +1,8 @@
 [Unit]
 Description=Unbreakable watchdog — keep a text arm answering the stamp's profile
-Documentation=file://%h/Piero/Work/serving-profiles/proposals/UNBREAKABLE_WATCHDOG_PROPOSAL_260930.md
+Documentation=file://%h/Piero/Work/Strix_AI_Server/proposals/UNBREAKABLE_WATCHDOG_PROPOSAL_260930.md
+# Paths point at main, not at the worktree this was developed in: an always-on actor must not
+# depend on a checkout that a branch switch can remove.
 # Deliberately no network/other-unit dependency: the thing we are here to fix may be the
 # unit we would wait for.
 
@@ -10,7 +12,7 @@ Type=oneshot
 # dies on os.getcwd() the moment a branch without that directory is checked out, while the
 # service keeps serving from the deleted inode.
 WorkingDirectory=/
-ExecStart=/usr/bin/python3 %h/Piero/Work/serving-profiles/scripts/strix-watchdog.py
+ExecStart=/usr/bin/python3 %h/Piero/Work/Strix_AI_Server/scripts/strix-watchdog.py
 # The hang guard. The proposal asked for Type=notify + WatchdogSec=300; for a oneshot a
 # TimeoutStartSec does the same job with no sd_notify code to get wrong. A tick that exceeds
 # this is killed and the timer tries again — it never stacks.
