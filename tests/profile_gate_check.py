@@ -120,10 +120,14 @@ def check_sampler_collects_at_interval():
 def check_load_cfg_is_lenient():
     d = pathlib.Path(__file__).resolve().parent
     f = d / "_gate_cfg_tmp"
-    f.write_text("# comment\n\nPROFILE_GTT_PCT_MAX=88\nPROFILE_SWAP_MAX_MIB = 16\n")
+    f.write_text("# comment\n\nPROFILE_GTT_PCT_MAX=88\nPROFILE_SWAP_MAX_MIB = 16\n"
+                 "PROFILE_BUDGET_S_VIDEO=600   # one short clip, x5 slack\n")
     try:
         cfg = g.load_cfg(str(f))
         assert cfg["PROFILE_GTT_PCT_MAX"] == "88" and cfg["PROFILE_SWAP_MAX_MIB"] == "16"
+        # The real doctor.config annotates every line this way; a value carrying its comment
+        # is not a number, and the gate dies in verdict() with ValueError instead of running.
+        assert cfg["PROFILE_BUDGET_S_VIDEO"] == "600", cfg
     finally:
         f.unlink()
     assert g.load_cfg(str(d / "definitely-absent")) == {}

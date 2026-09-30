@@ -158,7 +158,7 @@ def load_cfg(path: str) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         k, _, v = line.partition("=")
-        out[k.strip()] = v.strip()
+        out[k.strip()] = v.split("#", 1)[0].strip()  # the real config annotates values inline
     return out
 
 

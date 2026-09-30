@@ -88,6 +88,19 @@ def check_apply_spawns_the_exact_name_once():
     assert "lab-video" in body
 
 
+def check_a_refused_apply_is_said_instead_of_a_lie():
+    # The old handler answered "starting profile 'panic'…" and spawned a detached apply that
+    # the gate then refused. The card kept saying the old profile; the operator got nothing.
+    calls = []
+    code, body = D.profile_apply("/profile?name=panic", {"panic"}, calls.append,
+                                 lambda n: (1, "REFUSED: never gated on this box"))
+    assert code == 409 and calls == [], (code, body, calls)
+    assert "never gated" in body, body
+    code, body = D.profile_apply("/profile?name=panic", {"panic"}, calls.append,
+                                 lambda n: (0, "would stop comfyui-h3"))
+    assert code == 200 and calls == ["panic"], (code, body, calls)
+
+
 def main():
     for fn in [check_profile_line_shows_claim_truth_and_gate,
                check_profile_line_is_clean_when_there_is_nothing_to_say,
@@ -96,7 +109,8 @@ def main():
                check_no_stamp_says_so_exactly_once,
                check_select_marks_current_and_always_offers_the_way_out,
                check_apply_validates_before_anything_is_spawned,
-               check_apply_spawns_the_exact_name_once]:
+               check_apply_spawns_the_exact_name_once,
+               check_a_refused_apply_is_said_instead_of_a_lie]:
         fn()
         print(f"  ok  {fn.__name__}")
     print("SELF-TEST OK")

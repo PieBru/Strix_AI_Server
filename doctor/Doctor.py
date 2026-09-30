@@ -132,15 +132,38 @@ def profile_select_html(names, current):
         f'>{html.escape(n)}</option>' for n in opts) + "</select>")
 
 
-def profile_apply(path, known, spawn):
+def profile_apply(path, known, spawn, preflight=None):
     """POST /profile?name=X -> (code, body). The name is checked against the profile keys
     BEFORE anything is spawned: with no auth on this box the validator is the only thing
-    between a stray request and systemctl. Returns (404, ...) and spawns nothing otherwise."""
+    between a stray request and systemctl. Returns (404, ...) and spawns nothing otherwise.
+
+    `preflight` runs `apply --dry-run` and returns (rc, text). A detached apply cannot report
+    its own outcome, and answering "starting profile 'panic'…" when the gate is about to
+    refuse it is the same lie as /health on a wedged arm: the card keeps saying the old
+    profile and nobody knows why. So the refusal is said here, in the message the page
+    already shows, and the force decision stays in the CLI where it is typed deliberately.
+    """
     name = (parse_qs(urlparse(path).query).get("name") or [""])[0]
     if name not in known:
         return 404, f"unknown profile {name!r}"
+    if preflight is not None:
+        rc, out = preflight(name)
+        if rc != 0:
+            # The dry run prints the whole plan AFTER the reason, so the tail of it is the
+            # least useful line: show the WOULD REFUSE line, which is the actual answer.
+            why = next((ln.strip() for ln in out.splitlines() if "refuse" in ln.lower()),
+                       " ".join(out.split())[-280:])
+            return 409, "NOT applied — " + why.lower().replace("would refuse", "").strip()
     spawn(name)
-    return 200, f"starting profile '{name}'…"
+    return 200, f"starting profile '{name}'… (weights take a minute; the card updates itself)"
+
+
+def apply_dry_run(name):
+    """(rc, output) of `strix-profile apply NAME --dry-run` — pure, touches nothing."""
+    p = subprocess.run(["/bin/bash", "-c", f"{REPO}/scripts/strix-profile apply "
+                        f"{shlex.quote(name)} --dry-run"], capture_output=True, text=True,
+                       timeout=60)
+    return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
 def profile_state():
@@ -741,7 +764,7 @@ class H(BaseHTTPRequestHandler):
             # before anything is spawned (profile_apply), and the apply is detached like
             # /restart: loading weights takes minutes and a blocked POST gets retried.
             code, body = profile_apply(self.path, set(SP.load_profiles(SP.PROFILES_DIR))
-                                       | {"panic", "emergency"}, _spawn_apply)
+                                       | {"panic", "emergency"}, _spawn_apply, apply_dry_run)
             ct = "text/plain"
             self.send_response(code); self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(body))); self.end_headers()
