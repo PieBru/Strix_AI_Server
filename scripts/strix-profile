@@ -26,8 +26,11 @@ import sys
 import time
 from dataclasses import dataclass, field
 
-PROFILES_DIR = os.environ.get(
-    "STRIX_PROFILES", os.path.expanduser("~/Piero/Work/Strix_AI_Server/configs/profiles"))
+# Beside this script, not a hardcoded checkout: the tool and its profile library move
+# together. The fixed path pointed every invocation at a worktree that has no profiles, so
+# `apply lab-video` died with "no profile named" while the box sat on the fallback (260930).
+_HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROFILES_DIR = os.environ.get("STRIX_PROFILES", os.path.join(_HERE, "configs", "profiles"))
 STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
 PREVIOUS = os.environ.get(
     "STRIX_PREVIOUS", os.path.expanduser("~/.local/state/strix/profile-previous.json"))
