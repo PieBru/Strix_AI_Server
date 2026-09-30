@@ -105,6 +105,15 @@ for entry in "${FILES[@]}"; do
   [ "$VERIFY_ONLY" = "1" ] && { echo "MISSING  $rel${note:+  ($note - excused)}"; [ "$note" = gated ] || fail=1; continue; }
 
   echo "FETCH    $rel"
+  # One writer per .part. Two curls resuming the same file is how the DiT landed on 260930
+  # at exactly the pinned size with the wrong sha256: a restart orphaned the previous curl
+  # and both appended to the same bytes. pgrep is not an atomic lock (race window ~ms), but
+  # the hazard is a human-scale orphan, not a concurrent caller; upgrade path is flock.
+  if pgrep -f -- "-o $dest.part" > /dev/null 2>&1; then
+    echo "         another curl already writes this .part -- skipping this pass"
+    fail=1
+    continue
+  fi
   # --speed-limit: the only uplink is a phone tether that goes quiet for minutes at a
   # time; kill a stalled socket so the retry loop re-establishes it instead of hanging
   # on a dead connection at 0 B/s.
@@ -124,8 +133,15 @@ for entry in "${FILES[@]}"; do
   fi
   got=$(sha256sum "$dest.part" | cut -d' ' -f1)
   if [ -n "$want" ] && [ "$got" != "$want" ]; then
-    echo "         HASH MISMATCH — wrong arm? keeping .part for inspection"
+    echo "         HASH MISMATCH — keeping .part for inspection"
     echo "         want $want / got $got"
+    # Move it OUT of the resume path. A full-size .part that fails the hash is otherwise
+    # permanent: curl -C - sees it as already complete, the hash fails again every pass,
+    # and the loop stalls on the same corrupt bytes forever (hit 260930: the DiT landed at
+    # exactly 18721432024 B with the wrong sha256 after two curls shared one .part during
+    # the tether flapping, while the mirror's own LFS oid matches the pin — so the bytes
+    # were damaged in transit here, not upstream).
+    mv "$dest.part" "$dest.corrupt-$(date +%y%m%d-%H%M%S)"
     fail=1
     continue
   fi
