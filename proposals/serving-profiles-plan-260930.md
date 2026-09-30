@@ -12,6 +12,24 @@
 
 Location note: the plan lives beside its spec in `proposals/` rather than `docs/superpowers/plans/`, because this repo keeps every pre-development `.md` in `proposals/` and has no `docs/` tree.
 
+> **Status 260930 (dated snapshot — read the commits, not this box).** Tasks 1–8 built on
+> branch `feat/serving-profiles`, TDD throughout (each step's test written failing first,
+> sabotage confirmed). The branch is checked out as a **git worktree** at
+> `~/Piero/Work/serving-profiles` (same repository as this checkout, `cat` its `.git`), so the
+> code is visible from here with `git show feat/serving-profiles:scripts/strix-profile`.
+> `scripts/strix-profile`, `scripts/profile-gate.py`, `scripts/profile_probes.py`,
+> `doctor/Doctor.py`, `doctor/profile_pw_check.py`, `configs/profiles/*.ini` (8 files) and the
+> four `tests/*_check.py` are on that branch, newest commit `e77f794`. The nightly collector is
+> Task 9's and lives where collectors live:
+> `~/.pi/agent/skills/doctor-dream/collectors/c_profiles.py`.
+> Measured on strix-9ad3: `panic` gated **PASS** (sos-collm alone, GTT peak 46.06 %, min
+> mem_avail 48 GiB, swap 0, no OOM); browser switch `lab-video -> panic -> lab-video` verified
+> against a real Chromium with `systemctl` read back outside the page. The step boxes below are
+> NOT ticked — the commits are the record.
+> Remaining: Task 10 (strixy2: profiles + gate its champion) and Task 11 (nightly gate +
+> `emergency`/`coding` evidence on both boxes). Blocked on nothing except the relay laptop's
+> uplink for `git push`.
+
 ## Global Constraints
 
 - **Python is never bare.** Run everything as `uv run --no-project python <file>` (repo rule: bare `python` is the wrong interpreter). No third-party imports in `strix-profile` or `profile-gate.py` — stdlib only, so a broken venv can never take the recovery path down with it.
