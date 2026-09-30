@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""strix-profile — the only thing that decides which models this box serves.
+
+    strix-profile current [--json]     # what this box is meant to be, vs what it is
+    strix-profile list                 # every profile and its text arm
+    strix-profile check                # profile files self-consistency (Task 2)
+    strix-profile apply <name>         # change the system (Task 3)
+
+A profile is data in configs/profiles/<name>.ini: the units to start, the units to
+stop, and which of them is the text arm. The stamp file holds one word — the
+profile this box is *meant* to be in — and `current` cross-checks it against the
+live units, because a stamp is a claim and /proc is the truth.
+
+Exit codes are part of the interface: `current` exits 1 when the stamp is absent,
+names a profile that does not exist, has units missing, or has its text arm down.
+A box serving no text model is a fault, not a shrug — that is the case this whole
+tool exists to catch (see proposals/serving-profiles-260930.md §1).
+"""
+from __future__ import annotations
+
+import configparser
+import json
+import os
+import subprocess
+import sys
+from dataclasses import dataclass, field
+
+PROFILES_DIR = os.environ.get(
+    "STRIX_PROFILES", os.path.expanduser("~/Piero/Work/Strix_AI_Server/configs/profiles"))
+STAMP = os.environ.get("STRIX_STAMP", os.path.expanduser("~/.config/strix/profile"))
+EVIDENCE_DIR = os.environ.get(
+    "STRIX_EVIDENCE", os.path.expanduser("~/.local/state/strix/profiles"))
+
+# The units this tool owns. Anything else running on the box (open-webui, ssh-agent,
+# a stray gradio) is never reported as drift — profiles govern model serving, not
+# the operator's whole user session.
+MANAGED_UNITS = (
+    "27b-collm", "gemma-collm", "sos-collm", "llama-llm", "gufo-llm", "gufo-serve",
+    "qwen-image-test", "comfyui-h3", "h3-video-ui", "acestep-serve", "acestep-ui",
+    "whisper-stt", "ltx25-ui",
+)
+
+
+class ProfileError(Exception):
+    """A profile file is missing, unknown, or malformed. Never silently empty."""
+
+
+@dataclass
+class Profile:
+    name: str
+    summary: str = ""
+    start: list[str] = field(default_factory=list)
+    stop: list[str] = field(default_factory=list)
+    text_arm: str | None = None
+    text_port: int = 8080
+    budget_gtt_gib: int = 0
+    workload: str = "text"
+    gate_max_age_h: int = 168
+    experimental: bool = False
+    tools: bool = True
+
+
+def _words(s: str) -> list[str]:
+    return s.split()
+
+
+def load_profiles(dir: str) -> dict[str, Profile]:
+    """Every valid profile in `dir`, keyed by its `name` key. A missing dir is {}
+    (the caller decides whether that is fatal — require_profile() makes it fatal)."""
+    out: dict[str, Profile] = {}
+    try:
+        names = sorted(n for n in os.listdir(dir) if n.endswith(".ini"))
+    except OSError:
+        return {}
+    for n in names:
+        path = os.path.join(dir, n)
+        cp = configparser.ConfigParser()
+        try:
+            # The spec's profile files are flat key = value with no section header, which
+            # configparser refuses. Prepend one rather than make every file carry noise.
+            raw = open(path).read()
+            cp.read_string(raw if raw.lstrip().startswith("[") else "[profile]\n" + raw, path)
+        except (configparser.Error, OSError) as e:
+            raise ProfileError(f"{path}: cannot parse: {e}") from e
+        if "profile" not in cp:
+            raise ProfileError(f"{path}: missing [profile] section")
+        s = cp["profile"]
+        missing = [k for k in ("name", "start") if not s.get(k, "").strip()]
+        if missing:
+            raise ProfileError(f"{path}: missing required key(s): {', '.join(missing)}")
+        p = Profile(
+            name=s.get("name").strip(),
+            summary=s.get("summary", "").strip(),
+            start=_words(s.get("start", "")),
+            stop=_words(s.get("stop", "")),
+            text_arm=(a := s.get("text_arm", "").strip()) or None,
+            text_port=int(s.get("text_port", "8080") or 8080),
+            budget_gtt_gib=int(s.get("budget_gtt_gib", "0") or 0),
+            workload=s.get("workload", "text").strip(),
+            gate_max_age_h=int(s.get("gate_max_age_h", "168") or 168),
+            experimental=s.getboolean("experimental", fallback=False),
+            tools=s.getboolean("tools", fallback=True),
+        )
+        if p.name in out:
+            raise ProfileError(f"{path}: duplicate profile name '{p.name}'")
+        out[p.name] = p
+    return out
+
+
+def require_profile(dir: str, name: str) -> Profile:
+    p = load_profiles(dir).get(name)
+    if p is None:
+        raise ProfileError(f"no profile named '{name}' in {dir}")
+    return p
+
+
+def read_stamp(path: str = STAMP) -> str | None:
+    try:
+        s = open(path).read().strip()
+    except OSError:
+        return None
+    return s or None
+
+
+def _is_active(unit: str) -> bool:
+    try:
+        return subprocess.run(["systemctl", "--user", "is-active", f"{unit}.service"],
+                              capture_output=True, text=True, timeout=10).stdout.strip() == "active"
+    except Exception:
+        return False
+
+
+def live_units(profile: Profile, *, is_active=_is_active) -> tuple[set[str], set[str]]:
+    """(managed units running that the profile starts, managed units running that it
+    does not). Probes every MANAGED_UNIT so an arm started by hand at 02:00 shows up."""
+    live = {u for u in MANAGED_UNITS if is_active(u)}
+    start = set(profile.start)
+    return live & start, live - start
+
+
+def drift(profile: Profile, live: set[str]) -> dict:
+    """Claim vs truth. `extra` is limited to managed units on purpose: an unrelated
+    user service is not a profile violation."""
+    start = set(profile.start)
+    missing = [u for u in profile.start if u not in live]
+    extra = [u for u in MANAGED_UNITS if u in live and u not in start]
+    # A profile that declares no text arm (`off`) is satisfied by definition; it names
+    # its violation in the file instead of leaving it to be discovered.
+    arm_up = True if profile.text_arm is None else (profile.text_arm in live)
+    return {"missing": missing, "extra": extra, "text_arm_up": arm_up}
+
+
+def _stamp_age(path: str = STAMP) -> str:
+    import time
+    try:
+        return time.strftime("%y%m%dT%H:%M", time.localtime(os.path.getmtime(path)))
+    except OSError:
+        return "unknown"
+
+
+def cmd_current(argv: list[str], *, is_active=_is_active) -> int:
+    as_json = "--json" in argv
+    box = os.uname().nodename
+    stamp = read_stamp(STAMP)
+    if stamp is None:
+        reason = f"{box}  no profile stamp at {STAMP} — this box has never been put into a profile"
+        return _report(as_json, {"box": box, "profile": None, "ok": False, "reason": reason}, reason)
+    try:
+        p = require_profile(PROFILES_DIR, stamp)
+    except ProfileError as e:
+        reason = f"{box}  stamp says '{stamp}' but {e}"
+        return _report(as_json, {"box": box, "profile": stamp, "ok": False, "reason": reason}, reason)
+    running, extra = live_units(p, is_active=is_active)
+    d = drift(p, running | extra)
+    ok = not d["missing"] and d["text_arm_up"]
+    if as_json:
+        # exactly one JSON document on stdout: Task 9's collector parses it with json.loads,
+        # so the human-readable reason lives inside the object, never after it.
+        print(json.dumps({"box": box, "profile": p.name, "stamp_age": _stamp_age(STAMP),
+                          "running": sorted(running), "missing": d["missing"], "extra": d["extra"],
+                          "text_arm": p.text_arm, "text_port": p.text_port,
+                          "text_arm_up": d["text_arm_up"], "ok": ok}))
+        return 0 if ok else 1
+    print(f"{box}  profile={p.name} (stamp {_stamp_age(STAMP)})"
+          + ("  EXPERIMENTAL" if p.experimental else ""))
+    print(f"  running   {' '.join(sorted(running)) or 'nothing'}")
+    if d["missing"]:
+        print(f"  missing   {' '.join(d['missing'])}")
+    if d["extra"]:
+        print(f"  DRIFT     {' '.join(d['extra'])} running but not in profile")
+    arm = p.text_arm or "none declared"
+    print(f"  text arm  {arm}"
+          + (f" :{p.text_port} " + ("up" if d["text_arm_up"] else "DOWN") if p.text_arm else ""))
+    if not ok:
+        print(f"  FAULT     {'units missing' if d['missing'] else 'text arm down — box serves no text model'}")
+    return 0 if ok else 1
+
+
+def _report(as_json: bool, obj: dict, reason: str) -> int:
+    """Failure path for both output modes: JSON mode prints the object and nothing else."""
+    if as_json:
+        print(json.dumps(obj))
+    else:
+        print(reason, file=sys.stderr)
+    return 1
+
+
+def cmd_list(argv: list[str]) -> int:
+    profiles = load_profiles(PROFILES_DIR)
+    if not profiles:
+        print(f"no profiles found in {PROFILES_DIR}", file=sys.stderr)
+        return 1
+    for name, p in profiles.items():
+        arm = p.text_arm or "none"
+        print(f"{name:<12} {arm:<12} :{p.text_port:<5} {len(p.start)} units"
+              f"{'  EXPERIMENTAL' if p.experimental else ''}  {p.summary}")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    cmd = argv[0] if argv else "current"
+    if cmd == "current":
+        return cmd_current(argv[1:])
+    if cmd == "list":
+        return cmd_list(argv[1:])
+    print(f"usage: strix-profile current [--json] | list", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
