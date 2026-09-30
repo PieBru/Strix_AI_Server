@@ -184,7 +184,7 @@ class GateHarness:
     def restarts(self, u):
         return 0
 
-    def probe(self, kind, cfg):
+    def probe(self, name, kind, cfg):
         t0 = time.monotonic()
         time.sleep(self.probe_s)
         with self.lock:

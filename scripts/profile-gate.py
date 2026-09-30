@@ -351,7 +351,8 @@ def run_gate(profile, *, cfg=None, dry_run=False, hold_s=60, evidence_dir=EVIDEN
 
     def one(kind):
         t_start = time.monotonic()
-        r = probe_fn(kind, cfg)
+        # probes take (name, kind, cfg); name is the label that lands in the detail line
+        r = probe_fn(kind, kind, cfg)
         with lock:
             spans[kind] = (t_start, time.monotonic(), r)
 
