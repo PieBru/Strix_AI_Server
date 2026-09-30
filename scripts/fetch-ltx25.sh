@@ -52,6 +52,13 @@
 set -u
 
 ROOT="${LTX_ROOT:-$HOME/Downloads/LLM/LTX-2.5}"
+# This box has no route to the internet except the relay laptop's proxy (AGENTS.md, 260929).
+# A loop started from a shell that did not export it spends every retry on
+# "curl: (6) Could not resolve host" and looks alive while moving zero bytes — which is
+# exactly how 260930's restart lost an hour. Default it here; `-` keeps an explicit empty
+# value working, so https_proxy= still forces a direct attempt.
+https_proxy="${https_proxy-http://192.168.50.150:8888}"
+export https_proxy http_proxy="${http_proxy-$https_proxy}"
 VERIFY_ONLY=0
 [ "${1:-}" = "--verify" ] && VERIFY_ONLY=1
 

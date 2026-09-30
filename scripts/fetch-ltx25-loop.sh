@@ -18,17 +18,30 @@ START=$(date +%s)
 stall=0
 prev=0
 
-ungated_missing() {
-  bash scripts/fetch-ltx25.sh --verify 2>/dev/null | grep '^MISSING' | grep -vc 'video-vae-conv'
+# Completion is proven by the OK lines, never by the absence of MISSING ones: on 260930 a
+# `set -u` trip made --verify print nothing at all, the old counter saw zero MISSING, and
+# the loop declared "COMPLETE: ungated LTX-2.5 set verified" with 6.9 GiB still absent.
+OK_NEEDED=5 # DiT, text encoder, video vae, audio vae, upsampler (the gated conv VAE is out)
+ok_count() {
+  local out ok miss
+  out=$(bash scripts/fetch-ltx25.sh --verify 2>&1)
+  ok=$(printf '%s\n' "$out" | grep -c '^OK ')
+  miss=$(printf '%s\n' "$out" | grep -c '^MISSING')
+  if [ $((ok + miss)) -eq 0 ]; then
+    echo "!! --verify printed neither OK nor MISSING - it crashed; NOT treating that as complete" >&2
+    printf '0\n'
+    return
+  fi
+  printf '%s\n' "$ok"
 }
 
 for pass in $(seq 1 $MAX_PASSES); do
   [ $(( $(date +%s) - START )) -gt "$CEILING_S" ] && { echo "12h ceiling reached"; break; }
   echo "=== pass $pass $(date -Is) ==="
   bash scripts/fetch-ltx25.sh
-  n=$(ungated_missing)
-  echo "=== pass $pass done: $n ungated file(s) still missing, $(du -sh ~/Downloads/LLM/LTX-2.5 2>/dev/null | cut -f1) on disk ==="
-  [ "$n" = "0" ] && { echo "COMPLETE: ungated LTX-2.5 set verified"; break; }
+  n=$(ok_count)
+  echo "=== pass $pass done: $n/$OK_NEEDED ungated files verified, $(du -sh ~/Downloads/LLM/LTX-2.5 2>/dev/null | cut -f1) on disk ==="
+  [ "$n" -ge "$OK_NEEDED" ] && { echo "COMPLETE: ungated LTX-2.5 set verified"; break; }
   cur=$(du -sb ~/Downloads/LLM/LTX-2.5 2>/dev/null | cut -f1)
   if [ "$cur" = "$prev" ]; then stall=$((stall + 1)); else stall=0; fi
   prev=$cur
