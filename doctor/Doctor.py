@@ -12,6 +12,7 @@ import importlib.machinery, importlib.util
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import urlopen, Request
+from urllib.error import HTTPError
 from urllib.parse import unquote, parse_qs, urlparse
 
 REPO = os.path.dirname(os.path.abspath(__file__)).rsplit("/doctor", 1)[0]
@@ -172,6 +173,9 @@ WD_TIERS = ("restart", "emergency", "panic", "shout")
 WD_STATE = os.path.expanduser("~/.local/state/strix/watchdog.json")
 SWITCH_LOG = os.path.expanduser("~/.local/state/strix/profile-switches.jsonl")
 ANVIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "anvil")
+# The arm /llm/ forwards to. A name, not a literal in the handler, so tests can point it
+# at a throwaway server instead of at the live :8080 (tests/llm_proxy_check.py).
+LLM_UP = os.environ.get("STRIX_LLM_UP", "http://127.0.0.1:8080")
 
 
 def watchdog_state():
@@ -813,11 +817,15 @@ class H(BaseHTTPRequestHandler):
         # so a browser on :8667 cannot read :8080. Forwarding here leaves the arm's flags alone;
         # the arm is already LAN-open with no auth (260911), so this grants no new capability.
         raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        req = Request("http://127.0.0.1:8080" + self.path[4:], data=raw or None, method=self.command,
+        req = Request(LLM_UP + self.path[4:], data=raw or None, method=self.command,
                       headers={"Content-Type": self.headers.get("Content-Type") or "application/json"})
         try:
             up = urlopen(req, timeout=1800)
-        except Exception as e:  # arm stopped, bad model name, upstream 4xx body is not an exception
+        except HTTPError as e:
+            up = e  # the arm DID answer, with 4xx/5xx: relay its status and body. urlopen raises
+                    # instead of returning, and swallowing that into a 502 hides the one message
+                    # Anvil needs ("model not loaded", "unknown model", a template error).
+        except Exception as e:  # nothing listening, or a timeout: that failure is ours
             body = f"llm proxy: {type(e).__name__}: {e}".encode()[:600]
             self.send_response(502); self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(body))); self.end_headers()
@@ -825,13 +833,17 @@ class H(BaseHTTPRequestHandler):
         self.send_response(up.status)
         self.send_header("Content-Type", up.headers.get("Content-Type", "application/json"))
         self.end_headers()
+        # read1, not read: read(8192) blocks until it has 8192 bytes or the stream ends, which
+        # turns a token stream into one dump at the end (measured 260930: first chunk arrived
+        # 0.50 s late through the proxy with the upstream pausing 0.5 s between chunks).
+        read = getattr(up, "read1", None) or up.read
         try:
             while True:
-                chunk = up.read(8192)
+                chunk = read(8192)
                 if not chunk:
                     break
                 self.wfile.write(chunk)
-                self.wfile.flush()  # SSE: a buffered reply is a silent reply
+                self.wfile.flush()  # no-op today (wbufsize=0); cheap if a subclass buffers
         except Exception:
             pass  # the viewer navigated away mid-stream
         finally:
