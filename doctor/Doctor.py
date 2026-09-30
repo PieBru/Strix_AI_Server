@@ -11,7 +11,7 @@ import json, shutil, subprocess, socket, glob, re, html, time, threading, os, sy
 import importlib.machinery, importlib.util
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from urllib.parse import unquote, parse_qs, urlparse
 
 REPO = os.path.dirname(os.path.abspath(__file__)).rsplit("/doctor", 1)[0]
@@ -170,6 +170,8 @@ def apply_dry_run(name):
 # the panel never depends on the actor it reports on; share a module if the ladder ever grows.
 WD_TIERS = ("restart", "emergency", "panic", "shout")
 WD_STATE = os.path.expanduser("~/.local/state/strix/watchdog.json")
+SWITCH_LOG = os.path.expanduser("~/.local/state/strix/profile-switches.jsonl")
+ANVIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "anvil")
 
 
 def watchdog_state():
@@ -288,19 +290,59 @@ def _loads_recent():
     loads, p2a, pt = [], {}, {}
     def _sec(hms): return int(hms[:2])*3600+int(hms[3:5])*60+int(hms[6:8])
     for l in out:
-        m = re.match(r"^\w+\s+\d+\s+(\d\d:\d\d:\d\d)", l)
-        ts = _sec(m.group(1)) if m else None
+        m = re.match(r"^(\w+\s+\d+)\s+(\d\d:\d\d:\d\d)", l)
+        ts = _sec(m.group(2)) if m else None
+        ep = _epoch(m.group(1), m.group(2)) if m else None
         if (s := re.search(r"spawning server instance with name=(\S+) on port (\d+)", l)):
             p2a[s.group(2)] = s.group(1); pt[s.group(2)] = ts
         elif (g := re.search(r"gufo\[\d+\].*load_completed.*elapsed_ms=(\d+)", l)):
             if ts is not None:
-                loads.append({"arm": CACHE.get("arm", "gufo"), "s": max(int(g.group(1))//1000, 0), "t": ts, "i": len(loads)})
+                # gufo-serve emits the same event for the image model; without the
+                # model= field these rows showed up as "? 0s" in the ARM table (260930).
+                mdl = re.search(r"model=(\S+)", l)
+                loads.append({"arm": mdl.group(1) if mdl else CACHE.get("arm", "gufo"),
+                              "s": max(int(g.group(1))//1000, 0), "t": ts, "i": len(loads), "e": ep})
         elif (r := re.search(r".*\[(\d+)\].*llama_server: model loaded", l)) and r.group(1) in pt:
             a0, t0, t1 = p2a.get(r.group(1), "?"), pt.pop(r.group(1)), ts
             if t0 is not None and t1 is not None:
-                loads.append({"arm": a0, "s": max(t1 - t0, 0), "t": t1, "i": len(loads)})
+                loads.append({"arm": a0, "s": max(t1 - t0, 0), "t": t1, "i": len(loads), "e": ep})
     loads_h = [d for d in loads][-10:][::-1]     # last 10 load EVENTS, newest first
     return loads_h
+
+
+def _epoch(dstr, hms):
+    """Journal short-format stamps carry no year: assume this one, and step back a year when
+    that would land in the future (the Jan-1 edge of a 6 h window)."""
+    try:
+        e = int(time.mktime(time.strptime(f"{time.localtime().tm_year} {dstr} {hms}",
+                                          "%Y %b %d %H:%M:%S")))
+        return e - 365 * 86400 if e > time.time() + 3600 else e
+    except ValueError:
+        return 0
+
+
+def _switches_recent(hours=6):
+    """The apply/rollback timeline that strix-profile appends: what the box was switched to,
+    how many units moved, when. Merged with the model loads so one table answers 'what
+    happened to this box recently' — a mapped image load is noise next to a profile switch."""
+    out = []
+    try:
+        lines = open(SWITCH_LOG).read().splitlines()[-40:]
+    except OSError:
+        return out
+    cut = time.time() - hours * 3600
+    for l in lines:
+        try:
+            d = json.loads(l)
+        except ValueError:
+            continue
+        if d.get("at", 0) < cut:
+            continue
+        out.append({"arm": "\u2192 " + (d.get("to") or "?") + (" (rollback)" if d.get("why") else ""),
+                    "s": -1, "t": int(d["at"]) % 86400, "e": int(d["at"]),
+                    "d": f"+{len(d.get('started') or [])} \u2212{len(d.get('stopped') or [])}"})
+    return out
+
 
 def refresh():
     try:
@@ -536,15 +578,21 @@ def stats():
     accs = f"{acc[0]:.2f} <i>(len {acc[1]:.1f})</i>" if acc else "—"
     svc_h = "" if sok else card("SERVICE", f'<span class="bad">{svc}</span>')
     hlt_h = "" if hok else card("HEALTH", f'<span class="bad">{h}</span>')
-    _lds = sorted(CACHE.get("loads", []), key=lambda d: d["s"] if ARM_SORT_MODE else -d["i"])
     def _dur(s): return f"{s//60}m{s%60:02d}s" if s >= 60 else f"{s}s"
+    _ev = list(CACHE.get("loads", [])) + _switches_recent()
+    _ev.sort(key=lambda d: -(d.get("e") or 0))
+    for _i, _d in enumerate(_ev): _d["i"] = _i
+    _lds = sorted(_ev, key=lambda d: d["s"] if ARM_SORT_MODE else -d["i"])
     _resn = CACHE.get("res") or []
     _pills = "".join(f'<span class="pill">{html.escape(a)}</span>' for a in _resn) or '<span class="pill off">none</span>'
-    _rows = "".join(
-        f'<i class="m">{html.escape(d["arm"])}</i>'
-        f'<span>{_dur(d["s"])}</span><span>{d["t"]//3600:02d}:{d["t"]%3600//60:02d}</span>'
-        for d in _lds) or '<i class="m" style="grid-column:1/-1">no loads in last 6h</i>'
-    armtxt = (f'<div class="artab"><b>model</b>'
+    def _row(d):
+        hhmm = (time.strftime("%H:%M", time.localtime(d["e"])) if d.get("e")
+                else f'{d["t"]//3600:02d}:{d["t"]%3600//60:02d}')
+        return (f'<i class="{"sw" if d.get("d") else "m"}">{html.escape(d["arm"])}</i>'
+                f'<span>{html.escape(d.get("d") or _dur(d["s"]))}</span><span>{hhmm}</span>')
+    _rows = "".join(_row(d) for d in _lds) or \
+        '<i class="m" style="grid-column:1/-1">no load and no profile switch in the last 6h</i>'
+    armtxt = (f'<div class="artab"><b>event</b>'
               f'<b class="{"on h" if ARM_SORT_MODE else "h"}" onclick="armOrd(1)">load</b>'
               f'<b class="{"h on" if not ARM_SORT_MODE else "h"}" onclick="armOrd(0)">at</b>'
               + _rows + '</div>')
@@ -622,8 +670,12 @@ summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 h1 .up{margin-left:auto;font-size:.55em;color:#888;font-weight:normal}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
+h1 .anv{font-size:.7em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:0 8px;text-decoration:none}
+h1 .anv:hover{border-color:#d9a441}
 .card{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:12px}
-.card b{display:block;font-size:.8em;color:#888;margin-bottom:6px}
+/* The title rule only — `.card b` hit every nested <b> too, so the profile and
+   watchdog lines broke one fragment per line (260930, operator screenshot). */
+.card>b{display:block;font-size:.8em;color:#888;margin-bottom:6px}
 .card>span{font-size:1.25em}.card span i{font-size:.7em;color:#999}
 .bar{height:6px;background:#333;border-radius:3px;margin-top:8px}
 .bar i{display:block;height:100%;background:#4c9aff;border-radius:3px}
@@ -649,6 +701,7 @@ details.chk[open] summary::before{content:"▾ "}
 .artab > :nth-child(6n+4),.artab > :nth-child(6n+5),.artab > :nth-child(6n+6){background:#1d1d1d}
 .artab > *{padding:1px 0}
 .artab b{color:#666;font-weight:400}
+.artab i.sw{color:#e0b352}
 .artab b.h{cursor:pointer;text-align:right}
 .artab b.on{color:#ddd;text-decoration:underline}
 .artab .m{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -659,7 +712,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
+<h1>__HOST__ · system + inference<span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><a class="anv" href="/anvil" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -753,7 +806,42 @@ def checkup_html():
         return ''
 
 class H(BaseHTTPRequestHandler):
+    def _llm_proxy(self):
+        # Same-origin pass-through for Anvil (served from /anvil). llama.cpp build 10977 answers
+        # the OPTIONS preflight with ACA-Methods/Headers but sends no Access-Control-Allow-Origin
+        # on the real response (observed 260930, curl -D- on /v1/chat/completions and /v1/models),
+        # so a browser on :8667 cannot read :8080. Forwarding here leaves the arm's flags alone;
+        # the arm is already LAN-open with no auth (260911), so this grants no new capability.
+        raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        req = Request("http://127.0.0.1:8080" + self.path[4:], data=raw or None, method=self.command,
+                      headers={"Content-Type": self.headers.get("Content-Type") or "application/json"})
+        try:
+            up = urlopen(req, timeout=1800)
+        except Exception as e:  # arm stopped, bad model name, upstream 4xx body is not an exception
+            body = f"llm proxy: {type(e).__name__}: {e}".encode()[:600]
+            self.send_response(502); self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body))); self.end_headers()
+            self.wfile.write(body); return
+        self.send_response(up.status)
+        self.send_header("Content-Type", up.headers.get("Content-Type", "application/json"))
+        self.end_headers()
+        try:
+            while True:
+                chunk = up.read(8192)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                self.wfile.flush()  # SSE: a buffered reply is a silent reply
+        except Exception:
+            pass  # the viewer navigated away mid-stream
+        finally:
+            up.close()
+
     def do_POST(self):
+
+        # Anvil talks to the arm through us: same origin, no CORS (see _llm_proxy).
+        if self.path.startswith("/llm/"):
+            return self._llm_proxy()
         # /restart: restart own service. POST-only (no stray GET/link/prefetch can
         # fire it); the systemctl call is a fixed argv, not user input. LAN-trusted
         # posture matches the :8080 no-auth decision (260911).
@@ -812,6 +900,10 @@ class H(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_GET(self):
+
+        # Anvil talks to the arm through us: same origin, no CORS (see _llm_proxy).
+        if self.path.startswith("/llm/"):
+            return self._llm_proxy()
         if self.path == "/peak/reset" or self.path.startswith("/peak/reset/"):
             # 260923: was [13:] — an off-by-one past the key's first char, so
             # every per-card reset fell through to PEAKS.clear() (all cards).
@@ -849,6 +941,45 @@ class H(BaseHTTPRequestHandler):
         elif self.path == "/log":
             lines = [re.sub(r"^.*?llama-server\[\d+\]: ", "", l) for l in CACHE["jn"][-200:]]
             body, ct = "<pre>" + html.escape("\n".join(lines)) + "</pre>", "text/html"
+        elif self.path in ("/anvil", "/anvil/"):
+            # Vendored 260930 from the .150 laptop. Anvil.html is self-contained (its settings
+            # live in the browser's localStorage); anvil-config.json and anvil-serve.py come
+            # along for provenance and are deliberately not served.
+            # The two CDN <script> tags are pointed at the local copies on the way out: they are
+            # parser-blocking, so with no internet the page never reached DOMContentLoaded (the
+            # same reason htmx is vendored). The file on disk stays byte-identical to upstream,
+            # so re-copying Anvil.html from the laptop cannot silently undo this.
+            try:
+                body = open(os.path.join(ANVIL, "Anvil.html"), errors="ignore").read()
+                for lib in ("marked.min.js", "purify.min.js"):
+                    body = re.sub(r"https://cdnjs\.cloudflare\.com/ajax/libs/[a-z.]+/[\d.]+/" + lib,
+                                  "/anvil/" + lib, body)
+                # The Google-Fonts stylesheet is the last request that used to hold the page at
+                # readyState=loading forever on this LAN-gapped box; media="print" makes it
+                # non-blocking, and a viewer with internet still gets IBM Plex a moment later.
+                body = body.replace('''<link href="https://fonts.googleapis.com/css2?''',
+                                    '''<link media="print" onload="this.media='all'"
+                                       href="https://fonts.googleapis.com/css2?''')
+                # Anvil ships 127.0.0.1 as the endpoint default. The dashboard is read from a
+                # laptop, where 127.0.0.1 is the laptop, so point the defaults at whoever asked
+                # for the page; Anvil keeps the value in localStorage once the user edits it.
+                host = self.headers.get("Host") or "127.0.0.1:8667"
+                # The chat endpoint is the one URL that must come back through us (/llm/, CORS);
+                # the other local ports (image :8081, audio :8001, raw arm :8080) stay direct.
+                body = body.replace("http://127.0.0.1:8080/v1/chat/completions",
+                                    "http://" + host + "/llm/v1/chat/completions")
+                bare = host.rsplit(":", 1)[0]
+                for port in ("8080", "8081", "8001"):
+                    body = body.replace("127.0.0.1:" + port, bare + ":" + port)
+            except OSError:
+                body = "<pre>anvil is not vendored - doctor/anvil/Anvil.html is missing</pre>"
+            ct = "text/html"
+        elif self.path in ("/anvil/marked.min.js", "/anvil/purify.min.js"):
+            try:
+                body = open(os.path.join(ANVIL, self.path[7:]), errors="ignore").read()
+            except OSError:
+                body = ""
+            ct = "application/javascript"
         elif self.path == "/htmx.min.js":
             # Vendored 260927 (operator): the dashboard used to load htmx from
             # unpkg.com, so with no internet the whole page was inert. Served
