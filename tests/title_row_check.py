@@ -23,7 +23,7 @@ html, row = D.HTML, D.boxinfo()
 if "boxfoot" in html or 'id="box"' in html:
     bad.append("the footer markup is back")
 if 'id="hact"' not in html:
-    bad.append("#hact (the polled action slot in h1) is missing")
+    bad.append("#hact (the polled action slot) is missing")
 if 'hx-get="/boxinfo"' not in html:
     bad.append("#hact no longer polls /boxinfo")
 
@@ -110,6 +110,30 @@ if 'id="profmsg"' in html.split("<h1>")[1].split("</h1>")[0]:
     bad.append("#profmsg is inside <h1> - a long switch message wraps the title row")
 if 'self.path == "/profchip"' not in served:
     bad.append("/profchip has no route")
+
+# The control bar is a SECOND line (operator 261001: the title row was crowded). Line 1 is
+# identity only (restart, host, uptime, profile); line 2 is opens left, start/stop right.
+# A browser check measures the geometry; this catches the markup/CSS contract.
+if 'id="bar"' not in html:
+    bad.append("#bar (the second line) is missing")
+bar = html.split('id="bar"')[1].split("</div>")[0] if 'id="bar"' in html else ""
+if 'id="hact"' not in bar:
+    bad.append("#hact is not inside #bar - the buttons are back on the title row")
+if html.split("<h1>")[1].split("</h1>")[0].count("<button") != 1:
+    bad.append("a control other than #rst is back inside <h1>")
+if 'class="opens"' not in row or 'class="tog"' not in row:
+    bad.append("boxinfo() does not split the row into .opens and .tog")
+opens, tog = row.split('class="opens"')[1].split("</span>")[0], row.split('class="tog"')[1]
+for port in (8080, 8188, 7863):
+    if f":{port}/" not in opens:
+        bad.append(f"the :{port} open icon is not in .opens")
+for path in ("/llmtoggle", "/imgtoggle?app=demo", "/imgtoggle?app=test"):
+    if path not in tog:
+        bad.append(f"{path} is not in .tog (the right-aligned start/stop group)")
+if "#hact .tog{margin-left:auto" not in html:
+    bad.append(".tog is not pushed to the right edge - the two groups would sit together")
+if "#bar" not in html.split("<style>")[1].split("</style>")[0]:
+    bad.append("#bar has no CSS - the second line would stack vertically")
 
 print("FAIL " + "; ".join(bad) if bad else "title row: no footer, 3 toggles + 8 icons present")
 sys.exit(1 if bad else 0)
