@@ -476,13 +476,20 @@ def check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage():
     # number refuses every apply from the first render onwards, so the queue decides.
     # The percentage is injected, NOT read from sysfs: a test that asserts the spin is live
     # breaks the moment the box behaves, and then nobody knows which half regressed.
-    assert sp._busy(ask=lambda: False, pct_fn=lambda: 100) == [], \
+    assert sp._busy(ask=lambda: False, pct_fn=lambda: 100, renderer_up=lambda: True) == [], \
         "queue idle means apply, whatever the percentage says"
-    assert sp._busy(ask=lambda: True, pct_fn=lambda: 0) == ["comfyui queue has a job running"]
-    r = sp._busy(ask=lambda: None, pct_fn=lambda: 100)
-    assert r and "unreachable" in r[0] and "100" in r[0], "no queue -> the crude reading votes"
-    assert sp._busy(ask=lambda: None, pct_fn=lambda: 5) == [], "and a quiet crude reading does not"
-    assert sp._busy(ask=lambda: None, pct_fn=lambda: 1 / 0) == [], "an unreadable metric is not busy"
+    assert sp._busy(ask=lambda: True, pct_fn=lambda: 0, renderer_up=lambda: True) == \
+        ["comfyui queue has a job running"]
+    r = sp._busy(ask=lambda: None, pct_fn=lambda: 100, renderer_up=lambda: True)
+    assert r and "unreachable" in r[0] and "100" in r[0], "no queue + a live renderer -> the crude reading votes"
+    assert sp._busy(ask=lambda: None, pct_fn=lambda: 5, renderer_up=lambda: True) == [], \
+        "and a quiet crude reading does not"
+    assert sp._busy(ask=lambda: None, pct_fn=lambda: 1 / 0, renderer_up=lambda: True) == [], \
+        "an unreadable metric is not busy"
+    # 261001: with the renderer's unit stopped there is no job to protect, so the stuck
+    # percentage must not veto - least of all the watchdog's automatic `panic`.
+    assert sp._busy(ask=lambda: None, pct_fn=lambda: 100, renderer_up=lambda: False) == [], \
+        "comfyui not running = nothing rendering, whatever sysfs says"
 
 
 def check_force_reaches_an_ungated_profile_but_never_a_measured_fail():

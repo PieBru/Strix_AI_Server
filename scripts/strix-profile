@@ -335,18 +335,26 @@ def _queue_running(port: int = 8188):
         return None
 
 
-def _busy(ask=_queue_running, pct_fn=None) -> list[str]:
+def _busy(ask=_queue_running, pct_fn=None, renderer_up=None) -> list[str]:
     """Why we must not reshuffle the box right now. The renderer's queue is the only signal
     that survives contact with this box: gpu_busy_percent sticks at 100 after any GPU op (the
     ROCR AsyncEventsLoop bug, TheRock#7051 — OBSERVED 260930 with ComfyUI burning 111 % CPU and
     nothing rendering), and journalctl's "Started" line means a UNIT came up, not that a job is
     running, so it vetoed every apply for 20 min after apply's own start. Either one alone makes
     the guard refuse forever; the queue answers the actual question. When the queue cannot be
-    reached we fall back to the crude reading and let the operator override with --force."""
+    reached we fall back to the crude reading and let the operator override with --force.
+
+    Except when the renderer's own unit is not running: then there is no job to protect, and
+    the crude reading (which sticks at 100) refused every apply forever — including the
+    watchdog's automatic `panic`, i.e. the one action that exists to free a busy GPU was
+    refused because the GPU was busy. OBSERVED 261001: apply panic -> WOULD REFUSE, with
+    ComfyUI stopped and gpu_busy_percent stuck at 100."""
     q = ask()
     if q is True:
         return ["comfyui queue has a job running"]
     if q is False:
+        return []
+    if not (_is_active("comfyui-h3") if renderer_up is None else renderer_up()):
         return []
     pct = int(os.environ.get("PROFILE_BUSY_PCT", "20"))
     try:
