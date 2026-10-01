@@ -8,7 +8,11 @@ Conflicts=llama-llm.service gufo-llm.service qwen-image-test.service
 
 [Service]
 WorkingDirectory=/home/piero/Piero/Work/QImage21
-ExecStart=/usr/bin/uv run --with gradio --with numpy --with requests --with pillow python qwen-space/app.py
+# --offline: the 260927 fix, missed here because this unit was not running that day. Off-
+# internet it re-resolved against pypi (3 retries ~47s) and died status=2/INVALIDARGUMENT into
+# start-limit-hit, so the Doctor's "demo :7860" button started a crash loop. Found by the
+# 261001 offline cold-start drill; the live unit carries the same line as a drop-in.
+ExecStart=/usr/bin/uv run --offline --with gradio --with numpy --with requests --with pillow python qwen-space/app.py
 Restart=on-failure
 RestartSec=5
 
