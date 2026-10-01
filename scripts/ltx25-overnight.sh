@@ -56,6 +56,14 @@ for dev in cuda cpu; do
     break
   else
     echo "RESULT device=$dev FAIL exit=$?"
+    # The VAE refusal is not a device property: ltx2_video_vae.h rejects the diffusion-
+    # decoder class by name during LOAD, before any compute. Measured twice on 260930 and
+    # again 261001 — cuda and cpu die identically at ~110 s. Retrying the other device buys
+    # 110 s of the same answer; stop and say what is actually missing.
+    if grep -q "decoder_blocks is empty" "/tmp/ltx25-smoke-$dev/renderer.log" 2>/dev/null; then
+      echo "STOP  licence-gated conv VAE missing — device-independent, see WHY above"
+      break
+    fi
   fi
 done
 echo "=== done $(date -Is) ==="
