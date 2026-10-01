@@ -165,7 +165,17 @@ echo "render smoke (NOTE on --device: the flag only accepts cpu|cuda (main.cpp:1
 echo "'cuda' at :295) and main.cpp:517 turns 'cuda' into mp.device = 1 -- a device INDEX,"
 echo "not a CUDA API call. This tree is built as build-vulkan/, so 'cuda' plausibly means"
 echo "'the Vulkan GPU' here and the older note claiming CPU-only was never tested. Verify"
-echo "with a real render on gfx1151 before concluding anything about speed.):"
+echo "with a real render on gfx1151 before concluding anything about speed.)"
+echo
+echo "NO --steps (measured 261001): the distilled recipe fixes its own schedule and REFUSES"
+echo "  an override -- 'this recipe fixes its own distilled schedule (8 steps for phase"
+echo "  generate_lowres), so a steps override is refused rather than applied'. It dies AFTER"
+echo "  the ~150 s weight load, so this is the first thing to check when a smoke exits 1."
+echo
+echo "MEMORY (measured 261001, 320x192x25, everything else stopped): load peaks at 49.9 GiB"
+echo "  host (DiT 13.8 + VAEs 3.8 + text encoder 32.3), settles to ~35 GiB in generate. The"
+echo "  11:02 OOM kill was this render WITH the lab stack resident (27b-collm + ComfyUI H3 +"
+echo "  gufo + ACE-Step). Stop the arms first; this is not a 'run beside the API' workload."
 cat <<EOF
   ~/Downloads/Git/vllm.cpp/build-vulkan/examples/ltx2-gen \\
     --dit $ROOT/diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors \\
@@ -176,7 +186,7 @@ cat <<EOF
     --encoder $ROOT/text_encoders/gemma4-12b-with-proj-nvfp4-torchao.safetensors \\
     --encoder-config \$HOME/Downloads/Git/vllm.cpp/tests/vllm/models/ltx2_gemma4_text_config.json \\
     --pipeline-kind distilled_two_stage --prompt "a red fox in snow" \\
-    --frames 25 --width 320 --height 192 --steps 8 --seed 20260812 \\
+    --frames 25 --width 320 --height 192 --seed 20260812 \\
     --device cpu --workdir /tmp/ltx25 --out /tmp/ltx25/video.mp4
 EOF
 exit "$fail"
