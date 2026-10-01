@@ -44,8 +44,11 @@ SWITCHES = os.environ.get(
 # the operator's whole user session.
 MANAGED_UNITS = (
     "27b-collm", "gemma-collm", "sos-collm", "llama-llm", "gufo-llm", "gufo-serve",
-    "qwen-image-test", "comfyui-h3", "h3-video-ui", "acestep-serve", "acestep-ui",
-    "whisper-stt", "ltx25-ui",
+    # qwen-image-demo belongs here: the Doctor's title row has a button that starts it, so a
+    # profile that cannot see it leaves a unit squatting on :7860 that no switch can clear
+    # (OBSERVED 261001 - apply panic reported "no drift" with demo serving :7860).
+    "qwen-image-test", "qwen-image-demo", "comfyui-h3", "h3-video-ui", "acestep-serve",
+    "acestep-ui", "whisper-stt", "ltx25-ui",
 )
 
 
