@@ -1124,25 +1124,44 @@ def _metrics_logger():
             pass
         time.sleep(60)
 
-def checkup_html():
-    # pi-doctor-dream: "Last night's checkup" card from panel.json
+SKILL_DIR = os.path.expanduser("~/.pi/agent/skills/doctor-dream")
+
+
+def checkup_html(skill=SKILL_DIR):
+    # pi-doctor-dream: the morning-report card. Two artifacts, two jobs: panel.json holds the
+    # numbers of the last pass that RAN; LAST-PASS.json holds what the pipeline DID, including
+    # not running. The title used to be panel.json's mtime under a hardcoded "LAST NIGHT'S",
+    # so a night the idle gate refused was indistinguishable from a fresh pass (OBSERVED
+    # 261001: gate busy 03:15→06:51, no report, and the card showed a manual 10:14 pass as
+    # though it were the night's).
     try:
-        pj = os.path.expanduser("~/.pi/agent/skills/doctor-dream/state/panel.json")
+        pj = f"{skill}/state/panel.json"
         d = os.path.getmtime(pj)
         p = json.load(open(pj))
-        when = time.strftime("%a %H:%M", time.localtime(d))
-        n = p.get("new", {}); b = p.get("backlog", {})
-        nums = f"new: P1×{n.get('P1',0)} P2×{n.get('P2',0)} P3×{n.get('P3',0)} · backlog: {b.get('count',0)} (oldest {b.get('oldest_days',0)}d)"
-        summ = "".join(f"<div class='l'>{html.escape(s)}</div>" for s in p.get("summary", [])[:6])
-        # /chk body only — the collapsible box itself is STATIC html (outside the
-        # 2s htmx swap) so the open/closed state survives refreshes, like .actbox
-        return (f'<div class="card log"><b>LAST NIGHT\'S CHECKUP — {when} '
-                f'</b><span style="color:#888">{nums}</span>'
-                '<button class="cp" style="float:right" onclick="cpBox(this,\'.log\')" title="copy report">⧉</button>'
-                f'{summ}'
-                '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></div>')
-    except Exception:
+    except (OSError, ValueError):
         return ''
+    today = time.strftime("%y%m%d")
+    has_today = bool(glob.glob(f"{skill}/DOCTOR_REPORT_{today}-*.md"))
+    # Only a report dated today may be titled like today's; anything older shows its date.
+    when = time.strftime("%a %H:%M" if has_today else "%b %d %H:%M", time.localtime(d))
+    warn = ''
+    if not has_today:
+        try:
+            lp = json.load(open(f"{skill}/state/LAST-PASS.json"))
+            why = lp.get("reason") or lp.get("outcome") or "no reason recorded"
+        except (OSError, ValueError):
+            why = "no LAST-PASS.json, so the pipeline cannot say why"
+        warn = f"<div class='l bad'>NO REPORT today — {html.escape(str(why))}</div>"
+    n = p.get("new", {}); b = p.get("backlog", {})
+    nums = f"new: P1×{n.get('P1',0)} P2×{n.get('P2',0)} P3×{n.get('P3',0)} · backlog: {b.get('count',0)} (oldest {b.get('oldest_days',0)}d)"
+    summ = "".join(f"<div class='l'>{html.escape(s)}</div>" for s in p.get("summary", [])[:6])
+    # /chk body only — the collapsible box itself is STATIC html (outside the
+    # 2s htmx swap) so the open/closed state survives refreshes, like .actbox
+    return (f'<div class="card log"><b>CHECKUP — {when} '
+            f'</b><span style="color:#888">{nums}</span>'
+            '<button class="cp" style="float:right" onclick="cpBox(this,\'.log\')" title="copy report">⧉</button>'
+            f'{warn}{summ}'
+            '<a href="/res/doctor" style="color:#4c9aff;font-size:.8em">full report</a></div>')
 
 class H(BaseHTTPRequestHandler):
     def _llm_proxy(self):
