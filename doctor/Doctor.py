@@ -305,10 +305,22 @@ def profile_select_html(names, current):
 PROF_PLACEHOLDER = '<select id="prof" disabled><option>---</option></select>'
 
 
+def profile_starts():
+    """{profile name: the units it starts}. Files first, then the built-ins the panel offers
+    but that have no .ini. Needed because the reply must match the action: 'off' has an empty
+    allow-list, so applying it stops thirteen units in a couple of seconds, and answering
+    "weights take a minute" to that is a lie the operator sees immediately (261001)."""
+    out = {n: list(p.start) for n, p in SP.load_profiles(SP.PROFILES_DIR).items()}
+    for n, p in SP.BUILTIN.items():
+        out.setdefault(n, list(p.start))
+    return out
+
+
 def profile_apply(path, known, spawn, preflight=None):
-    """POST /profile?name=X -> (code, body). The name is checked against the profile keys
-    BEFORE anything is spawned: with no auth on this box the validator is the only thing
-    between a stray request and systemctl. Returns (404, ...) and spawns nothing otherwise.
+    """POST /profile?name=X -> (code, body). `known` is {name: units started}; the name is
+    checked against its keys BEFORE anything is spawned: with no auth on this box the
+    validator is the only thing between a stray request and systemctl. Returns (404, ...)
+    and spawns nothing otherwise.
 
     `preflight` runs `apply --dry-run` and returns (rc, text). A detached apply cannot report
     its own outcome, and answering "starting profile 'panic'…" when the gate is about to
@@ -328,7 +340,11 @@ def profile_apply(path, known, spawn, preflight=None):
                        " ".join(out.split())[-280:])
             return 409, "NOT applied — " + why.lower().replace("would refuse", "").strip()
     spawn(name)
-    return 200, f"starting profile '{name}'… (weights take a minute; the card updates itself)"
+    # A profile that starts units loads weights; one with an empty allow-list ('off') only
+    # stops things and is done in seconds. Say which one happened.
+    if known[name]:
+        return 200, f"starting profile '{name}'… (weights take a minute; the card updates itself)"
+    return 200, f"stopping everything for '{name}'… (a few seconds; the card updates itself)"
 
 
 def apply_dry_run(name):
@@ -1212,8 +1228,7 @@ class H(BaseHTTPRequestHandler):
             # Apply a profile from the panel. The name is validated against the profile keys
             # before anything is spawned (profile_apply), and the apply is detached like
             # /restart: loading weights takes minutes and a blocked POST gets retried.
-            code, body = profile_apply(self.path, set(SP.load_profiles(SP.PROFILES_DIR))
-                                       | {"panic", "emergency"}, _spawn_apply, apply_dry_run)
+            code, body = profile_apply(self.path, profile_starts(), _spawn_apply, apply_dry_run)
             ct = "text/plain"
         else:
             code, body, ct = 404, "not found", "text/plain"

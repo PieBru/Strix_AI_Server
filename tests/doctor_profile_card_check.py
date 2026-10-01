@@ -87,7 +87,8 @@ def check_the_first_paint_of_the_chip_cannot_lie():
 
 def check_apply_validates_before_anything_is_spawned():
     calls = []
-    known = {"coding", "lab-video", "panic", "emergency"}
+    known = {"coding": ["27b-collm"], "lab-video": ["comfyui-h3"], "panic": ["sos-collm"],
+             "emergency": ["27b-collm"]}
     for bad in ["/profile?name=../../etc/passwd", "/profile?name=;rm -rf /", "/profile?name=",
                 "/profile", "/profile?name=CODING", "/profile?name=coding%0asec"]:
         code, body = D.profile_apply(bad, known, calls.append)
@@ -97,9 +98,30 @@ def check_apply_validates_before_anything_is_spawned():
 
 def check_apply_spawns_the_exact_name_once():
     calls = []
-    code, body = D.profile_apply("/profile?name=lab-video", {"lab-video"}, calls.append)
+    code, body = D.profile_apply("/profile?name=lab-video", {"lab-video": ["comfyui-h3"]},
+                                 calls.append)
     assert code == 200 and calls == ["lab-video"], (code, body, calls)
     assert "lab-video" in body
+
+
+def check_off_does_not_promise_weights():
+    # 'off' has an empty allow-list: apply stops the managed units in seconds. The old reply
+    # said "weights take a minute" for it too (operator 261001).
+    _, stop = D.profile_apply("/profile?name=off", {"off": []}, lambda n: None)
+    assert "weights" not in stop, stop
+    assert "off" in stop and "updates itself" in stop, stop
+    _, start = D.profile_apply("/profile?name=emergency", {"emergency": ["27b-collm"]},
+                               lambda n: None)
+    assert "weights take a minute" in start, start
+
+
+def check_profile_starts_covers_the_dropdown():
+    # Every name the panel offers must have an entry, or the handler KeyErrors on the reply.
+    starts = D.profile_starts()
+    names = set(D.SP.load_profiles(D.SP.PROFILES_DIR)) | set(D.SP.BUILTIN)
+    assert names == set(starts), names ^ set(starts)
+    assert starts["off"] == [], starts["off"]
+    assert starts["panic"] == ["sos-collm"], starts["panic"]
 
 
 def check_a_refused_apply_is_said_instead_of_a_lie():
@@ -110,7 +132,7 @@ def check_a_refused_apply_is_said_instead_of_a_lie():
                                  lambda n: (1, "REFUSED: never gated on this box"))
     assert code == 409 and calls == [], (code, body, calls)
     assert "never gated" in body, body
-    code, body = D.profile_apply("/profile?name=panic", {"panic"}, calls.append,
+    code, body = D.profile_apply("/profile?name=panic", {"panic": ["sos-collm"]}, calls.append,
                                  lambda n: (0, "would stop comfyui-h3"))
     assert code == 200 and calls == ["panic"], (code, body, calls)
 
@@ -144,6 +166,8 @@ def main():
                check_the_first_paint_of_the_chip_cannot_lie,
                check_apply_validates_before_anything_is_spawned,
                check_apply_spawns_the_exact_name_once,
+               check_off_does_not_promise_weights,
+               check_profile_starts_covers_the_dropdown,
                check_a_refused_apply_is_said_instead_of_a_lie,
                check_the_watchdog_says_off_and_silent_instead_of_nothing]:
         fn()
