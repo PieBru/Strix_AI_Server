@@ -81,15 +81,49 @@ def storm_save():
     except OSError:
         pass
 
-def storm_tick(r, pg):
+def vmswap_snapshot():
+    """{pid: (comm, VmSwap_kB)} for every readable process that has ANY swap right now.
+    Called only while a storm is arming or live (see storm_tick), so the ~1200-file walk
+    costs nothing at rest. VmSwap is the only per-process swap counter the kernel exposes
+    (/proc/<pid>/io has no swap field), so this is 'who is sitting in swap', which during a
+    storm is the same thing as who is pushing it."""
+    out = {}
+    try:
+        pids = [d for d in os.listdir("/proc") if d.isdigit()]
+    except OSError:
+        return out
+    for d in pids:
+        try:
+            with open(f"/proc/{d}/status", errors="ignore") as f:
+                name = f.readline().split("\t", 1)[-1].strip()
+                kb = 0
+                for line in f:
+                    if line.startswith("VmSwap:"):
+                        kb = int(line.split()[1])
+                        break
+            if kb:
+                out[d] = (name, kb)
+        except (OSError, ValueError):
+            continue      # process vanished mid-walk, or /proc/<pid> is unreadable
+    return out
+
+
+def storm_tick(r, pg, snap=None):
     """The swap-storm latch, one sample at a time: trip on STORM_N consecutive samples over
     STORM_MBPS, then hold. `r` = MB/s in+out, `pg` = (pswpin, pswpout) cumulative pages.
+    `snap` = optional callable -> {pid: (comm, VmSwap_kB)}; it is invoked ONLY while a storm
+    is arming or live, and its result names the culprit on the badge (operator 261001: a
+    storm that says 30 GiB moved but not WHO moved it sends you hunting with a shell).
     Split out of refresh() so tests/storm_latch_check.py can drive it without the sampler."""
     _SW["hits"] = _SW.get("hits", 0) + 1 if r > STORM_MBPS else 0
     if _SW["hits"] < STORM_N:
         return
     if not STORM.get("t0"):
         STORM.update(t0=time.time(), peak=r, moved=0.0, p0=list(pg), wt=0.0)
+        # A new storm must not inherit the previous one's culprit (a latch file can outlive
+        # the ✕ if Doctor was mid-write; a wrong name is worse than no name).
+        for _k in ("who", "who_kb", "base", "mx"):
+            STORM.pop(_k, None)
         storm_save()
     else:
         moved = ((pg[0] - STORM["p0"][0]) + (pg[1] - STORM["p0"][1])) * 4096 / 2**20
@@ -100,6 +134,28 @@ def storm_tick(r, pg):
            and time.time() - STORM.get("wt", 0) > 30:   # ponytail: 30 s write ceiling
             STORM["wt"] = time.time()
             storm_save()
+    # Culprit attribution: the largest VmSwap GROWTH since the storm tripped, not the largest
+    # resident swapper (an idle 6 GiB tenant that never moved would otherwise out-shout the
+    # process that actually paged 30 GiB). ponytail: keyed by pid, so pid reuse inside one
+    # storm could misname it; storms here last minutes and pids are not recycled that fast.
+    if snap is not None:
+        try:
+            procs = snap() or {}
+        except Exception:
+            procs = {}
+        if procs:
+            base = STORM.setdefault("base", {p: kb for p, (_, kb) in procs.items()})
+            mx = STORM.setdefault("mx", {})
+            for pid, (comm, kb) in procs.items():
+                d = kb - base.get(pid, 0)
+                if d > mx.get(pid, [0])[0]:
+                    mx[pid] = [d, comm]
+            if len(mx) > 24:      # the latch file is written every 30 s: keep it small
+                STORM["mx"] = mx = dict(sorted(mx.items(), key=lambda kv: -kv[1][0])[:12])
+            if mx:
+                d, comm = max(mx.values())
+                if d > 1048576:   # only name someone above 1 GiB of growth
+                    STORM["who"], STORM["who_kb"] = comm, d
 
 def track(key, val):
     """Update a card's high-water mark — sustained levels only, see PEAK_N."""
@@ -437,7 +493,7 @@ def refresh():
     if CACHE.get("io"): track("DISK I/O", sum(CACHE["io"]))
     if CACHE.get("swio"): track("SWAP rate", sum(CACHE["swio"]))
     # Storm latch: held until cleared by hand (see storm_tick + the badge on the SWAP card).
-    storm_tick(sum(CACHE.get("swio", (0.0, 0.0))), sw or (0, 0))
+    storm_tick(sum(CACHE.get("swio", (0.0, 0.0))), sw or (0, 0), vmswap_snapshot)
     if CACHE.get("tg"): track("LIVE tg", CACHE["tg"][2])
     if CACHE.get("acc"): track("DRAFT acc", CACHE["acc"][0])
     try:
@@ -606,7 +662,9 @@ def stats():
         btn = ('<button class="cp" style="float:right;margin-left:6px" onclick="stormReset(this)"'
                ' title="clear the storm latch">\u2715</button>')
         det = (f" · since {time.strftime('%H:%M:%S', time.localtime(STORM['t0']))}"
-               f" · peak {STORM.get('peak', 0):.0f} MB/s · {STORM.get('moved', 0)/1024:.1f} GiB moved")
+               f" · peak {STORM.get('peak', 0):.0f} MB/s · {STORM.get('moved', 0)/1024:.1f} GiB moved"
+               + (f" · <b>{html.escape(STORM['who'])}</b> {STORM['who_kb']/1048576:.1f} GiB"
+                  if STORM.get("who") else ""))
         return f"{btn}{badge}", det
     card = lambda l, v, b="", w=1, h=1: f'<div class="card"{f" style=\"grid-column:span {w}{f';grid-row:span {h}' if h>1 else ''}\"" if w>1 or h>1 else ""}><b>{l}</b><span>{v}</span>{b}</div>'
     try: tm = float(gt[:-2]) if gt.endswith("°C") else 0
@@ -644,7 +702,7 @@ def stats():
     # A permanently red card is not an alarm, it is the loss of one. GTT (VRAM) and power are the
     # two GPU signals that actually move here; the raw counter still lands in metrics.csv.
     sysrow = (card("VRAM" + pchip("VRAM", "%", hf=heat_vram), vr, bar((vv := int(vr.strip("%") or 0)), heat_vram(vv)))
-              + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat), gpw, bar(pw, heat(pw)))
+              + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat_power), gpw, bar(pw / 140 * 100, heat_power(pw)))
               + card("RAM · GiB" + pchip("RAM", "%", hf=heat_ram), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + storm_html()[0],
                      (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))) + storm_html()[1],
@@ -712,8 +770,56 @@ def stats():
         act.append(f'<div class="l {cls}">{html.escape(t[-150:])}</div>')
     log = (f'<div class="card log"><b>ACTIVITY — {_eng} (tail-f, 2s)'
             f'<button class="cp" onclick="cpLog(this)" title="copy log">\u29C9</button></b>{"".join(reversed(act[-20:]))}</div>')
-    return (banner + f'<div class="grid">{sysrow}</div><h2>inference</h2><div class="grid">{infrow}</div>',
+    # The inference section is a <details> collapsed by default (operator 261001). It lives
+    # INSIDE the 2s htmx target, so the open/closed state cannot survive the swap on its own:
+    # the client re-bakes `open` into the response in htmx:beforeSwap (see INF in HTML), which
+    # applies the state before insertion, so there is no flicker and no extra endpoint.
+    return (banner + f'<div class="grid">{sysrow}</div>'
+            + '<details id="infdet"><summary>inference</summary><div class="grid">' + infrow + '</div></details>',
             f'{log}')
+
+# Lab webuis as icon buttons in the title row (operator 261001): icon inside, name + port +
+# liveness in the tooltip. One line per service, so adding a server to the lab is one entry
+# here and nothing else. Dead ones render DIM instead of vanishing: a grey icon means
+# "stopped", a missing icon would mean "this box has no such thing". ponytail: "listening"
+# is not "serving" - a front like socat :7860 answers even with the gradio behind it down;
+# the footer's play/stop buttons are the authority on unit state, these are shortcuts.
+LAB_UI = [("\U0001F3A8", "ComfyUI - MiniMax-H3 workflows", 8188),
+          ("\U0001F5BC", "Qwen-Image web app", 7860),
+          ("\U0001F3AC", "MiniMax-H3 video UI", 7861),
+          ("\U0001F3B5", "ACE-Step music UI", 7862),
+          ("\U0001F3A4", "Whisper STT", 7863),
+          ("\u26A1", "LTX-2.5 text-to-video UI", 7864)]
+
+
+# GPU POWER zones (operator 261001): ~105 W is the NORMAL steady state while an arm infers
+# on this APU, and the card used the generic watts-as-percent heat(), which saturates at 100
+# -> hue 0 -> the bar and the peak chip were red for ordinary inference, i.e. the alarm was
+# the loss of one. Green below 110 (105 W is the measured steady state mid-inference), yellow
+# across the operator's 110-118 band, red beyond 118. The bar's ceiling is the 140 W chassis rating, not 100, so the bar still reads
+# as headroom. Module level so tests/power_zones_check.py can bite it.
+heat_power = lambda w: "hsl(120,90%,55%)" if w < 110 else ("hsl(45,90%,55%)" if w <= 118 else "hsl(0,90%,55%)")
+
+
+def lab_ui_html(vh):
+    """Icon buttons for the lab UIs. Host comes from the request, so a laptop reading
+    strixy-9ad3.local:8667 gets links it can actually open. Liveness is probed at page
+    render only (the HTML is fetched once per browser load, not on the 2s htmx cadence)
+    with a 50 ms loopback connect - no subprocess, no visible latency. The probe goes
+    through create_connection so BOTH families are tried: socat fronts :7860 on IPv6 only
+    (measured 261001, `ss -ltn` shows [::]:7860), so an AF_INET/127.0.0.1-only probe called
+    a live UI dead."""
+    out = []
+    for ico, name, port in LAB_UI:
+        try:
+            socket.create_connection(("localhost", port), 0.05).close()
+            up = True
+        except OSError:
+            up = False
+        out.append(f'<a class="lab{" dn" if not up else ""}" href="http://{vh}:{port}/" target="_blank" '
+                   f'rel="noopener" title="{html.escape(name)} :{port}{"" if up else " - not listening"}">{ico}</a>')
+    return "".join(out)
+
 
 HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="/htmx.min.js"></script>
@@ -738,6 +844,12 @@ document.getElementById('accv').textContent='\u2014';lastAccV=document.getElemen
 draw('tgline',H_TG);draw('accline',H_ACC)}catch(e){}}
 setInterval(pollPoint,2000);pollPoint()
 var lastTgV='',lastAccV='';
+// The inference <details> is re-created by the 2s swap; remember whether the operator opened
+// it and re-bake the attribute before the fragment is inserted (default: collapsed).
+let INF=false;
+document.addEventListener('htmx:beforeSwap',e=>{if(e.target.id==='stats'&&INF)
+ e.detail.serverResponse=e.detail.serverResponse.replace('<details id="infdet">','<details id="infdet" open>')});
+document.addEventListener('toggle',e=>{if(e.target.id==='infdet')INF=e.target.open},true);
 document.addEventListener('htmx:afterSwap',e=>{if(e.target.id==='stats'){draw('tgline',H_TG);draw('accline',H_ACC);
 if(lastTgV)document.getElementById('tgv').innerHTML=lastTgV;
 if(lastAccV)document.getElementById('accv').innerHTML=lastAccV}})</script>
@@ -763,6 +875,11 @@ h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-r
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
 h1 .anv{font-size:.7em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:0 8px;text-decoration:none}
 h1 .anv:hover{border-color:#d9a441}
+/* Lab webuis: icon-only buttons (operator 261001) — the name, port and state live in the
+   tooltip, so the row stays one line whatever we add to the lab. Dim = not listening. */
+h1 .lab{font-size:.72em;text-decoration:none;padding:1px 6px;border:1px solid #3a3a3a;border-radius:6px;line-height:1.5}
+h1 .lab:hover{border-color:#4c9aff}
+h1 .lab.dn{opacity:.3;filter:grayscale(1)}
 .card{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:12px}
 /* The title rule only — `.card b` hit every nested <b> too, so the profile and
    watchdog lines broke one fragment per line (260930, operator screenshot). */
@@ -1106,8 +1223,8 @@ class H(BaseHTTPRequestHandler):
             (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
             (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
             profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
-            f'<a class="anv" href="http://{vh}:8080/" target="_blank" rel="noopener" title="llama-server web UI (the arm on :8080)">webui</a>'
-            if "llama" in CACHE.get("srv", "").lower() else "")), "text/html"
+            (f'<a class="anv" href="http://{vh}:8080/" target="_blank" rel="noopener" title="llama-server web UI (the arm on :8080)">webui</a>'
+             if "llama" in CACHE.get("srv", "").lower() else "") + lab_ui_html(vh))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
 
