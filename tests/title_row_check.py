@@ -41,8 +41,18 @@ for path in ("/llmtoggle", "/imgtoggle"):
 # the two renamed buttons are icons, not words
 if "\U0001F916" not in served:
     bad.append("the :8080 chat button is not the robot icon")
-if "\u2692" not in served:
-    bad.append("the Anvil button is not the forge glyph")
+# the Anvil button is the SAME glyph as Anvil's own favicon, not a lookalike emoji: Unicode
+# has no anvil, and headless Chromium here has no emoji font, so a glyph is unverifiable and
+# a shared path is not. Fails if either file drifts.
+ANVIL_PATH = ("M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5z"
+              "M2 6c.81 2.13 2.42 3.5 5 4V6z")
+if "\u2692" in served:
+    bad.append("the Anvil button is still the ⚒ forge glyph")
+fav = open(os.path.join(os.path.dirname(SRC), "anvil", "Anvil.html"), encoding="utf-8").read()
+if ANVIL_PATH not in served:
+    bad.append("the Anvil button is not the anvil path")
+if ANVIL_PATH not in fav:
+    bad.append("Anvil.html's favicon no longer matches the button (one glyph, two sources)")
 for port in (3000, 8188, 7860, 7861, 7862, 7863, 7864):
     if not any(p == port for _, _, p in D.LAB_UI):
         bad.append(f":{port} lost its icon when the footer links went")

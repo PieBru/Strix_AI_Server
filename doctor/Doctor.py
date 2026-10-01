@@ -865,7 +865,7 @@ summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 h1 .up{font-size:.55em;color:#888;font-weight:normal}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
-h1 .anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5}
+h1 .anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center}h1 .anv svg{width:1em;height:1em;fill:currentColor;display:block}
 h1 .anv:hover{border-color:#d9a441}
 /* Lab webuis: icon-only buttons (operator 261001) — the name, port and state live in the
    tooltip, so the row stays one line whatever we add to the lab. Dim = not listening. */
@@ -915,7 +915,7 @@ h1 #hact{display:flex;align-items:center;gap:8px}h1 #hact .cp{font-size:.62em}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">⚒</a></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg></a></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
