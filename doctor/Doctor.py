@@ -1060,14 +1060,114 @@ details.chk[open] summary::before{content:"▾ "}
 </details>
 </body></html>"""
 
+REPORT_DIR = "/home/piero/.pi/agent/skills/doctor-dream"
+# The only file name the page will open. This box serves the LAN with no auth (260911), so the
+# ?f= parameter is a name to validate, never a path to trust.
+REPORT_NAME = re.compile(r"^DOCTOR_REPORT_\d{6}-\d{6}\.md$")
+
+
+def _stamp(f):
+    """DOCTOR_REPORT_261001-101403.md -> '261001 10:14'."""
+    s = f[14:-3]
+    return f"{s[:6]} {s[7:9]}:{s[9:11]}"
+
+
+def md_inline(s):
+    s = html.escape(s)
+    s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+
+
+def md_html(text):
+    """The handful of markdown the report uses -> HTML: headings, **bold**, `code`, bullets, one
+    table, rules. No library - neither markdown-it nor markdown is importable in the interpreter
+    Doctor runs under, and the report is not a general document (OBSERVED 261001: 15 headings,
+    33 bold spans and a table arrived as punctuation inside a <pre>). Escape runs first, so a
+    finding containing markup cannot inject it."""
+    out, rows = [], []
+
+    def flush():
+        if not rows:
+            return
+        body = ["<table>"]
+        for i, r in enumerate(rows):
+            t = "th" if i == 0 else "td"
+            body.append("<tr>" + "".join(f"<{t}>{md_inline(c)}</{t}>" for c in r) + "</tr>")
+        out.append("".join(body) + "</table>")
+        rows.clear()
+
+    for ln in (l.strip() for l in text.split("\n")):
+        if ln.startswith("|") and ln.count("|") >= 2:
+            cells = [c.strip() for c in ln.strip("|").split("|")]
+            if not all(set(c) <= set("-: ") for c in cells):   # the |---|---| rule
+                rows.append(cells)
+            continue
+        flush()
+        if not ln:
+            continue
+        h = re.match(r"^(#{1,6})\s+(.*)$", ln)
+        if h:
+            lvl = min(len(h.group(1)) + 2, 6)   # the report's '#' is a title, not an h1
+            out.append(f"<h{lvl}>{md_inline(h.group(2))}</h{lvl}>")
+        elif len(ln) >= 3 and set(ln) <= set("-*_ "):
+            out.append("<hr>")
+        elif ln[:2] in ("- ", "* "):
+            out.append(f"<div class='li'>{md_inline(ln[2:])}</div>")
+        else:
+            out.append(f"<p>{md_inline(ln)}</p>")
+    flush()
+    return "\n".join(out)
+
+
+REPORT_CSS = """
+body{font-family:system-ui;background:#111;color:#ddd;margin:36px auto;max-width:78ch;padding:0 14px;line-height:1.5}
+h2{margin:0 0 .4em}
+h3{color:#9fd;margin:1.4em 0 .4em}
+h4{color:#cfe;margin:1.2em 0 .3em}
+h5,h6{color:#bcd;margin:1em 0 .3em}
+p{margin:.4em 0}
+.li{margin-left:1.3em}
+.li::before{content:"• ";color:#666}
+table{border-collapse:collapse;margin:.7em 0}
+th,td{border:1px solid #333;padding:3px 9px;text-align:left}
+th{background:#1b1b1b}
+code{background:#1e1e1e;padding:0 3px;font-family:ui-monospace,monospace;font-size:.92em}
+hr{border:0;border-top:1px solid #2c2c2c;margin:1.2em 0}
+a{color:#4c9aff}
+.nav a{margin-right:.8em;font-size:.85em;text-decoration:none}
+.nav a.cur{color:#ddd}
+"""
+
+def doctor_page(f="", skill=REPORT_DIR):
+    """The full morning report, rendered, with the date it was generated and the recent ones
+    beside it. It used to be raw markdown in a <pre> with no date anywhere on the page
+    (operator 261001: "not rendered... and which one is this?"). Newest file wins; the
+    DOCTOR_REPORT_latest.md symlink is only repointed by new_report.sh, so it is never the
+    source of truth here."""
+    # Only real stamped reports: DOCTOR_REPORT_latest.md is a symlink that new_report.sh repoints,
+    # and "latest" sorts above every date, so trusting the glob would make it the default forever.
+    files = sorted((b for b in map(os.path.basename, glob.glob(f"{skill}/DOCTOR_REPORT_*.md"))
+                    if REPORT_NAME.match(b)), reverse=True)
+    if not REPORT_NAME.match(f or ""):
+        f = files[0] if files else ""
+    if not f:
+        return "<pre>no doctor report yet — the 03:00 pass has never published one</pre>"
+    nav = " · ".join(f"<a class='{'cur' if x == f else ''}' href='/res/doctor?f={x}'>{_stamp(x)}</a>"
+                     for x in files[:10])
+    return ("<!doctype html><html><head><meta charset='utf-8'>"
+            f"<title>Doctor report {_stamp(f)}</title><style>{REPORT_CSS}</style></head><body>"
+            f"<h2>DOCTOR REPORT — {_stamp(f)}</h2>"
+            f"<div class='nav'>{nav}</div>"
+            f"{md_html(open(f'{skill}/{f}', errors='ignore').read())}"
+            "<p><a href='/'>← panel</a></p></body></html>")
+
 def res(name):
     try:
+        name, _, q = name.partition("?")
         if name == "ini":
             txt = open(ROUTER_INI).read().split("\n")[:80]
         elif name == "doctor":
-            p = "/home/piero/.pi/agent/skills/doctor-dream/DOCTOR_REPORT_latest.md"
-            txt = open(p, errors="ignore").read().split("\n")[:400] if os.path.exists(p) else ["no doctor report yet"]
-            return "<pre>" + html.escape("\n".join(txt)) + "</pre>"
+            return doctor_page(parse_qs(q).get("f", [""])[0])
         elif name == "report":
             fs = sorted(glob.glob("/home/piero/Piero/Work/Qwen38/gbench/MORNING-REPORT-*"))
             txt = open(fs[-1]).read().split("\n")[-80:] if fs else ["no morning report yet — run night-bench.sh <task> overnight"]
@@ -1361,7 +1461,7 @@ class H(BaseHTTPRequestHandler):
                 body = ""
             ct = "application/javascript"
         elif self.path.startswith("/res/"):
-            body, ct = res(self.path[5:]) or "<pre>?</pre>", "text/html"
+            body, ct = res(self.path[5:]) or "<pre>?</pre>", "text/html; charset=utf-8"
         else:
             # First paint of the title row is the SAME boxinfo() fragment the 5 s poll
             # replaces, so the icons and the swap buttons are already correct before the
