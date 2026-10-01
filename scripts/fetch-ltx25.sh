@@ -11,13 +11,14 @@
 #   only uplink is a slow 3G tether, so nothing big goes through it; this script
 #   runs on THIS box the moment the line returns.
 #
-# GATE (re-verified 260929 through the .150 proxy): Lightricks/LTX-2.5 is GATED.
-#   anonymous resolve -> 401; $HF_TOKEN (same string as $HUGGINGFACE_TOKEN, account
-#   `piebru`) -> 403 "...you are not in the authorized list. Visit ... to ask for
-#   access". The credential itself is fine (api/whoami-v2 returns the user, a public
-#   Lightricks blob -> 307), so this is a missing licence grant, not a bad token.
-#   The repo is `gated: auto`: accepting the terms at
-#   https://huggingface.co/Lightricks/LTX-2.5 grants access immediately, no review.
+# GATE (re-verified 261001 through the .150 proxy): Lightricks/LTX-2.5 is GATED:auto and
+#   the licence IS now accepted on account `piebru` — the resolve answers
+#   302 + x-linked-size 1452269922 with either token ("Voice Loop", role read, and the
+#   fine-grained "pi"). Earlier the SAME token got 403 "you are not in the authorized list"
+#   (260929 and 261001 09:50), so the grant landed in between; acceptance is a web-only
+#   action (no /api endpoint: accept, accept-terms, gated, access, agree -> all 404) and an
+#   API token is NOT a web session (/settings/tokens with Cookie: token=... -> 302 /login).
+#   The download below sends the token as a Bearer header; anonymous -> 401.
 #
 # WHAT THAT LEAVES FETCHABLE TODAY (260929, all from the PUBLIC
 # vonkaiser/LTX-2.5-FP8-NVFP4, all answering 206 to a Range request without a token):
@@ -117,7 +118,13 @@ for entry in "${FILES[@]}"; do
   # --speed-limit: the only uplink is a phone tether that goes quiet for minutes at a
   # time; kill a stalled socket so the retry loop re-establishes it instead of hanging
   # on a dead connection at 0 B/s.
-  if ! curl -fL -C - --retry 12 --retry-delay 10 --retry-all-errors \
+  # Auth: Lightricks/LTX-2.5 is gated:auto. Anonymous resolve -> 401; a token whose account
+  # has NOT accepted the terms -> 403 GatedRepo; after acceptance the SAME read token gets
+  # 302 + x-linked-size (measured 261001, token "Voice Loop", role read). Everything else on
+  # the list is public, so an absent token only ever costs the conv VAE.
+  AUTH=()
+  [ -n "${HF_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer $HF_TOKEN")
+  if ! curl -fL -C - --retry 12 --retry-delay 10 --retry-all-errors "${AUTH[@]}" \
            --speed-limit 20000 --speed-time 90 -o "$dest.part" "$url"; then
     echo "         fetch failed (line down?); $dest.part kept for resume"
     fail=1

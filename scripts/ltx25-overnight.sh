@@ -48,7 +48,19 @@ for u in "${UNITS[@]}"; do
   fi
 done
 
-for dev in cuda cpu; do
+# Measured 261001 with the FULL weight set (conv VAE present, all six pins OK):
+#   device=cuda  dies at the FIRST denoise step, after 205 s of encoder work:
+#     "vt: ltx2: no device glue table registered for this backend (vt::OpId::kLtx2)"
+#   device=cpu   OOM-killed during load.dit, before any step: anon-rss 67.3 GB,
+#     total-vm 115.7 GB, kernel oom-kill at 11:02:03 (the kernel picked ltx2-gen, not
+#     llama-server; the box and the other units survived).
+# The reason is not our stale build: kLtx2 and kLtx2Vae are RegisterOp'd for DeviceType::
+# kCPU and kCUDA only (src/vt/cpu/cpu_ltx2*.cpp, src/vt/cuda/cuda_ltx2*.cu) and neither
+# src/vt/vulkan/ nor src/vt/rocm/ contains an ltx2 file — checked locally AND at upstream
+# HEAD fce3673 (mudler/vllm.cpp). A gfx1151 box with no CUDA compiler therefore has no
+# LTX-2.5 render path at all. The CPU leg is not a fallback here, it is a 222 s walk into
+# the OOM killer, so it is opt-in: FORCE_CPU=1 (and raise the smoke floor above 48 GiB).
+for dev in cuda ${FORCE_CPU:+cpu}; do
   echo "########## SMOKE device=$dev $(date -Is) ##########"
   if DEV=$dev OUT="/tmp/ltx25-smoke-$dev" bash scripts/ltx25-smoke.sh; then
     echo "RESULT device=$dev PASS"
