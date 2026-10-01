@@ -55,4 +55,13 @@ finally:
     builtins.open = real_open
 assert "zswap" not in small, small
 
+# The in/out rate must never render as a zero pair (operator 261001): the gate used to be
+# `if si or so`, which a trickle satisfies, and 0.3 MB/s printed "in/out 0/0 MB/s".
+for _si, _so in [(0.0, 0.0), (0.2, 0.4), (0.49, 0.49), (0.5, 0.5)]:
+    assert "0/0" not in mod.swap_body("1.2/32 GiB", _si, _so), (_si, _so)
+assert "in/out" not in mod.swap_body("1.2/32 GiB", 0.2, 0.4)
+# ...but a real one-sided rate still shows, on either side
+assert mod.swap_body("1.2/32 GiB", 1.4, 0.0).endswith("in/out 1/0 MB/s")
+assert mod.swap_body("1.2/32 GiB", 0.0, 12.0).endswith("in/out 0/12 MB/s")
+
 print("swap_card_check: PASS —", size)

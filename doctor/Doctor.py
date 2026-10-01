@@ -425,6 +425,14 @@ def _io_bytes():
         return int(f[2]) * 512, int(f[6]) * 512   # bytes read, bytes written
     except Exception: return None
 
+def swap_body(st, si, so):
+    """The SWAP card body: the GiB figure, and the in/out rate ONLY when it survives being
+    printed. The gate used to be `if si or so`, which is true for a trickle - and 0.3 MB/s
+    renders as "in/out 0/0 MB/s", an alarm about nothing (operator 261001). Rounding the
+    same way the format does is what makes 0/0 unrepresentable."""
+    return f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if round(si) or round(so) else "")
+
+
 ARM_SORT_MODE = 0   # server-side row order: 0 = recency (default), 1 = load time
 BENIGN = re.compile(r"request cancelled while waiting for model|requires ctx_other|failed to measure the memory of the extra model"
                     r"|attention rotation force disabled|Qwen-VL models require|image-min-tokens|issues/16842"
@@ -748,7 +756,7 @@ def stats():
               + card("GPU temp" + pchip("GPU temp", "°C", hf=heat), gt, bar(tm, heat(tm))) + card("GPU power" + pchip("GPU power", "W", hf=heat_power), gpw, bar(pw / 140 * 100, heat_power(pw)))
               + card("RAM · GiB" + pchip("RAM", "%", hf=heat_ram), f"{rp} · {rt.replace(' GiB','')}", bar((rv := int(rp.strip("%") or 0)), heat_ram(rv)))
               + card("SWAP · GiB" + pchip("SWAP", "%", hf=heat_swap, xform=lambda v: v*64//100) + pchip("SWAP rate", " MB/s", "{:.0f}") + storm_html()[0],
-                     (lambda si, so: f"{st.replace(' GiB','')}" + (f" · in/out {si:.0f}/{so:.0f} MB/s" if si or so else ""))(*CACHE.get("swio", (0.0, 0.0))) + storm_html()[1],
+                     swap_body(st, *CACHE.get("swio", (0.0, 0.0))) + storm_html()[1],
                      bar(min((sg := float((st.replace(' GiB','') or '0').split('/')[0])) / 2.0 * 100, 100), heat_swap(sg)))
               + card("DISK · GiB" + pchip("DISK", "%", hf=heat_disk), f"{dp} · {dt.replace(' GiB','')}", bar((dv := int(dp.strip("%") or 0)), heat_disk(dv)))
               + card("DISK I/O · MB/s" + pchip("DISK I/O", " MB/s", "{:.0f}", hf=heat_io, xform=lambda v: min(v/500*100, 100)), (lambda a: f"R {a[0]:.0f} · W {a[1]:.0f}")(CACHE.get("io", (0.0, 0.0))),
