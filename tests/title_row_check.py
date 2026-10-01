@@ -53,9 +53,13 @@ if ANVIL_PATH not in served:
     bad.append("the Anvil button is not the anvil path")
 if ANVIL_PATH not in fav:
     bad.append("Anvil.html's favicon no longer matches the button (one glyph, two sources)")
-for port in (3000, 8188, 7860, 7861, 7862, 7863, 7864):
+for port in (3000, 8188, 7860, 7861, 7862, 7863):
     if not any(p == port for _, _, p in D.LAB_UI):
         bad.append(f":{port} lost its icon when the footer links went")
+# :7864 stays out of the row (operator 261001). LTX-2.5 has no render path on gfx1151, so
+# an icon there would advertise a playground that cannot produce a video.
+if any(p == 7864 for _, _, p in D.LAB_UI):
+    bad.append(":7864 is back in LAB_UI - LTX-2.5 still cannot render on this GPU")
 
 # The icons must live INSIDE the polled fragment. They were rendered once by `/` and sat
 # outside #hact, so starting any profile left every icon at its page-load colour until a

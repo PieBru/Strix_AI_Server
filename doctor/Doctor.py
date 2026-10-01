@@ -30,6 +30,31 @@ ROUTER_UNITS = tuple(u for u in (os.environ.get("DOCTOR_UNITS") or
     "llama-llm,gufo-llm,27b-collm,gemma-collm,gufo-serve,model-router-pwilkin,model-router-vanilla").split(",") if u)
 _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 
+# The :8080 text arms, most-preferred first. Both copies of the old hardcoded list
+# omitted gemma-collm, so with Gemma live the toggle resolved to a DIFFERENT arm and
+# started a second one on a busy port (operator 261001). One source, read by the title
+# row and by /llmtoggle alike; per-box override stays DOCTOR_UNITS for the panel rows.
+LLM_ARMS = ("27b-collm", "gemma-collm", "gufo-llm", "llama-llm")
+ARM_TAG = {"27b-collm": "27b", "gemma-collm": "gemma", "gufo-llm": "gufo", "llama-llm": "webui"}
+
+
+def _unit(u, verb):
+    try:
+        return subprocess.run(["systemctl", "--user", verb, u],
+                              capture_output=True, text=True, timeout=4).returncode == 0
+    except Exception:
+        return False
+
+
+def arm_live():
+    """Whichever text arm is active right now, else None."""
+    return next((a for a in LLM_ARMS if _unit(f"{a}.service", "is-active")), None)
+
+
+def arm_target():
+    """The arm the toggle acts on: the live one, else the first that exists."""
+    return arm_live() or next((a for a in LLM_ARMS if _unit(f"{a}.service", "cat")), LLM_ARMS[0])
+
 def _router_ini():
     # the ini the LIVE router units point at (truth by construction, survives renames)
     try:
@@ -593,13 +618,9 @@ def boxinfo(vh=""):
     # title row when the footer went). Label carries the state of whichever arm is LIVE;
     # the old "open ↗" link is gone because the 🤖 icon opens the same port off the
     # request Host, which works from a LAN browser too.
-    _arm = next((a for a in ("llama-llm", "27b-collm", "gufo-llm")
-                 if _has(f"{a}.service") and _svc(a)), None)
-    if _arm is None:
-        _arm = "llama-llm" if _has("llama-llm.service") else "gufo-llm"
-    _llm_up = _svc(_arm)
-    _lbl = {"llama-llm": "webui :8080", "27b-collm": "27b :8080"}.get(_arm, "llm :8080")
-    _eps.append(_btn("/llmtoggle", ("⏹ " if _llm_up else "▶ ") + _lbl))
+    _arm = arm_target()
+    _lbl = ARM_TAG.get(_arm, "llm")
+    _eps.append(_btn("/llmtoggle", ("⏹ " if _arm == arm_live() else "▶ ") + f"{_lbl} :8080"))
     # Image stack: demo/test app toggles (mutually exclusive via Conflicts)
     if _has("gufo-serve.service"):
         _eps.append(_btn("/imgtoggle?app=demo", ("⏹ demo :7860" if _svc("qwen-image-demo") else "▶ demo :7860"))
@@ -772,7 +793,6 @@ LAB_UI = [("\U0001F3A8", "ComfyUI - MiniMax-H3 workflows", 8188),
           ("\U0001F3AC", "MiniMax-H3 video UI", 7861),
           ("\U0001F3B5", "ACE-Step music UI", 7862),
           ("\U0001F3A4", "Whisper STT", 7863),
-          ("\u26A1", "LTX-2.5 text-to-video UI", 7864),
           ("\U0001F4AC", "Open WebUI", 3000)]
 
 
@@ -1050,6 +1070,7 @@ class H(BaseHTTPRequestHandler):
             up.close()
 
     def do_POST(self):
+        code = 200
 
         # Anvil talks to the arm through us: same origin, no CORS (see _llm_proxy).
         if self.path.startswith("/llm/"):
@@ -1061,32 +1082,17 @@ class H(BaseHTTPRequestHandler):
             subprocess.Popen(["/bin/bash", "-c", "sleep 1; systemctl --user restart Doctor.service"],
                              start_new_session=True)
             body, ct = "restarting Doctor.service…", "text/plain"
-            self.send_response(200); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
         elif self.path == "/storm/reset":
             # POST-only, like /restart: a link or prefetch must not erase storm evidence.
             STORM.clear(); storm_save()
             body, ct = "storm latch cleared", "text/plain"
         elif self.path == "/llmtoggle":
-            # 260925; 260926: toggle the LIVE :8080 arm if any (llama-llm /
-            # 27b-collm / gufo-llm), else start the preferred one. POST-only.
-            _arm = next((a for a in ("llama-llm", "27b-collm", "gufo-llm")
-                         if subprocess.run(["systemctl", "--user", "is-active", f"{a}.service"],
-                                           capture_output=True, text=True, timeout=4).stdout.strip() == "active"), None)
-            if _arm is None:
-                _arm = "llama-llm"
-                try:
-                    subprocess.run(["systemctl", "--user", "cat", f"{_arm}.service"], capture_output=True, timeout=4)
-                except Exception:
-                    _arm = "gufo-llm"
-            _act = subprocess.run(["systemctl", "--user", "is-active", f"{_arm}.service"],
-                                  capture_output=True, text=True, timeout=4).stdout.strip()
-            subprocess.run(["systemctl", "--user", ("stop" if _act == "active" else "start"), f"{_arm}.service"], timeout=60)
-            body, ct = f"{('stopping' if _act == 'active' else 'starting')} {_arm}…", "text/plain"
-            self.send_response(200); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
+            # 260925; 260926: toggle the LIVE :8080 arm if any, else start the preferred
+            # one. POST-only. 261001: the arm list is LLM_ARMS, not a copy of it here.
+            _arm = arm_target()
+            _act = _arm == arm_live()
+            subprocess.run(["systemctl", "--user", ("stop" if _act else "start"), f"{_arm}.service"], timeout=60)
+            body, ct = f"{('stopping' if _act else 'starting')} {_arm}…", "text/plain"
         elif self.path.startswith("/imgtoggle"):
             # 260925: start/stop the image stack; ?app=demo|test picks the UI.
             # Starting one app auto-stops the other + llm arms (unit Conflicts).
@@ -1100,8 +1106,6 @@ class H(BaseHTTPRequestHandler):
                 subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", _app], timeout=60)
                 body = f"starting image backend + {_app}…"
             body, ct = body, "text/plain"
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
         elif self.path.startswith("/profile"):
             # Apply a profile from the panel. The name is validated against the profile keys
             # before anything is spawned (profile_apply), and the apply is detached like
@@ -1109,11 +1113,15 @@ class H(BaseHTTPRequestHandler):
             code, body = profile_apply(self.path, set(SP.load_profiles(SP.PROFILES_DIR))
                                        | {"panic", "emergency"}, _spawn_apply, apply_dry_run)
             ct = "text/plain"
-            self.send_response(code); self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body))); self.end_headers()
-            self.wfile.write(body.encode())
         else:
-            self.send_response(404); self.end_headers()
+            code, body, ct = 404, "not found", "text/plain"
+        # One writer for every POST branch (operator 261001): /storm/reset and /imgtoggle
+        # set body/ct and then fell through to nothing, so the button DID the action and
+        # the browser saw a closed socket (curl 000). A branch must not be able to forget
+        # the response.
+        self.send_response(code); self.send_header("Content-Type", ct)
+        self.send_header("Content-Length", str(len(body))); self.end_headers()
+        self.wfile.write(body.encode())
 
     def do_GET(self):
 
