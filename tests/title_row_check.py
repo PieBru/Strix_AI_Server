@@ -100,9 +100,13 @@ if "color:#6dd66d" not in html.split(".lab{")[1].split("}")[0]:
     bad.append(".lab is not green - a live open button looks like a dead control")
 if "http://h:8080/" in _all_down:
     bad.append("the :8080 robot is rendered while the arm is down")
-# The Anvil button is static (always up) but must say what it opens, like its neighbours.
-if "</svg>anvil</a>" not in html:
-    bad.append("the Anvil button has no text label")
+# The Anvil button is labelled and is the FIRST item of the opens line, so the opens and the
+# start/stop lines share its left margin (operator 261001).
+if "</svg>anvil</a>" not in _all_up:
+    bad.append("the Anvil button has no text label or left the polled bar")
+if 'class="opens">' not in _all_up or "class=\"anv\"" not in _all_up.split('class="opens">')[1][:120]:
+    bad.append("the anvil is not the first button of .opens - the two lines cannot share "
+               "its left margin")
 
 # The icons must live INSIDE the polled fragment. They were rendered once by `/` and sat
 # outside #hact, so starting any profile left every icon at its page-load colour until a

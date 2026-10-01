@@ -676,9 +676,21 @@ def boxinfo(vh=""):
              f'title="AI chat - the llama-server arm on :8080">\U0001F916 llm</a>') if up8080 else ""
     # Two groups (operator 261001): the icons OPEN a webui, the word buttons START or STOP a
     # unit. The CSS puts .opens on the bar's first line and gives .tog its own line under it.
-    return (f'<span class="opens">{robot}{lab_ui_html(vh)}</span>'
+    return (f'<span class="opens">{ANVIL_BTN}{robot}{lab_ui_html(vh)}</span>'
             f'<span class="up">{uptime_str()}</span>'
             f'<span class="tog">' + " ".join(_eps) + "</span>")
+
+# The Anvil button opens the vendored console and is always up, so it used to sit in the
+# template, outside the polled #hact. That made it the only thing on the bar's left margin:
+# both polled lines (opens, start/stop) started ~80px to its right. It is now the first item
+# of .opens, so the two lines and the anvil share one left edge. The glyph is the same path
+# as Anvil's own favicon (title_row_check pins the two together).
+ANVIL_BTN = ('<a class="anv" href="/anvil" target="_blank" rel="noopener" '
+             'title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">'
+             # One literal: title_row_check greps this path out of the source and pins it
+             # against Anvil.html's favicon, so wrapping it mid-path breaks that check.
+             '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg>anvil</a>')
+
 
 def stats():
     _gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
@@ -1021,7 +1033,7 @@ details.chk[open] summary::before{content:"▾ "}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
 <h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__<span id="profchip" hx-get="/profchip" hx-trigger="load, box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span></h1>
-<div id="bar"><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg>anvil</a><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span></div>
+<div id="bar"><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span></div>
 <div id="profmsg" class="m"></div>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
