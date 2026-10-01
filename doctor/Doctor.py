@@ -565,18 +565,11 @@ def inference():
     return CACHE["h"], CACHE["svc"], CACHE["arm"], CACHE["tg"], CACHE["acc"], CACHE["jn"], CACHE["errs"], CACHE["gpu_err"]
 
 def boxinfo():
-    # page footer (operator 260925): box identity + live endpoints + the
-    # llm⇄image swap buttons. The units carry Conflicts=, so each start
-    # tears the other side down — the dashboard just calls systemctl.
-    _ip = "?"
-    try:
-        _ip = next((i for i in subprocess.run(["hostname", "-I"], capture_output=True, text=True,
-                    timeout=4).stdout.split() if i.startswith("192.168.")), "?")
-    except Exception:
-        try:
-            _ip = next((a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
-                        if a[4][0].startswith("192.168.")), "?")
-        except Exception: pass
+    # The start/stop buttons in the title row (operator 260925 as a footer, 261001 moved
+    # up when the footer was deleted): the llm⇄image swap buttons only. The units carry
+    # Conflicts=, so each start tears the other side down — the dashboard just calls
+    # systemctl. Box identity is the h1 itself and every endpoint is an icon button, so
+    # nothing else survives here. Polled into #hact every 5 s like the footer was.
     def _svc(u):
         try: return subprocess.run(["systemctl", "--user", "is-active", u],
                    capture_output=True, text=True, timeout=4).stdout.strip() == "active"
@@ -591,43 +584,24 @@ def boxinfo():
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
     _eps = []
-    # LLM arm toggle (260925; 260926 +27b-collm co-resident arm): label
-    # carries status of whichever arm is LIVE; link opens from LAN browser.
+    # LLM arm toggle (260925; 260926 +27b-collm co-resident arm; 261001 moved into the
+    # title row when the footer went). Label carries the state of whichever arm is LIVE;
+    # the old "open ↗" link is gone because the 🤖 icon opens the same port off the
+    # request Host, which works from a LAN browser too.
     _arm = next((a for a in ("llama-llm", "27b-collm", "gufo-llm")
                  if _has(f"{a}.service") and _svc(a)), None)
     if _arm is None:
         _arm = "llama-llm" if _has("llama-llm.service") else "gufo-llm"
     _llm_up = _svc(_arm)
     _lbl = {"llama-llm": "webui :8080", "27b-collm": "27b :8080"}.get(_arm, "llm :8080")
-    _eps.append(_btn("/llmtoggle", ("⏹ stop " if _llm_up else "▶ start ") + _lbl)
-                + (f' <a style="color:#8cf" href="http://{socket.gethostname()}.local:8080/" target="_blank">open ↗</a>'
-                   if _llm_up else ""))
+    _eps.append(_btn("/llmtoggle", ("⏹ " if _llm_up else "▶ ") + _lbl))
     # Image stack: demo/test app toggles (mutually exclusive via Conflicts)
     if _has("gufo-serve.service"):
-        _dm, _ts = _svc("qwen-image-demo"), _svc("qwen-image-test")
-        _eps.append(_btn("/imgtoggle?app=demo", ("⏹ demo :7860" if _dm else "▶ demo :7860"))
-                    + " " + _btn("/imgtoggle?app=test", ("⏹ test :7860" if _ts else "▶ test :7860"))
-                    + (f' <a style="color:#8cf" href="http://{socket.gethostname()}.local:7860/" target="_blank">open ↗</a>'
-                       if _dm or _ts else ""))
-    if _svc("open-webui"):
-        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:3000/" target="_blank">:3000 open-webui</a>')
-    # ComfyUI / MiniMax-H3 video lab on :8188 (operator 260927). Shown even when
-    # stopped: the unit carries no Conflicts=, so it shares GPU/GTT with the LLM
-    # arms — its state explains an OOM'd render (260927) more than its URL does.
-    if _has("comfyui-h3.service"):
-        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:8188/" target="_blank">:8188 comfyui ↗</a>'
-                    if _svc("comfyui-h3.service")
-                    else '<span style="color:#777">:8188 comfyui stopped</span>')
-    # ACE-Step 1.5 music lab on :7862 (UI) -> :8001 (audio.cpp engine, Vulkan).
-    # Same reason as comfyui: show it even when stopped, and the engine port next to
-    # the UI port because a dead :8001 is what a dead :7862 button actually means.
-    if _has("acestep-serve.service"):
-        _eps.append(f'<a style="color:#8cf" href="http://{socket.gethostname()}.local:7862/" target="_blank">:7862 music ↗</a>'
-                    if _svc("acestep-ui.service")
-                    else '<span style="color:#777">:7862 music stopped</span>')
-    _eps.append(":8667 doctor — /")
-    return (f'<div class="boxfoot"><b style="color:#cde">{socket.gethostname()}</b> · {_ip} · '
-            + " · ".join(_eps) + "</div>")
+        _eps.append(_btn("/imgtoggle?app=demo", ("⏹ demo :7860" if _svc("qwen-image-demo") else "▶ demo :7860"))
+                    + " " + _btn("/imgtoggle?app=test", ("⏹ test :7860" if _svc("qwen-image-test") else "▶ test :7860")))
+    # ComfyUI :8188, ACE-Step :7862 and Open WebUI :3000 used to be links here. They are
+    # icon buttons in the same row now (LAB_UI), which also shows them when stopped.
+    return " ".join(_eps)
 
 def stats():
     _gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
@@ -757,7 +731,7 @@ def stats():
     _eng = "gufo" if CACHE.get("gufo") else "model-router"
     if not sok: probs.append(f"{_eng} service: {svc}")
     if not hok and CACHE.get("llm_any") is not None and not CACHE.get("llm_any"):
-        probs.append("LLM parked — image mode (no :8080 arm; footer buttons switch)")   # informational, not an outage
+        probs.append("LLM parked — image mode (no :8080 arm; the title-row ▶ button switches)")   # informational, not an outage
     elif not hok: probs.append(f"/health: {h}")
     probs += [f"journal: {html.escape(e[-160:])}" for e in errs]
     probs += [f"dmesg: {html.escape(e[-160:])}" for e in gpu_err]
@@ -789,7 +763,8 @@ LAB_UI = [("\U0001F3A8", "ComfyUI - MiniMax-H3 workflows", 8188),
           ("\U0001F3AC", "MiniMax-H3 video UI", 7861),
           ("\U0001F3B5", "ACE-Step music UI", 7862),
           ("\U0001F3A4", "Whisper STT", 7863),
-          ("\u26A1", "LTX-2.5 text-to-video UI", 7864)]
+          ("\u26A1", "LTX-2.5 text-to-video UI", 7864),
+          ("\U0001F4AC", "Open WebUI", 3000)]
 
 
 # GPU POWER zones (operator 261001): ~105 W is the NORMAL steady state while an arm infers
@@ -799,6 +774,17 @@ LAB_UI = [("\U0001F3A8", "ComfyUI - MiniMax-H3 workflows", 8188),
 # across the operator's 110-118 band, red beyond 118. The bar's ceiling is the 140 W chassis rating, not 100, so the bar still reads
 # as headroom. Module level so tests/power_zones_check.py can bite it.
 heat_power = lambda w: "hsl(120,90%,55%)" if w < 110 else ("hsl(45,90%,55%)" if w <= 118 else "hsl(0,90%,55%)")
+
+
+def port_up(port):
+    """50 ms loopback connect, BOTH families: socat fronts :7860 on IPv6 only (measured
+    261001, `ss -ltn` shows [::]:7860), so an AF_INET/127.0.0.1-only probe calls a live
+    service dead. No subprocess, no visible latency."""
+    try:
+        socket.create_connection(("localhost", port), 0.05).close()
+        return True
+    except OSError:
+        return False
 
 
 def lab_ui_html(vh):
@@ -811,11 +797,7 @@ def lab_ui_html(vh):
     a live UI dead."""
     out = []
     for ico, name, port in LAB_UI:
-        try:
-            socket.create_connection(("localhost", port), 0.05).close()
-            up = True
-        except OSError:
-            up = False
+        up = port_up(port)
         out.append(f'<a class="lab{" dn" if not up else ""}" href="http://{vh}:{port}/" target="_blank" '
                    f'rel="noopener" title="{html.escape(name)} :{port}{"" if up else " - not listening"}">{ico}</a>')
     return "".join(out)
@@ -873,7 +855,7 @@ summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 h1 .up{font-size:.55em;color:#888;font-weight:normal}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
-h1 .anv{font-size:.7em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:0 8px;text-decoration:none}
+h1 .anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5}
 h1 .anv:hover{border-color:#d9a441}
 /* Lab webuis: icon-only buttons (operator 261001) — the name, port and state live in the
    tooltip, so the row stays one line whatever we add to the lab. Dim = not listening. */
@@ -895,7 +877,7 @@ details.chk summary::-webkit-details-marker{display:none}
 details.chk summary::before{content:"▸ ";color:#4c9aff}
 details.chk[open] summary::before{content:"▾ "}
 .err{background:#3a1111;border:1px solid #ff6b6b;color:#ffb3b3;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85em;white-space:pre-wrap}
-.boxfoot{margin-top:24px;font-size:.78em;color:#789;padding:8px 2px}
+h1 #hact{font-size:.62em}h1 #hact .cp{margin-left:4px}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
@@ -920,7 +902,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span>__WEBUI__<a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">anvil</a></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span>__WEBUI__<a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">⚒</a><span id="hact" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></span></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -928,7 +910,6 @@ details.chk[open] summary::before{content:"▾ "}
 <details class="actbox"><summary>activity</summary>
 <div id="stats2" hx-get="/stats2" hx-trigger="every 2s" hx-swap="innerHTML"></div>
 </details>
-<div id="box" class="boxfoot" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></div>
 </body></html>"""
 
 def res(name):
@@ -1223,8 +1204,9 @@ class H(BaseHTTPRequestHandler):
             (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
             (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
             profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
-            (f'<a class="anv" href="http://{vh}:8080/" target="_blank" rel="noopener" title="llama-server web UI (the arm on :8080)">webui</a>'
-             if "llama" in CACHE.get("srv", "").lower() else "") + lab_ui_html(vh))), "text/html"
+            (lambda up: f'<a class="lab{" dn" if not up else ""}" href="http://{vh}:8080/" target="_blank" '
+                        f'rel="noopener" title="AI chat - the llama-server arm on :8080{" (not listening)" if not up else ""}">'
+                        f'\U0001F916</a>')(port_up(8080)) + lab_ui_html(vh))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
 

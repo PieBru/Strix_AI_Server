@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""The title row is the whole chrome: no footer, and every deleted control still exists.
+
+Why this exists (261001): the operator deleted the page footer. A footer is where the
+start/stop buttons lived, so "remove the footer and move anything it held up" is only done
+when each control still exists - and the failure mode is silent (a button that is simply
+gone looks like a clean page). This asserts the contract without a browser.
+
+    uv run --offline --no-project python tests/title_row_check.py
+"""
+import os
+import sys
+import types
+
+SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "doctor", "Doctor.py")
+D = types.ModuleType("title_row_under_test")
+D.__file__ = SRC
+exec(compile(open(SRC, encoding="utf-8").read(), SRC, "exec"), D.__dict__)
+
+bad = []
+html, row = D.HTML, D.boxinfo()
+
+if "boxfoot" in html or 'id="box"' in html:
+    bad.append("the footer markup is back")
+if 'id="hact"' not in html:
+    bad.append("#hact (the polled action slot in h1) is missing")
+if 'hx-get="/boxinfo"' not in html:
+    bad.append("#hact no longer polls /boxinfo")
+
+# every control the footer used to hold must still be reachable
+for path in ("/llmtoggle", "/imgtoggle?app=demo", "/imgtoggle?app=test"):
+    if path not in row:
+        bad.append(f"deleted control not moved up: {path}")
+
+# and the endpoints they POST to must still be served
+served = open(SRC, encoding="utf-8").read()
+for path in ("/llmtoggle", "/imgtoggle"):
+    if f'self.path.startswith("{path}"' not in served and f'self.path == "{path}"' not in served:
+        bad.append(f"{path} has no route")
+
+# the two renamed buttons are icons, not words
+if "\U0001F916" not in served:
+    bad.append("the :8080 chat button is not the robot icon")
+if "\u2692" not in served:
+    bad.append("the Anvil button is not the forge glyph")
+for port in (3000, 8188, 7860, 7861, 7862, 7863, 7864):
+    if not any(p == port for _, _, p in D.LAB_UI):
+        bad.append(f":{port} lost its icon when the footer links went")
+
+print("FAIL " + "; ".join(bad) if bad else "title row: no footer, 3 toggles + 8 icons present")
+sys.exit(1 if bad else 0)
