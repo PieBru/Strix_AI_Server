@@ -58,6 +58,9 @@ ROOT="${LTX_ROOT:-$HOME/Downloads/LLM/LTX-2.5}"
 # "curl: (6) Could not resolve host" and looks alive while moving zero bytes — which is
 # exactly how 260930's restart lost an hour. Default it here; `-` keeps an explicit empty
 # value working, so https_proxy= still forces a direct attempt.
+# TEMPORARY (operator 261001): the relay is a stopgap, not infrastructure. It is fine to
+# hardcode it HERE because this script is a hand-run download; it must NOT reach
+# doctor.config or the doctor-dream collectors, where "offline" is a real finding.
 https_proxy="${https_proxy-http://192.168.50.150:8888}"
 export https_proxy http_proxy="${http_proxy-$https_proxy}"
 VERIFY_ONLY=0
