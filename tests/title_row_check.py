@@ -47,5 +47,21 @@ for port in (3000, 8188, 7860, 7861, 7862, 7863, 7864):
     if not any(p == port for _, _, p in D.LAB_UI):
         bad.append(f":{port} lost its icon when the footer links went")
 
+# The icons must live INSIDE the polled fragment. They were rendered once by `/` and sat
+# outside #hact, so starting any profile left every icon at its page-load colour until a
+# hard refresh (operator 261001). A page that looks fine is the failure state here.
+if '>__WEBUI__</span>' not in html:
+    bad.append("__WEBUI__ is outside #hact again - the icons would freeze until a reload")
+if html.count("__WEBUI__") != 1:
+    bad.append(f"__WEBUI__ appears {html.count('__WEBUI__')}x in the template - str.replace "
+               "renders the whole control group that many times (measured 261001: 16 icons, "
+               "unsized buttons, the h1 wrapped to 3 lines)")
+if 'hx-trigger="load, every 5s' not in html:
+    bad.append("#hact lost its load/every-5s poll trigger")
+if 'href="http://h:8188/"' not in D.boxinfo("h"):
+    bad.append("/boxinfo no longer renders the lab icons (the poll would drop them)")
+if "box-refresh" not in html.split("function profGo")[1].split("\n</script>")[0]:
+    bad.append("profGo does not dispatch box-refresh - a profile switch leaves the row stale")
+
 print("FAIL " + "; ".join(bad) if bad else "title row: no footer, 3 toggles + 8 icons present")
 sys.exit(1 if bad else 0)

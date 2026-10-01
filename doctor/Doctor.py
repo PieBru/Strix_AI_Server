@@ -564,12 +564,17 @@ def inference():
     if CACHE["jn"] == []: refresh()
     return CACHE["h"], CACHE["svc"], CACHE["arm"], CACHE["tg"], CACHE["acc"], CACHE["jn"], CACHE["errs"], CACHE["gpu_err"]
 
-def boxinfo():
-    # The start/stop buttons in the title row (operator 260925 as a footer, 261001 moved
-    # up when the footer was deleted): the llm⇄image swap buttons only. The units carry
-    # Conflicts=, so each start tears the other side down — the dashboard just calls
-    # systemctl. Box identity is the h1 itself and every endpoint is an icon button, so
-    # nothing else survives here. Polled into #hact every 5 s like the footer was.
+def boxinfo(vh=""):
+    # The title-row controls (operator 260925 as a footer, 261001 moved up when the footer
+    # was deleted): the lab icon buttons AND the llm/image swap buttons. The units carry
+    # Conflicts=, so each start tears the other side down - the dashboard just calls
+    # systemctl. Box identity is the h1 itself, so nothing else survives here.
+    #
+    # The icons are inside THIS polled fragment on purpose (operator 261001): they used to
+    # be rendered once by `/`, outside the poll, so starting any profile left every icon
+    # frozen at its page-load colour until a hard refresh. `/` still server-renders them as
+    # the span's initial content, so the first paint is not a 5 s hole.
+    vh = vh or socket.gethostname()
     def _svc(u):
         try: return subprocess.run(["systemctl", "--user", "is-active", u],
                    capture_output=True, text=True, timeout=4).stdout.strip() == "active"
@@ -579,7 +584,7 @@ def boxinfo():
                    capture_output=True, timeout=4).returncode == 0
         except Exception: return False
     def _btn(path, label):
-        return (f'<button class="cp" style="font-size:1em" onclick="'
+        return (f'<button class="cp" onclick="'
                 f'this.textContent=\'working…\';fetch(\'{path}\',{{method:\'POST\'}})'
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
@@ -601,7 +606,11 @@ def boxinfo():
                     + " " + _btn("/imgtoggle?app=test", ("⏹ test :7860" if _svc("qwen-image-test") else "▶ test :7860")))
     # ComfyUI :8188, ACE-Step :7862 and Open WebUI :3000 used to be links here. They are
     # icon buttons in the same row now (LAB_UI), which also shows them when stopped.
-    return " ".join(_eps)
+    up8080 = port_up(8080)
+    robot = (f'<a class="lab{" dn" if not up8080 else ""}" href="http://{vh}:8080/" target="_blank" '
+             f'rel="noopener" title="AI chat - the llama-server arm on :8080'
+             f'{" (not listening)" if not up8080 else ""}">\U0001F916</a>')
+    return robot + lab_ui_html(vh) + " " + " ".join(_eps)
 
 def stats():
     _gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
@@ -789,9 +798,9 @@ def port_up(port):
 
 def lab_ui_html(vh):
     """Icon buttons for the lab UIs. Host comes from the request, so a laptop reading
-    strixy-9ad3.local:8667 gets links it can actually open. Liveness is probed at page
-    render only (the HTML is fetched once per browser load, not on the 2s htmx cadence)
-    with a 50 ms loopback connect - no subprocess, no visible latency. The probe goes
+    strixy-9ad3.local:8667 gets links it can actually open. Rendered inside the #hact
+    fragment, so the 5 s poll (and box-refresh after any start/stop) re-probes them; `/`
+    server-renders the same markup for the first paint. Liveness is a 50 ms loopback connect - no subprocess, no visible latency. The probe goes
     through create_connection so BOTH families are tried: socat fronts :7860 on IPv6 only
     (measured 261001, `ss -ltn` shows [::]:7860), so an AF_INET/127.0.0.1-only probe called
     a live UI dead."""
@@ -807,7 +816,8 @@ HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="/htmx.min.js"></script>
 <script>function armOrd(m){fetch('/armorder?mode='+m)}
 function profGo(s){const m=document.getElementById('profmsg');m.textContent='…';
- fetch('/profile?name='+encodeURIComponent(s.value),{method:'POST'}).then(r=>r.text()).then(t=>{m.textContent=t})
+ fetch('/profile?name='+encodeURIComponent(s.value),{method:'POST'}).then(r=>r.text()).then(t=>{m.textContent=t;
+  window.dispatchEvent(new Event('box-refresh'))})
  .catch(()=>{m.textContent='request failed'})}
 </script>
 <script>const H_TG=[],H_ACC=[];let lastSig=null,N=180;
@@ -877,7 +887,10 @@ details.chk summary::-webkit-details-marker{display:none}
 details.chk summary::before{content:"▸ ";color:#4c9aff}
 details.chk[open] summary::before{content:"▾ "}
 .err{background:#3a1111;border:1px solid #ff6b6b;color:#ffb3b3;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85em;white-space:pre-wrap}
-h1 #hact{font-size:.62em}h1 #hact .cp{margin-left:4px}
+/* The icons moved inside the polled span (261001), so the span has to lay its children out
+ like h1 does or the row collapses into one clump of tiny glyphs. The span itself stays at
+ h1 size (that is what makes .lab render at its normal .72em); only the word buttons shrink. */
+h1 #hact{display:flex;align-items:center;gap:8px}h1 #hact .cp{font-size:.62em}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
@@ -902,7 +915,7 @@ h1 #hact{font-size:.62em}h1 #hact .cp{margin-left:4px}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span>__WEBUI__<a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">⚒</a><span id="hact" hx-get="/boxinfo" hx-trigger="every 5s, box-refresh from:body" hx-swap="innerHTML"></span></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)">⚒</a></h1>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -1127,7 +1140,8 @@ class H(BaseHTTPRequestHandler):
             if m: ARM_SORT_MODE = int(m.group(1))
             self.send_response(204); self.end_headers(); return
         elif self.path == "/boxinfo":
-            try: body, ct = boxinfo(), "text/html"
+            vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
+            try: body, ct = boxinfo(vh), "text/html"
             except Exception as e: body, ct = f"<div class='err'>boxinfo error: {html.escape(str(e))}</div>", "text/html"
         elif self.path == "/stats2":
             try: body, ct = stats()[1], "text/html"
@@ -1196,17 +1210,16 @@ class H(BaseHTTPRequestHandler):
         elif self.path.startswith("/res/"):
             body, ct = res(self.path[5:]) or "<pre>?</pre>", "text/html"
         else:
-            # The arm's own web UI, advertised only when :8080 answers as llama-server
-            # (Server header, sampled in refresh()). Host comes from the request, so a
-            # laptop reading strixy-9ad3.local:8667 gets a link it can actually open.
+            # First paint of the title row is the SAME boxinfo() fragment the 5 s poll
+            # replaces, so the icons and the swap buttons are already correct before the
+            # first htmx round trip. Host comes from the request, so a laptop reading
+            # strixy-9ad3.local:8667 gets links it can actually open.
             vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
             body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__UPTIME__",
             (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
             (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
             profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
-            (lambda up: f'<a class="lab{" dn" if not up else ""}" href="http://{vh}:8080/" target="_blank" '
-                        f'rel="noopener" title="AI chat - the llama-server arm on :8080{" (not listening)" if not up else ""}">'
-                        f'\U0001F916</a>')(port_up(8080)) + lab_ui_html(vh))), "text/html"
+            boxinfo(vh))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
 
