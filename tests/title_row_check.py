@@ -135,5 +135,20 @@ if "#hact .tog{margin-left:auto" not in html:
 if "#bar" not in html.split("<style>")[1].split("</style>")[0]:
     bad.append("#bar has no CSS - the second line would stack vertically")
 
+# The uptime moved to the bar's centre line (operator 261001), and with it the polling: it
+# used to be substituted once by `/`, so it froze at page load for the rest of the day.
+if "__UPTIME__" in html:
+    bad.append("__UPTIME__ is back - the uptime would freeze at page load instead of polling")
+if 'class="up"' not in row:
+    bad.append("the uptime is not in the polled bar fragment")
+if 'class="up"' in html.split("<h1>")[1].split("</h1>")[0]:
+    bad.append("the uptime is back inside <h1>")
+if "#bar .up{position:absolute;left:50%" not in html:
+    bad.append("the uptime is not centred on the bar")
+# The Anvil button is the same box as a lab icon, not a smaller one (261001, operator:
+# "align the anvil button and icon to the other similar buttons size").
+if "height:1.5em" not in html.split(".anv{")[1].split("}")[0]:
+    bad.append(".anv has no fixed height - the anvil renders shorter than the lab icons")
+
 print("FAIL " + "; ".join(bad) if bad else "title row: no footer, 3 toggles + 8 icons present")
 sys.exit(1 if bad else 0)

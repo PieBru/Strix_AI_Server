@@ -589,6 +589,15 @@ def inference():
     if CACHE["jn"] == []: refresh()
     return CACHE["h"], CACHE["svc"], CACHE["arm"], CACHE["tg"], CACHE["acc"], CACHE["jn"], CACHE["errs"], CACHE["gpu_err"]
 
+def uptime_str():
+    # Machine uptime. It used to be substituted once by `/` and froze at page load; the
+    # operator moved it onto the control bar (261001), which is polled, so it ticks now.
+    try:
+        t = float(open("/proc/uptime").read().split()[0])
+    except Exception:
+        return "up ?"
+    return f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m"
+
 def boxinfo(vh=""):
     # The title-row controls (operator 260925 as a footer, 261001 moved up when the footer
     # was deleted): the lab icon buttons AND the llm/image swap buttons. The units carry
@@ -634,7 +643,9 @@ def boxinfo(vh=""):
     # Two groups, one line (operator 261001): the icons OPEN a webui, the word buttons START
     # or STOP a unit. They are separated because they were crowding the title row; the CSS
     # puts .opens left and pushes .tog to the right edge of the bar.
-    return f'<span class="opens">{robot}{lab_ui_html(vh)}</span><span class="tog">' + " ".join(_eps) + "</span>"
+    return (f'<span class="opens">{robot}{lab_ui_html(vh)}</span>'
+            f'<span class="up">{uptime_str()}</span>'
+            f'<span class="tog">' + " ".join(_eps) + "</span>")
 
 def stats():
     _gp, vr, gt, gpw = gpu(); rp, rt, dp, dt, ld, sp, st = ram_disk_cpu()
@@ -893,7 +904,6 @@ h1{font-size:1.2em;color:#fff;display:flex;align-items:center;gap:8px}h2{font-si
 summary{font-size:.95em;color:#888;margin:20px 0 8px;cursor:pointer;list-style:none}
 summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-h1 .up{font-size:.55em;color:#888;font-weight:normal}
 /* The switch result is a sentence. It used to sit inside h1, and h1 is a flex row with about
    160 px of slack: measured 261001, 22 characters kept the row at 29px and 26 pushed it to
    48px — the title wrapped as soon as a profile name was long. It gets its own reserved line
@@ -901,8 +911,10 @@ h1 .up{font-size:.55em;color:#888;font-weight:normal}
 #profmsg{font-size:.62em;color:#8b98a5;min-height:1.2em;margin:-2px 0 4px}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
-.anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center}.anv svg{width:1em;height:1em;fill:currentColor;display:block}
-.anv:hover{border-color:#d9a441}
+.anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center;justify-content:center;height:1.5em}
+/* Same box as .lab (line-height 1.5 + 1px padding + 1px border = 24.7px measured) and an
+ svg at the advance width of an emoji glyph, so the anvil is not a smaller button. */
+.anv svg{width:1.15em;height:1.15em;fill:currentColor;display:block}.anv:hover{border-color:#d9a441}
 /* Lab webuis: icon-only buttons (operator 261001) — the name, port and state live in the
    tooltip, so the row stays one line whatever we add to the lab. Dim = not listening. */
 .lab{font-size:.72em;text-decoration:none;padding:1px 6px;border:1px solid #3a3a3a;border-radius:6px;line-height:1.5}
@@ -929,7 +941,10 @@ details.chk[open] summary::before{content:"▾ "}
 /* The control bar is its own line under the title (operator 261001: the title row was
  crowded). Same 1.2em as h1 so every glyph keeps the size it had inside the title. Opens
  left, start/stop pushed to the right edge by .tog{margin-left:auto}. */
-#bar{display:flex;align-items:center;gap:8px;font-size:1.2em;margin:-2px 0 4px}
+#bar{display:flex;align-items:center;gap:8px;font-size:1.2em;margin:-2px 0 4px;position:relative}
+/* The uptime is the bar's centre line: absolute so it sits at the true middle of the bar
+ whatever the two groups weigh, and out of the flex flow so it cannot push them. */
+#bar .up{position:absolute;left:50%;transform:translateX(-50%);font-size:.55em;color:#888;font-weight:normal;white-space:nowrap}
 #hact{display:flex;align-items:center;flex:1}#hact .cp{font-size:.62em}
 #hact .opens{display:flex;align-items:center;gap:8px}
 #hact .tog{margin-left:auto;display:flex;align-items:center;gap:6px}#hact .tog .cp{margin-left:0}
@@ -957,7 +972,7 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span><span id="profchip" hx-get="/profchip" hx-trigger="box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__<span id="profchip" hx-get="/profchip" hx-trigger="box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span></h1>
 <div id="bar"><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg></a><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span></div>
 <div id="profmsg" class="m"></div>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
@@ -1256,9 +1271,7 @@ class H(BaseHTTPRequestHandler):
             # first htmx round trip. Host comes from the request, so a laptop reading
             # strixy-9ad3.local:8667 gets links it can actually open.
             vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
-            body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__UPTIME__",
-            (lambda t: f"up {int(t//86400)}d {int(t%86400//3600)}h {int(t%3600//60)}m")
-            (float(open("/proc/uptime").read().split()[0]))).replace("__PROF__",
+            body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__PROF__",
             profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
             boxinfo(vh))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
