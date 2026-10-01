@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Every POST branch must answer. /storm/reset and /imgtoggle used to set body/ct and
+"""Every POST branch must answer. /storm/reset and /imgtoggle (since 261001 folded into
+/svctoggle) used to set body/ct and
 then fall off the end of the if/elif chain: the systemctl call ran, the browser got a
 closed socket (curl 000), and the button read as broken. Checked statically so the suite
 never starts or stops a real unit. (operator 261001)"""
@@ -32,8 +33,9 @@ for l in body:
     if "send_response(" in l and (len(l) - len(l.lstrip())) >= 12:
         bad.append(f"{branch} responds inline instead of falling through to the writer")
 
-# The two endpoints that were dead must exist and must not be inline writers.
-for ep in ("/storm/reset", "/imgtoggle"):
+# The endpoints that were dead (and the generic one that replaced /imgtoggle) must exist
+# and must not be inline writers.
+for ep in ("/storm/reset", "/svctoggle"):
     if not any(ep in l for l in body):
         bad.append(f"{ep} is gone from do_POST")
 

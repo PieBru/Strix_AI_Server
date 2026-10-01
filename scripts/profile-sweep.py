@@ -80,7 +80,9 @@ def doctor_maps():
     tag = dict(re.findall(r'"([^"]+)":\s*"([^"]+)"',
                           re.search(r"ARM_TAG = \{(.*?)\}", t, re.S).group(1)))
     lab = [int(p) for _ico, _n, p in
-           re.findall(r'\("(\\U[0-9a-fA-F]{8}|.)",\s*"([^"]*)",\s*(\d+)\)',
+           # No closing \) on purpose: LAB_UI grew a 4th field (the tooltip) and a pattern
+           # that pins the tuple width would silently return [] and blind the sweep.
+           re.findall(r'\("(\\U[0-9a-fA-F]{8}|.)",\s*"([^"]*)",\s*(\d+)',
                       re.search(r"LAB_UI = \[(.*?)\]\n", t, re.S).group(1))]
     return tag, lab
 

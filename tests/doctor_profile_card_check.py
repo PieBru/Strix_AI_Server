@@ -71,6 +71,20 @@ def check_select_marks_current_and_always_offers_the_way_out():
     assert 'value="panic"' in h and 'value="emergency"' in h, h
 
 
+def check_a_stamp_that_is_not_in_the_list_shows_placeholder():
+    # The row must never claim a profile nobody applied by falling back to option #1.
+    h = D.profile_select_html(["coding"], "lab-video")
+    assert h.count("selected") == 1 and "selected disabled>---" in h, h
+    assert 'value="coding" selected' not in h, h
+
+
+def check_the_first_paint_of_the_chip_cannot_lie():
+    # Chrome restores a <select>'s previous selection over `selected` on reload, so `/`
+    # must paint something with nothing to restore (operator 261001: "panic" on refresh).
+    assert "---" in D.PROF_PLACEHOLDER and "value=" not in D.PROF_PLACEHOLDER, D.PROF_PLACEHOLDER
+    assert 'id="prof"' in D.PROF_PLACEHOLDER, "the placeholder must be the same chip shape"
+
+
 def check_apply_validates_before_anything_is_spawned():
     calls = []
     known = {"coding", "lab-video", "panic", "emergency"}
@@ -126,6 +140,8 @@ def main():
                check_names_are_escaped_not_executed,
                check_no_stamp_says_so_exactly_once,
                check_select_marks_current_and_always_offers_the_way_out,
+               check_a_stamp_that_is_not_in_the_list_shows_placeholder,
+               check_the_first_paint_of_the_chip_cannot_lie,
                check_apply_validates_before_anything_is_spawned,
                check_apply_spawns_the_exact_name_once,
                check_a_refused_apply_is_said_instead_of_a_lie,

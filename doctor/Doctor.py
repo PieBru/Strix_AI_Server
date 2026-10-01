@@ -37,6 +37,23 @@ _JU = [a for u in ROUTER_UNITS for a in ("-u", u)]
 LLM_ARMS = ("27b-collm", "gemma-collm", "gufo-llm", "llama-llm")
 ARM_TAG = {"27b-collm": "27b", "gemma-collm": "gemma", "gufo-llm": "gufo", "llama-llm": "webui"}
 
+# The start/stop buttons. One source for the button, the probe that colours it and the
+# systemctl argv (operator 261001: lab services kept appearing with no button at all). The
+# LAST unit decides "running"; start/stop takes the whole list, so a UI and the engine
+# behind it cannot be left half up. The :8080 text arms are NOT here - /llmtoggle resolves
+# which arm is live and acts on that one. ltx25-ui is out on purpose (no render path on
+# gfx1151, same reason :7864 has no icon) and gradio-v6-relay / routers are plumbing.
+SVC_TOGGLES = {
+    "demo":    ("demo",    7860, ["gufo-serve", "qwen-image-demo"]),
+    "test":    ("test",    7860, ["gufo-serve", "qwen-image-test"]),
+    "comfy":   ("comfy",   8188, ["comfyui-h3"]),
+    "h3ui":    ("h3ui",    7861, ["h3-video-ui"]),
+    "acestep": ("acestep", 7862, ["acestep-serve", "acestep-ui"]),
+    "whisper": ("whisper", 7863, ["whisper-stt"]),
+    "webui":   ("webui",   3000, ["open-webui"]),
+    "sos":     ("sos",     8082, ["sos-collm"]),
+}
+
 
 def _unit(u, verb):
     try:
@@ -272,9 +289,20 @@ def profile_select_html(names, current):
     """The dropdown in the title row. panic and emergency are always offered even if the
     profiles dir is gone or unreadable — they are the way out, not a preference."""
     opts = list(dict.fromkeys(list(names) + ["panic", "emergency"]))
-    return ('<select id="prof" onchange="profGo(this)">' + "".join(
+    # A stamp that is not in the list must not fall back to the first option: the row would
+    # claim a profile nobody applied. Say --- and let the next poll be right.
+    ph = "" if current in opts else '<option selected disabled>---</option>'
+    return ('<select id="prof" onchange="profGo(this)">' + ph + "".join(
         f'<option value="{html.escape(n)}"' + (' selected' if n == current else '') +
         f'>{html.escape(n)}</option>' for n in opts) + "</select>")
+
+
+# What `/` puts in the chip before the first poll. The first paint used to render the real
+# dropdown, and a hard refresh showed a profile that was not applied: Chrome restores the
+# <select>'s previous selection over the `selected` attribute when it re-renders the same
+# URL, so the honest value was overwritten by whatever the tab last held ("panic", here).
+# A one-option placeholder cannot be restored to a lie; #profchip pulls the truth on load.
+PROF_PLACEHOLDER = '<select id="prof" disabled><option>---</option></select>'
 
 
 def profile_apply(path, known, spawn, preflight=None):
@@ -609,16 +637,10 @@ def boxinfo(vh=""):
     # frozen at its page-load colour until a hard refresh. `/` still server-renders them as
     # the span's initial content, so the first paint is not a 5 s hole.
     vh = vh or socket.gethostname()
-    def _svc(u):
-        try: return subprocess.run(["systemctl", "--user", "is-active", u],
-                   capture_output=True, text=True, timeout=4).stdout.strip() == "active"
-        except Exception: return False
-    def _has(u):
-        try: return subprocess.run(["systemctl", "--user", "cat", u],
-                   capture_output=True, timeout=4).returncode == 0
-        except Exception: return False
-    def _btn(path, label):
-        return (f'<button class="cp" onclick="'
+    def _btn(path, label, on=False):
+        # `on` is the unit's real state, not the glyph: green text while it runs, the same
+        # grey as everything else when it does not (operator 261001).
+        return (f'<button class="cp{" on" if on else ""}" onclick="'
                 f'this.textContent=\'working…\';fetch(\'{path}\',{{method:\'POST\'}})'
                 f'.then(()=>setTimeout(()=>window.dispatchEvent(new Event(\'box-refresh\')),3000))'
                 f'.catch(()=>this.textContent=\'failed\')">{label}</button>')
@@ -628,21 +650,24 @@ def boxinfo(vh=""):
     # the old "open ↗" link is gone because the 🤖 icon opens the same port off the
     # request Host, which works from a LAN browser too.
     _arm = arm_target()
+    _live = _arm == arm_live()
     _lbl = ARM_TAG.get(_arm, "llm")
-    _eps.append(_btn("/llmtoggle", ("⏹ " if _arm == arm_live() else "▶ ") + f"{_lbl} :8080"))
-    # Image stack: demo/test app toggles (mutually exclusive via Conflicts)
-    if _has("gufo-serve.service"):
-        _eps.append(_btn("/imgtoggle?app=demo", ("⏹ demo :7860" if _svc("qwen-image-demo") else "▶ demo :7860"))
-                    + " " + _btn("/imgtoggle?app=test", ("⏹ test :7860" if _svc("qwen-image-test") else "▶ test :7860")))
+    _eps.append(_btn("/llmtoggle", ("⏹ " if _live else "▶ ") + f"{_lbl} :8080", _live))
+    for _key, (_name, _port, _units) in SVC_TOGGLES.items():
+        _dec = f"{_units[-1]}.service"
+        if not _unit(_dec, "cat"):      # not installed on this box -> no button
+            continue
+        _on = _unit(_dec, "is-active")
+        _eps.append(_btn(f"/svctoggle?u={_key}", ("⏹ " if _on else "▶ ") + f"{_name} :{_port}", _on))
     # ComfyUI :8188, ACE-Step :7862 and Open WebUI :3000 used to be links here. They are
     # icon buttons in the same row now (LAB_UI), which also shows them when stopped.
     up8080 = port_up(8080)
-    robot = (f'<a class="lab{" dn" if not up8080 else ""}" href="http://{vh}:8080/" target="_blank" '
-             f'rel="noopener" title="AI chat - the llama-server arm on :8080'
-             f'{" (not listening)" if not up8080 else ""}">\U0001F916</a>')
-    # Two groups, one line (operator 261001): the icons OPEN a webui, the word buttons START
-    # or STOP a unit. They are separated because they were crowding the title row; the CSS
-    # puts .opens left and pushes .tog to the right edge of the bar.
+    # Only what answers gets a button (operator 261001): a grey icon you cannot open is
+    # decoration, and the start/stop line below is where a stopped unit is started.
+    robot = (f'<a class="lab" href="http://{vh}:8080/" target="_blank" rel="noopener" '
+             f'title="AI chat - the llama-server arm on :8080">\U0001F916 llm</a>') if up8080 else ""
+    # Two groups (operator 261001): the icons OPEN a webui, the word buttons START or STOP a
+    # unit. The CSS puts .opens on the bar's first line and gives .tog its own line under it.
     return (f'<span class="opens">{robot}{lab_ui_html(vh)}</span>'
             f'<span class="up">{uptime_str()}</span>'
             f'<span class="tog">' + " ".join(_eps) + "</span>")
@@ -796,18 +821,20 @@ def stats():
             + '<details id="infdet"><summary>inference</summary><div class="grid">' + infrow + '</div></details>',
             f'{log}')
 
-# Lab webuis as icon buttons in the title row (operator 261001): icon inside, name + port +
-# liveness in the tooltip. One line per service, so adding a server to the lab is one entry
-# here and nothing else. Dead ones render DIM instead of vanishing: a grey icon means
-# "stopped", a missing icon would mean "this box has no such thing". ponytail: "listening"
-# is not "serving" - a front like socat :7860 answers even with the gradio behind it down;
-# the footer's play/stop buttons are the authority on unit state, these are shortcuts.
-LAB_UI = [("\U0001F3A8", "ComfyUI - MiniMax-H3 workflows", 8188),
-          ("\U0001F5BC", "Qwen-Image web app", 7860),
-          ("\U0001F3AC", "MiniMax-H3 video UI", 7861),
-          ("\U0001F3B5", "ACE-Step music UI", 7862),
-          ("\U0001F3A4", "Whisper STT", 7863),
-          ("\U0001F4AC", "Open WebUI", 3000)]
+# Lab webuis as buttons in the control bar (operator 261001): icon + short name on the
+# button, long description + port + liveness in the tooltip - the short name is what pairs
+# visually with the start/stop word under it. One line per service, so adding a server to
+# the lab is one entry here and nothing else. Dead ones render DIM instead of vanishing: a
+# grey icon means "stopped", a missing icon would mean "this box has no such thing".
+# ponytail: "listening" is not "serving" - a front like socat :7860 answers even with the
+# gradio behind it down; the start/stop buttons are the authority on unit state, these are
+# shortcuts.
+LAB_UI = [("\U0001F3A8", "comfy", 8188, "ComfyUI - MiniMax-H3 workflows"),
+          ("\U0001F5BC", "img", 7860, "Qwen-Image web app"),
+          ("\U0001F3AC", "h3ui", 7861, "MiniMax-H3 video UI"),
+          ("\U0001F3B5", "acestep", 7862, "ACE-Step music UI"),
+          ("\U0001F3A4", "whisper", 7863, "Whisper STT"),
+          ("\U0001F4AC", "webui", 3000, "Open WebUI")]
 
 
 # GPU POWER zones (operator 261001): ~105 W is the NORMAL steady state while an arm infers
@@ -839,18 +866,24 @@ def port_up(port):
 
 
 def lab_ui_html(vh):
-    """Icon buttons for the lab UIs. Host comes from the request, so a laptop reading
-    strixy-9ad3.local:8667 gets links it can actually open. Rendered inside the #hact
+    """Buttons for the lab UIs that are UP right now - icon AND short name, because seven
+    identical glyphs meant hovering the whole row to find the page you wanted (operator
+    261001). A stopped service renders NOTHING here: the row is "what can I open", and the
+    start/stop line under it is "what can I turn on". Host comes from the request, so a
+    laptop reading strixy-9ad3.local:8667 gets links it can actually open. Rendered inside
+    the #hact
     fragment, so the 5 s poll (and box-refresh after any start/stop) re-probes them; `/`
     server-renders the same markup for the first paint. Liveness is a 50 ms loopback connect - no subprocess, no visible latency. The probe goes
     through create_connection so BOTH families are tried: socat fronts :7860 on IPv6 only
     (measured 261001, `ss -ltn` shows [::]:7860), so an AF_INET/127.0.0.1-only probe called
     a live UI dead."""
     out = []
-    for ico, name, port in LAB_UI:
-        up = port_up(port)
-        out.append(f'<a class="lab{" dn" if not up else ""}" href="http://{vh}:{port}/" target="_blank" '
-                   f'rel="noopener" title="{html.escape(name)} :{port}{"" if up else " - not listening"}">{ico}</a>')
+    for ico, name, port, tip in LAB_UI:
+        if not port_up(port):
+            continue
+        out.append(f'<a class="lab" href="http://{vh}:{port}/" target="_blank" '
+                   f'rel="noopener" title="{html.escape(tip)} :{port}">'
+                   f'{ico} {html.escape(name)}</a>')
     return "".join(out)
 
 
@@ -911,15 +944,14 @@ summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 #profmsg{font-size:.62em;color:#8b98a5;min-height:1.2em;margin:-2px 0 4px}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
-.anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center;justify-content:center;height:1.5em}
+.anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center;justify-content:center;gap:.3em;height:1.5em}
 /* Same box as .lab (line-height 1.5 + 1px padding + 1px border = 24.7px measured) and an
  svg at the advance width of an emoji glyph, so the anvil is not a smaller button. */
 .anv svg{width:1.15em;height:1.15em;fill:currentColor;display:block}.anv:hover{border-color:#d9a441}
-/* Lab webuis: icon-only buttons (operator 261001) — the name, port and state live in the
-   tooltip, so the row stays one line whatever we add to the lab. Dim = not listening. */
-.lab{font-size:.72em;text-decoration:none;padding:1px 6px;border:1px solid #3a3a3a;border-radius:6px;line-height:1.5}
+/* Lab webuis: icon + short name (operator 261001), green like a running service button -
+   and only the ones that answer are rendered at all, so green is the only state here. */
+.lab{font-size:.72em;text-decoration:none;padding:1px 6px;border:1px solid #3a3a3a;border-radius:6px;line-height:1.5;color:#6dd66d}
 .lab:hover{border-color:#4c9aff}
-.lab.dn{opacity:.3;filter:grayscale(1)}
 .card{background:#1c1c1c;border:1px solid #333;border-radius:10px;padding:12px}
 /* The title rule only — `.card b` hit every nested <b> too, so the profile and
    watchdog lines broke one fragment per line (260930, operator screenshot). */
@@ -941,13 +973,21 @@ details.chk[open] summary::before{content:"▾ "}
 /* The control bar is its own line under the title (operator 261001: the title row was
  crowded). Same 1.2em as h1 so every glyph keeps the size it had inside the title. Opens
  left, start/stop pushed to the right edge by .tog{margin-left:auto}. */
-#bar{display:flex;align-items:center;gap:8px;font-size:1.2em;margin:-2px 0 4px;position:relative}
-/* The uptime is the bar's centre line: absolute so it sits at the true middle of the bar
- whatever the two groups weigh, and out of the flex flow so it cannot push them. */
-#bar .up{position:absolute;left:50%;transform:translateX(-50%);font-size:.55em;color:#888;font-weight:normal;white-space:nowrap}
-#hact{display:flex;align-items:center;flex:1}#hact .cp{font-size:.62em}
+#bar{display:flex;align-items:flex-start;gap:8px;font-size:1.2em;margin:-2px 0 4px;position:relative}
+/* The uptime sits at the right end of the opens line, opposite the icons: absolute so it is
+ out of the flex flow and cannot push the groups, and it polls with them (see uptime_str). */
+#bar .up{position:absolute;right:0;font-size:.55em;color:#888;font-weight:normal;white-space:nowrap}
+/* Opens on the first line, start/stop on their OWN line under them (operator 261001),
+ left-aligned so each button sits under the icon of the page it controls. flex-basis:100%
+ is what forces the second line. */
+#hact{display:flex;flex-wrap:wrap;align-items:center;flex:1;row-gap:4px}
+#hact .cp{font-size:.62em}
 #hact .opens{display:flex;align-items:center;gap:8px}
-#hact .tog{margin-left:auto;display:flex;align-items:center;gap:6px}#hact .tog .cp{margin-left:0}
+#hact .tog{flex-basis:100%;display:flex;align-items:center;gap:6px;justify-content:flex-start}
+#hact .tog .cp{margin-left:0}
+/* Running = green label, stopped = the ordinary grey. The glyph says the action, the
+ colour says the state, so the row is readable at a glance from the far side of the room. */
+#hact .tog .cp.on{color:#6dd66d}
 .log{margin-top:18px;font-family:ui-monospace,monospace;font-size:.72em;line-height:1.5;max-height:340px;overflow-y:auto}
 .log .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb}
 .log .l.e{color:#ff6b6b}.log .l.a{color:#ffc46b}.log .l.d{color:#777}
@@ -972,8 +1012,8 @@ details.chk[open] summary::before{content:"▾ "}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__<span id="profchip" hx-get="/profchip" hx-trigger="box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span></h1>
-<div id="bar"><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg></a><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span></div>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__<span id="profchip" hx-get="/profchip" hx-trigger="load, box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span></h1>
+<div id="bar"><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg>anvil</a><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span></div>
 <div id="profmsg" class="m"></div>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
@@ -1132,19 +1172,22 @@ class H(BaseHTTPRequestHandler):
             _act = _arm == arm_live()
             subprocess.run(["systemctl", "--user", ("stop" if _act else "start"), f"{_arm}.service"], timeout=60)
             body, ct = f"{('stopping' if _act else 'starting')} {_arm}…", "text/plain"
-        elif self.path.startswith("/imgtoggle"):
-            # 260925: start/stop the image stack; ?app=demo|test picks the UI.
-            # Starting one app auto-stops the other + llm arms (unit Conflicts).
-            _app = "qwen-image-demo.service" if "app=test" not in self.path else "qwen-image-test.service"
-            _act = subprocess.run(["systemctl", "--user", "is-active", _app],
-                                  capture_output=True, text=True, timeout=4).stdout.strip()
-            if _act == "active":
-                subprocess.run(["systemctl", "--user", "stop", _app, "gufo-serve.service"], timeout=60)
-                body = f"stopping {_app} + image backend…"
+        elif self.path.startswith("/svctoggle"):
+            # The generic start/stop (operator 261001). The key is looked up in SVC_TOGGLES
+            # and nothing else: with no auth on this box the dict is the only thing between
+            # a stray POST and an arbitrary systemctl call. Same semantics the old
+            # /imgtoggle had by hand: stop the list if the deciding unit is up, else start
+            # the whole list (a UI and its engine never half-up).
+            _key = (parse_qs(urlparse(self.path).query).get("u") or [""])[0]
+            _ent = SVC_TOGGLES.get(_key)
+            if not _ent:
+                code, body, ct = 404, f"unknown service {_key!r}", "text/plain"
             else:
-                subprocess.run(["systemctl", "--user", "start", "gufo-serve.service", _app], timeout=60)
-                body = f"starting image backend + {_app}…"
-            body, ct = body, "text/plain"
+                _units = [f"{u}.service" for u in _ent[2]]
+                _on = _unit(_units[-1], "is-active")
+                subprocess.run(["systemctl", "--user", "stop" if _on else "start", *_units],
+                               timeout=60)
+                body, ct = f"{'stopping' if _on else 'starting'} {' + '.join(_units)}…", "text/plain"
         elif self.path.startswith("/profile"):
             # Apply a profile from the panel. The name is validated against the profile keys
             # before anything is spawned (profile_apply), and the apply is detached like
@@ -1272,7 +1315,8 @@ class H(BaseHTTPRequestHandler):
             # strixy-9ad3.local:8667 gets links it can actually open.
             vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
             body, ct = (HTML.replace("__HOST__", socket.gethostname()).replace("__PROF__",
-            profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)), SP.read_stamp())).replace("__WEBUI__",
+            # Not the real dropdown: see PROF_PLACEHOLDER. The poll fills it in on load.
+            PROF_PLACEHOLDER).replace("__WEBUI__",
             boxinfo(vh))), "text/html"
         self.send_response(200); self.send_header("Content-Type", ct); self.end_headers(); self.wfile.write(body.encode())
     def log_message(self, *a): pass
