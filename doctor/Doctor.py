@@ -806,11 +806,19 @@ heat_power = lambda w: "hsl(120,90%,55%)" if w < 110 else ("hsl(45,90%,55%)" if 
 
 
 def port_up(port):
-    """50 ms loopback connect, BOTH families: socat fronts :7860 on IPv6 only (measured
-    261001, `ss -ltn` shows [::]:7860), so an AF_INET/127.0.0.1-only probe calls a live
-    service dead. No subprocess, no visible latency."""
+    """50 ms loopback connect to 127.0.0.1 - and specifically NOT to "localhost".
+
+    261001 note, reversed: the version below probed "localhost", added because `ss -ltn`
+    showed [::]:7860 and an IPv4-only probe was believed to call a live UI dead. The
+    listener on [::]:7860 is gradio-v6-relay (socat, ipv6only=1, fork), which exists for
+    REMOTE v6 clients and accepts the TCP handshake even when its IPv4 backend is gone - so
+    the probe reported the Qwen-Image web app live in every profile, all day, with nothing
+    behind it (measured: `curl http://[::1]:7860/` -> 000 while the icon stayed lit).
+    Gradio and every lab unit here bind 0.0.0.0, so the IPv4 address is the service itself.
+    A box that ever serves a UI on IPv6 alone needs a second probe, and the relay must be
+    excluded from it."""
     try:
-        socket.create_connection(("localhost", port), 0.05).close()
+        socket.create_connection(("127.0.0.1", port), 0.05).close()
         return True
     except OSError:
         return False
@@ -836,7 +844,7 @@ HTML = """<!doctype html><html><head><meta charset=utf-8><title>Doctor</title>
 <script src="/htmx.min.js"></script>
 <script>function armOrd(m){fetch('/armorder?mode='+m)}
 function profGo(s){const m=document.getElementById('profmsg');m.textContent='…';
- fetch('/profile?name='+encodeURIComponent(s.value),{method:'POST'}).then(r=>r.text()).then(t=>{m.textContent=t;
+ fetch('/profile?name='+encodeURIComponent(s.value),{method:'POST'}).then(r=>r.text()).then(t=>{m.textContent=t;m.title=t;
   window.dispatchEvent(new Event('box-refresh'))})
  .catch(()=>{m.textContent='request failed'})}
 </script>
@@ -883,6 +891,11 @@ summary{font-size:.95em;color:#888;margin:20px 0 8px;cursor:pointer;list-style:n
 summary::before{content:"▸ "}details[open] summary::before{content:"▾ "}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 h1 .up{font-size:.55em;color:#888;font-weight:normal}
+/* The switch result is a sentence. It used to sit inside h1, and h1 is a flex row with about
+   160 px of slack: measured 261001, 22 characters kept the row at 29px and 26 pushed it to
+   48px — the title wrapped as soon as a profile name was long. It gets its own reserved line
+   under the title instead: full text, no layout jump, and a message cannot wrap the row. */
+#profmsg{font-size:.62em;color:#8b98a5;min-height:1.2em;margin:-2px 0 4px}
 h1 #rst{font-size:.7em;color:#888;background:none;border:1px solid #444;border-radius:6px;cursor:pointer;padding:0 8px}
 h1 #rst:hover{color:#4c9aff;border-color:#4c9aff}
 h1 .anv{font-size:.72em;color:#d9a441;border:1px solid #4a3c22;border-radius:6px;padding:1px 6px;text-decoration:none;line-height:1.5;display:inline-flex;align-items:center}h1 .anv svg{width:1em;height:1em;fill:currentColor;display:block}
@@ -935,7 +948,8 @@ h1 #hact{display:flex;align-items:center;gap:8px}h1 #hact .cp{font-size:.62em}
 .links a{color:#4c9aff;text-decoration:none;font-size:.85em}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}}
 </style></head><body>
-<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span>__PROF__<span id="profmsg" class="m"></span><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg></a></h1>
+<h1><button id="rst" title="restart Doctor.service" onclick="this.textContent='…';fetch('/restart',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),2500)).catch(()=>{})">↻</button>__HOST__ · <span class="up">__UPTIME__</span><span id="profchip" hx-get="/profchip" hx-trigger="box-refresh from:body, every 5s[document.activeElement.id!=='prof']" hx-swap="innerHTML">__PROF__</span><span id="hact" hx-get="/boxinfo" hx-trigger="load, every 5s, box-refresh from:body" hx-swap="innerHTML">__WEBUI__</span><a class="anv" href="/anvil" target="_blank" rel="noopener" title="Anvil - chat + agent console (vendored, talks to the arm on :8080)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v5c4.03 2.47-.56 4.97-3 6v3h15v-3c-6.41-2.73-3.53-7 1-8V5zM2 6c.81 2.13 2.42 3.5 5 4V6z"/></svg></a></h1>
+<div id="profmsg" class="m"></div>
 <div id="stats" hx-get="/stats" hx-trigger="every 2s" hx-swap="innerHTML">loading…</div>
 <details class="actbox"><summary>morning report</summary>
 <div id="chk" hx-get="/chk" hx-trigger="load, every 60s" hx-swap="innerHTML">loading…</div>
@@ -1147,6 +1161,15 @@ class H(BaseHTTPRequestHandler):
             m = re.search(r"mode=(\d)", self.path)
             if m: ARM_SORT_MODE = int(m.group(1))
             self.send_response(204); self.end_headers(); return
+        elif self.path == "/profchip":
+            # The dropdown's selected option is state, and it used to be rendered once by `/`
+            # outside any polled slot: apply a profile from the CLI and the row kept claiming
+            # the old one until a hard reload (operator 261001). Same lesson as the icons.
+            try:
+                body, ct = profile_select_html(list(SP.load_profiles(SP.PROFILES_DIR)),
+                                               SP.read_stamp()), "text/html"
+            except Exception as e:
+                body, ct = f"<div class='err'>profchip error: {html.escape(str(e))}</div>", "text/html"
         elif self.path == "/boxinfo":
             vh = (self.headers.get("Host") or "").split(":")[0] or socket.gethostname()
             try: body, ct = boxinfo(vh), "text/html"

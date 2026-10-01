@@ -77,5 +77,39 @@ if 'href="http://h:8188/"' not in D.boxinfo("h"):
 if "box-refresh" not in html.split("function profGo")[1].split("\n</script>")[0]:
     bad.append("profGo does not dispatch box-refresh - a profile switch leaves the row stale")
 
+# The `dn` class on every icon comes from port_up(), so the probe is part of the row's
+# contract. It must not believe a TCP handshake to a relay: gradio-v6-relay (socat,
+# ipv6only=1) accepts on [::]:7860 with nothing behind it, and the Qwen-Image icon stayed
+# lit through every profile all day 261001. Conditional so it only bites where the relay runs.
+def _open(host, port):
+    try:
+        __import__("socket").create_connection((host, port), 0.05).close()
+        return True
+    except OSError:
+        return False
+
+
+if _open("::1", 7860) and not _open("127.0.0.1", 7860) and D.port_up(7860):
+    bad.append("port_up(7860) believes the IPv6 relay - a socket that accepts with no backend "
+               "is DOWN (probe 127.0.0.1, not 'localhost')")
+
+# The profile dropdown is state too, and it had the same bug the icons had: rendered once by
+# `/`, outside every polled slot, so a CLI apply left it claiming the old profile until a
+# hard reload (operator 261001). It must sit in its own polled chip, and the POST message
+# must live OUTSIDE that chip or the swap erases the answer the click just got.
+if 'hx-get="/profchip"' not in html:
+    bad.append("the profile <select> is not in a polled fragment - a CLI apply leaves it stale")
+if html.count("__PROF__") != 1 or 'id="profchip" hx-get="/profchip"' not in html:
+    bad.append("__PROF__ must be rendered exactly once, inside #profchip")
+chip = html.split('id="profchip"')[1].split("</span>")[0] if 'id="profchip"' in html else ""
+if 'id="profmsg"' in chip:
+    bad.append("#profmsg is inside the swapped chip - the switch result would vanish on the next poll")
+# ...and it must not be inside the title row either: h1 is a flex row with ~160px of slack, so
+# a long switch message wraps the whole row (measured 29px -> 48px at 26 characters, 261001).
+if 'id="profmsg"' in html.split("<h1>")[1].split("</h1>")[0]:
+    bad.append("#profmsg is inside <h1> - a long switch message wraps the title row")
+if 'self.path == "/profchip"' not in served:
+    bad.append("/profchip has no route")
+
 print("FAIL " + "; ".join(bad) if bad else "title row: no footer, 3 toggles + 8 icons present")
 sys.exit(1 if bad else 0)
