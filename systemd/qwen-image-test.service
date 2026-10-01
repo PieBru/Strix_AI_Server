@@ -13,6 +13,10 @@ WorkingDirectory=/home/piero/Piero/Work/QImage21
 ExecStart=/usr/bin/uv run --offline --with gradio --with pillow python tests/simple_gradio_ui.py
 Restart=on-failure
 RestartSec=5
+# A hand stop or a profile switch SIGTERMs gradio and it dies on 143; without this systemd
+# files the unit as Result=exit-code and the Doctor counts a crash that never happened
+# (observed 261001 on both :7860 apps; the other gradio units already carry the line).
+SuccessExitStatus=143
 
 [Install]
 WantedBy=default.target

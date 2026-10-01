@@ -15,6 +15,9 @@ WorkingDirectory=/home/piero/Piero/Work/QImage21
 ExecStart=/usr/bin/uv run --offline --with gradio --with numpy --with requests --with pillow python qwen-space/app.py
 Restart=on-failure
 RestartSec=5
+# Same as the test app: a clean stop lands on 143 and read as Result=exit-code until the
+# 261001 drill. Live unit carries it in .d/stop.conf.
+SuccessExitStatus=143
 
 [Install]
 WantedBy=default.target

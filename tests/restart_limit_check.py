@@ -64,6 +64,12 @@ for fn in sorted(os.listdir(UNITS)):
     checked += 1
     if not reachable(restart, rsec, ivl, b):
         bad.append(f"{fn}: RestartSec={rsec}s burst={b} needs {(b - 1) * rsec:.0f}s > window {ivl:.0f}s")
+    # A gradio/uv unit dies on SIGTERM (143). Without SuccessExitStatus=143 a hand stop or a
+    # profile switch is filed as Result=exit-code and the Doctor counts a crash that never
+    # happened. Observed 261001 on both :7860 apps - the second had been missed by the 260927
+    # sweep precisely because it was not running that day.
+    if "ExecStart=/usr/bin/uv run" in t and "SuccessExitStatus=143" not in t:
+        bad.append(f"{fn}: a uv/gradio unit without SuccessExitStatus=143 reads FAILED on a clean stop")
 assert checked >= 8, f"only {checked} unit files found in systemd/ — did the scan break?"
 assert not bad, "unreachable restart limit:\n  " + "\n  ".join(bad)
 
@@ -75,6 +81,20 @@ except (OSError, subprocess.SubprocessError):
     live = ""
 if live:
     assert sec(live) == mgr_interval, f"live user manager says {live!r}, mirror says {mgr_interval:.0f}s — daemon-reexec?"
+
+# Same "edited but never applied" trap for the stop semantics: the repo file and the live
+# unit (drop-ins included) must agree, or the fix is fiction.
+for fn in sorted(os.listdir(UNITS)):
+    if not fn.endswith(".service") or "SuccessExitStatus=143" not in open(os.path.join(UNITS, fn)).read():
+        continue
+    try:
+        got = subprocess.run(["systemctl", "--user", "show", fn, "-p", "SuccessExitStatus", "--value"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        break
+    if got == "":
+        continue  # unit not installed on this box
+    assert "143" in got, f"{fn}: mirror says 143, live user manager says {got!r} — daemon-reload?"
 
 print(f"restart_limit_check: PASS — {checked} units, window {mgr_interval:.0f}s / burst {mgr_burst}"
       + (f", live {live}" if live else " (no systemctl: mirror only)"))
