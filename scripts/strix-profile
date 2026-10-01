@@ -489,7 +489,12 @@ def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None 
             if r is not None:
                 return r
     v = verdict_fn(box, p.name)
-    if v is None and not force:
+    # A switch that starts nothing new cannot overload the box: `off`, or any profile whose
+    # allow-list is already inside the running set, is a STOP, and the gate exists to judge
+    # starts. Refusing it for lack of a load test meant the box could not be silenced from
+    # the Doctor's own dropdown (measured 261001: apply off -> REFUSED, no gate evidence).
+    shrinks = set(p.start) <= live
+    if v is None and not (force or shrinks):
         r = refuse(f"no gate evidence for this profile on this box",
                    f"\n        run: strix-profile verify {name}")
         if r is not None:
@@ -499,8 +504,8 @@ def apply(name: str, *, PROFILES_DIR: str | None = None, stamp_path: str | None 
         # emergency are for: the box is already wrong and a missing load test must not stand in
         # the way of the one shape that frees memory. A measured FAIL is different evidence and
         # is still refused below.
-        print(f"apply {name}: --force, no gate evidence on this box — proceeding unmeasured",
-              file=sys.stderr)
+        print(f"apply {name}: {'--force' if force else 'starts nothing new'}, no gate evidence "
+              f"on this box — proceeding unmeasured", file=sys.stderr)
     elif v.get("verdict") != "PASS":
         r = refuse(f"the gate says {v.get('verdict')}: {'; '.join(v.get('reasons') or [])}")
         if r is not None:

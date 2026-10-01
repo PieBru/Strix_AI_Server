@@ -510,6 +510,24 @@ def check_force_reaches_an_ungated_profile_but_never_a_measured_fail():
         sys.stderr = old
 
 
+def check_a_profile_that_only_stops_needs_no_load_test():
+    # The gate judges what a profile STARTS. `off` starts nothing, so absence of a load test
+    # must not keep the box running: measured 261001, `apply off` -> REFUSED, no gate
+    # evidence, and the Doctor's dropdown had no way to silence the machine.
+    d = _ws()
+    err, old = io.StringIO(), sys.stderr
+    sys.stderr = err
+    try:
+        assert _apply("off", d, stub=_Stub(), verdict=lambda b, p: None,
+                      live=("27b-collm", "comfyui-h3")) == 0, "stopping everything is not a risk"
+        assert "starts nothing new" in err.getvalue(), err.getvalue()
+        # A profile that would START something the box is not already running still refuses.
+        assert _apply("lab-video", d, verdict=lambda b, p: None,
+                      live=("27b-collm",)) == 1, "growing the set still needs evidence"
+    finally:
+        sys.stderr = old
+
+
 def main():
     for fn in [check_loader_fields, check_drift_separates_claim_from_truth,
                check_unknown_profile_raises_not_empty, check_malformed_profile_raises,
@@ -530,6 +548,7 @@ def main():
                check_apply_refuses_busy_gpu_before_touching_anything,
                check_the_busy_guard_asks_the_renderer_and_not_the_gpu_percentage,
                check_force_reaches_an_ungated_profile_but_never_a_measured_fail,
+               check_a_profile_that_only_stops_needs_no_load_test,
                check_apply_refuses_stale_gate_unless_i_know,
                check_never_gated_profiles_ignore_the_clock,
                check_apply_refuses_a_stamp_earned_by_a_different_set,
