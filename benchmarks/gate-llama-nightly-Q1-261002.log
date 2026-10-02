@@ -1,0 +1,42 @@
+[12:21:40] === Q1: nightly server, the unit's own flags ===
+[12:21:40] watchdog disabled; GTT before 44.0 GiB
+[12:21:44] stopped; GTT 0.0 GiB
+[12:22:04] health=200 after 25s; GTT at load 43.6 GiB; avail 71G
+0.00.689.821 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during m
+0.00.716.340 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+[12:22:04] Q1 load: PASS
+[12:22:08] probe1 TOOLCALL {"command":"df -h /"}
+[12:22:12] probe2 TOOLCALL {"command":"df -h /"}
+[12:22:16] probe3 TOOLCALL {"command":"df -h /"}
+[12:22:20] probe4 TOOLCALL {"command":"df -h /"}
+[12:22:24] probe5 TOOLCALL {"command":"df -h /"}
+[12:22:26] version: version: 0.5.0-dev (build 11537, commit 0f36c46b)
+[12:22:34] server stopped; GTT 0.0 GiB — weights now page-cached for both bench legs
+[12:22:34] === Q2: llama-bench A/B (same weights, same recipe, cache warm for both) ===
+[12:22:34] --- CUR pinned b0f31f58
+ggml_cuda_init: found 1 ROCm devices (Total VRAM: 126976 MiB):
+  Device 0: AMD Radeon 8060S Graphics, gfx1151 (0x1151), VMM: no, Wave Size: 32, VRAM: 126976 MiB
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |           pp512 |        585.48 ± 5.39 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |          pp4096 |        525.48 ± 0.38 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |           tg128 |          7.08 ± 0.00 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |  pp512 @ d32768 |        371.32 ± 2.26 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 | pp4096 @ d32768 |        357.86 ± 0.22 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |  tg128 @ d32768 |          6.37 ± 0.00 |
+
+build: 0f36c46b (11537)
+[12:26:10] CUR rc=0; GTT 0.0 GiB
+[12:26:10] --- NIGHT nightly b1006
+ggml_cuda_init: found 1 ROCm devices (Total VRAM: 126976 MiB):
+  Device 0: AMD Radeon 8060S Graphics, gfx1151 (0x1151), VMM: no, Wave Size: 32, VRAM: 126976 MiB
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |           pp512 |       563.28 ± 11.60 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |          pp4096 |        520.10 ± 0.39 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |           tg128 |          7.07 ± 0.00 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |  pp512 @ d32768 |        368.57 ± 4.31 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 | pp4096 @ d32768 |        356.32 ± 0.18 |
+| qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |   1 |  tg128 @ d32768 |          6.37 ± 0.00 |
+
+build: 0f36c46b (11537)

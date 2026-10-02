@@ -1,0 +1,33 @@
+[12:32:20] arms down (GTT 0.0 GiB); watchdog disabled
+[12:32:20] === recipe A: serving-like flags ===
+[12:36:04] A/pinned  -> build: b0f31f58 (expected b0f31f58)
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |           pp512 |        540.58 ± 5.44 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |          pp4096 |        501.17 ± 0.42 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |           tg128 |          7.23 ± 0.01 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |  pp512 @ d32768 |        340.34 ± 3.26 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 | pp4096 @ d32768 |        324.72 ± 0.79 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |  tg128 @ d32768 |          6.48 ± 0.02 |
+[12:39:39] A/nightly -> build: 0f36c46b (expected 0f36c46b)
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |           pp512 |        566.78 ± 7.38 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |          pp4096 |        531.50 ± 1.45 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |           tg128 |          7.07 ± 0.01 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |  pp512 @ d32768 |        368.11 ± 3.66 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 | pp4096 @ d32768 |        357.51 ± 0.50 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |  tg128 @ d32768 |          6.37 ± 0.00 |
+[12:39:39] === recipe B: fork-tuned (PR #91 style) ===
+[12:43:31] B/pinned  -> build: b0f31f58 (expected b0f31f58)
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |           pp512 |        535.72 ± 4.65 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |          pp4096 |        496.59 ± 0.10 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |           tg128 |          7.23 ± 0.00 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |  pp512 @ d32768 |        340.10 ± 3.74 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  | pp4096 @ d32768 |        324.01 ± 0.28 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |  tg128 @ d32768 |          6.50 ± 0.01 |
+[12:47:15] B/nightly -> build: 0f36c46b (expected 0f36c46b)
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |           pp512 |        574.60 ± 7.24 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |          pp4096 |        531.35 ± 0.54 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |           tg128 |          7.06 ± 0.00 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |  pp512 @ d32768 |        367.59 ± 4.31 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  | pp4096 @ d32768 |        356.99 ± 0.80 |
+    | qwen35 27B Q4_K - Medium       |  29.29 GiB |    27.32 B | ROCm       |  99 |    8192 |     1024 |   1 |        dio | on-direct  |  tg128 @ d32768 |          6.37 ± 0.00 |
+[12:47:15] === gate2 complete ===
+[12:47:27] RESTORED: active active active active :8080=200 disable=no
