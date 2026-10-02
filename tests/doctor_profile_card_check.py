@@ -10,6 +10,7 @@ import importlib.machinery
 import importlib.util
 import pathlib
 import sys
+import time
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -147,9 +148,15 @@ def check_the_watchdog_says_off_and_silent_instead_of_nothing():
     assert 'class="on">ok' in ok and "30 s" in ok, ok
     dead = D.watchdog_html({"last_tick_ts": now - 900}, True, now)
     assert "SILENT" in dead and 'class="bad"' in dead, dead
-    acted = D.watchdog_html({"last_tick_ts": now - 30, "actions": 2,
+    today = time.strftime("%Y%m%d", time.localtime(now))
+    acted = D.watchdog_html({"last_tick_ts": now - 30, "actions": 2, "day": today,
                              "tier_hits": {"0": 1, "1": 1}}, True, now)
     assert "2 action(s) today" in acted and "restart×1" in acted and "emergency×1" in acted, acted
+    # A silent watchdog stops rolling its day bucket: yesterday's actions must not be said as
+    # "today" in red (261002 showed "2 action(s) today" 19 h after the last tick).
+    stale = D.watchdog_html({"last_tick_ts": now - 66000, "actions": 2, "day": "19691231",
+                             "tier_hits": {"0": 2}}, True, now)
+    assert "today" not in stale and "12-31" in stale, stale
     # a state file from a future ladder must not index out of range into a traceback
     assert "shout" not in D.watchdog_html({"last_tick_ts": now, "actions": 1,
                                            "tier_hits": {"9": 3}}, True, now)

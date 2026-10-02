@@ -392,7 +392,13 @@ def watchdog_html(st, timer_on, now):
     if st.get("actions"):
         hits = " ".join(f'{WD_TIERS[int(k)]}×{v}' for k, v in sorted(st.get("tier_hits", {}).items())
                         if k.isdigit() and int(k) < len(WD_TIERS))
-        out += f' · <b class="bad">{st["actions"]} action(s) today</b>' + (f' ({hits})' if hits else "")
+        # The counter is a DAY bucket that the watchdog resets at midnight; a silent watchdog
+        # stops resetting it, so "today" was yesterday's history in red forever (seen 261002:
+        # "2 action(s) today" 19 h after the last tick). Name the day the bucket belongs to.
+        day = str(st.get("day") or "")
+        when = ("today" if day == time.strftime("%Y%m%d", time.localtime(now))
+                else f"{day[4:6]}-{day[6:8]}" if len(day) == 8 else "last seen")
+        out += f' · <b class="bad">{st["actions"]} action(s) {when}</b>' + (f' ({hits})' if hits else "")
     return out
 
 
