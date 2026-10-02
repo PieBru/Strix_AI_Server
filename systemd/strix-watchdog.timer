@@ -1,10 +1,17 @@
 [Unit]
 Description=Tick the unbreakable watchdog every 2 min (trips after 3 missed probes)
-Requires=strix-watchdog.service
+# NO Requires=strix-watchdog.service. The target is a oneshot, so it *deactivates* every tick,
+# and Requires= propagates that back: at 16:24:27 on 261001 systemd stopped the timer with the
+# service, and after `systemctl --user start` it came up "active" with an EMPTY NextElapseUSec -
+# one tick, then never again, 19 h with nothing watching and the card reading SILENT. A timer
+# needs no dependency to trigger its unit. Verified by A/B on 261002: with Requires= removed both
+# anchors tick every ~2m13s; with it present the timer dies after one tick.
 
 [Timer]
 OnBootSec=3min
-OnUnitActiveSec=2min
+# Anchored to the tick finishing rather than starting: the target is a oneshot, so this is the
+# documented pairing, and a slow probe cannot be re-fired while it is still running.
+OnUnitInactiveSec=2min
 RandomizedDelaySec=15
 # Not Persistent: a box that was off for a day should not be stampeded by a catch-up tick
 # the second it boots.
