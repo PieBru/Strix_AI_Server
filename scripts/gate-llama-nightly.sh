@@ -39,16 +39,29 @@ say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 eval "$(systemctl --user show strix-watchdog.service -p Environment --value | tr ' ' '\n' \
         | grep -E '^(HSA_|GALLIUM|ROC_|HIP_|OLLAMA_)' | sed 's/^/export /')"
 restore() {
+  # The disable stamp goes first: with it present the watchdog ignores a dead :8080 forever.
+  rm -f "$HOME/.config/strix/watchdog.disable"
+  for u in ${RESTORE[*]:-}; do systemctl --user start "$u" 2>>"$LOG"; done
   systemctl --user start strix-watchdog.service 2>>"$LOG"
-  for u in 27b-collm gemma-collm gufo-serve sos-collm; do systemctl --user start "$u" 2>>"$LOG"; done
   sleep 12
-  say "RESTORED: $(for u in 27b-collm gemma-collm gufo-serve sos-collm; do
-        printf '%s ' "$(systemctl --user is-active "$u")"; done):8080=$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health) disable=$(systemctl --user is-enabled strix-watchdog.service)"
+  say "RESTORED: $(systemctl --user is-active ${RESTORE[*]:-} | paste -sd' ') :8080=$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health) watchdog=$(systemctl --user is-active strix-watchdog.timer)"
 }
 trap restore EXIT
 
+# Capture what is actually up and restore exactly that. A hardcoded list is a trap: the arms are
+# parked and started by hand (gemma = VRAM fallback, sos = emergency, comfyui = only during renders),
+# so a fixed list would wake units the operator left down and leave the lab services asleep.
+UNITS='^(27b-collm|gemma-collm|gufo-serve|sos-collm|acestep-ui|acestep-serve|whisper-stt|comfyui-h3|h3-video-ui|qwen-image-test)$'
+mapfile -t RESTORE < <(systemctl --user list-units --type=service --state=active --plain --no-legend \
+                       | awk '{print $1}' | sed 's/\.service$//' | grep -E "$UNITS")
+say "will restore: ${RESTORE[*]}"
+(( ${#RESTORE[@]} )) || { say "ABORT: captured nothing to restore - the query is broken, not the box"; exit 1; }
+# The stamp, not just stopping the service: the timer re-starts the oneshot every ~2 min and a
+# tick with :8080 down makes the watchdog act mid-gate. With the stamp present it stands down.
+mkdir -p "$HOME/.config/strix"
+touch "$HOME/.config/strix/watchdog.disable"
 systemctl --user stop strix-watchdog.service   # it would restart the arms mid-gate
-for u in 27b-collm gemma-collm gufo-serve sos-collm; do systemctl --user stop "$u"; done
+for u in "${RESTORE[@]}"; do systemctl --user stop "$u"; done
 sleep 6
 say "arms down (GTT $(awk '/GTT/ {print $2, $3}' /sys/class/drm/card0/device/mem_info_vram_used) GiB used); watchdog disabled"
 
