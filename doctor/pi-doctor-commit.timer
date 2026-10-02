@@ -1,0 +1,11 @@
+# 04:40: the nightly starts 03:00, its collectors and LLM pass are bounded (PI_TIMEOUT=3600),
+# and the observed finish is ~03:56. Persistent=true catches up a night the box was off.
+[Unit]
+Description=Commit doctor-dream artifacts after the nightly pass
+
+[Timer]
+OnCalendar=*-*-* 04:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

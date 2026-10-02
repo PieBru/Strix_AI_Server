@@ -1,0 +1,13 @@
+# Commits the doctor's own artifacts (reports, panel.json, carry ledger, LAST-PASS.json).
+# It has to be a separate unit: pi-doctor-dream.service runs ProtectSystem=strict with
+# ReadWritePaths only under agent/, and the memory repo's git dir is /home/piero/.pi/.git, so
+# inside the nightly sandbox `git add` fails on index.lock (carry 261002 F9). Widening that
+# sandbox to the whole memory repo was considered and rejected as a wider door than the problem.
+# No sandbox flags here on purpose - this one needs to write .git. It never pushes.
+[Unit]
+Description=Commit doctor-dream nightly artifacts (unsandboxed; the nightly unit cannot write ~/.pi/.git)
+After=pi-doctor-dream.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/piero/.pi/agent/skills/doctor-dream/selfcommit.sh
